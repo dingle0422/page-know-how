@@ -1,0 +1,148 @@
+import sys
+import os
+import argparse
+import logging
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+def setup_logging(verbose: bool = False):
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
+def cmd_extract(args):
+    from extractor.builder import extract
+    result_dir = extract(args.input)
+    print(f"\n知识抽取完成！")
+    print(f"输出目录: {result_dir}")
+
+
+def cmd_reason(args):
+    has_single = bool(getattr(args, "single_question", None))
+    has_batch = bool(getattr(args, "questions", None))
+
+    if has_single and has_batch:
+        print("错误：--single-question 与 --questions 不能同时使用")
+        raise SystemExit(1)
+    if not has_single and not has_batch:
+        print("错误：必须指定 --single-question 或 --questions 之一")
+        raise SystemExit(1)
+
+    if has_single:
+        from reasoner.engine import run_single_question
+        run_single_question(
+            question=args.single_question,
+            knowledge_dir=args.knowledge_dir,
+            max_rounds=args.max_rounds,
+            vendor=args.vendor,
+            model=args.model,
+            clean_answer=args.clean_answer,
+            summary_batch_size=args.summary_batch_size,
+            retrieval_mode=args.retrieval_mode,
+        )
+    else:
+        if not args.question_column:
+            print("错误：使用 --questions 时必须同时指定 --question-column")
+            raise SystemExit(1)
+        from reasoner.engine import run_reasoning
+        output_path = run_reasoning(
+            questions_file=args.questions,
+            question_column=args.question_column,
+            knowledge_dir=args.knowledge_dir,
+            max_rounds=args.max_rounds,
+            vendor=args.vendor,
+            model=args.model,
+            output_path=args.output,
+            max_workers=args.max_workers,
+            clean_answer=args.clean_answer,
+            summary_batch_size=args.summary_batch_size,
+            retrieval_mode=args.retrieval_mode,
+        )
+        print(f"\n推理完成！")
+        print(f"结果文件: {output_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="文档知识结构化抽取 + 渐进式披露推理框架"
+    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="启用详细日志")
+    subparsers = parser.add_subparsers(dest="command", help="子命令")
+
+    # extract 子命令
+    extract_parser = subparsers.add_parser("extract", help="从文档抽取知识并构建目录结构")
+    extract_parser.add_argument(
+        "--input", "-i", required=True,
+        help="输入文档路径（支持 .docx、.txt 和 .json clause_list 格式）"
+    )
+
+    # reason 子命令
+    reason_parser = subparsers.add_parser("reason", help="基于知识目录进行推理")
+    reason_parser.add_argument(
+        "--single-question", "-s",
+        help="直接传入单个问题字符串进行推理（与 --questions 互斥）"
+    )
+    reason_parser.add_argument(
+        "--questions", "-q",
+        help="问题集文件路径（支持 .csv 和 .xlsx，与 --single-question 互斥）"
+    )
+    reason_parser.add_argument(
+        "--question-column", "-c",
+        help="问题集中问题所在列的名称（使用 --questions 时必填）"
+    )
+    reason_parser.add_argument(
+        "--knowledge-dir", "-k", required=True,
+        help="page_knowledge 下的独立知识目录路径"
+    )
+    reason_parser.add_argument(
+        "--output", "-o",
+        help="结果输出文件路径（.xlsx）。若文件已存在则自动断点续跑，跳过已成功的问题"
+    )
+    reason_parser.add_argument(
+        "--max-rounds", "-r", type=int, default=5,
+        help="每个子智能体的最大 ReAct 轮次（默认 5）"
+    )
+    reason_parser.add_argument(
+        "--vendor", default="aliyun",
+        # choices=["aliyun", "servyou"],
+        help="LLM 供应商（默认 aliyun）"
+    )
+    reason_parser.add_argument(
+        "--model", default="deepseek-v3.2",
+        help="LLM 模型名称（默认 deepseek-v3.2）"
+    )
+    reason_parser.add_argument(
+        "--max-workers", "-w", type=int, default=1,
+        help="问题粒度的最大并行推理 worker 数量（默认 1，即串行）"
+    )
+    reason_parser.add_argument(
+        "--clean-answer", action="store_true", default=False,
+        help="启用答案清洗：在 summary 后追加一轮 LLM 调用，以咨询客服口吻输出精简结论"
+    )
+    reason_parser.add_argument(
+        "--summary-batch-size", type=int, default=0,
+        help="分批并行压缩总结：指定每批包含的证据条数（如 3），启用后自动激活分层总结模式。默认 0 表示不分批"
+    )
+    reason_parser.add_argument(
+        "--retrieval-mode", action="store_true", default=False,
+        help="启用召回模式：子智能体仅做相关性判定并收集原始知识，避免探索阶段信息畸变"
+    )
+
+    args = parser.parse_args()
+    setup_logging(args.verbose)
+
+    if args.command == "extract":
+        cmd_extract(args)
+    elif args.command == "reason":
+        cmd_reason(args)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
