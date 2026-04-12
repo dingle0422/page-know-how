@@ -158,6 +158,34 @@ def _convert_html_to_markdown(text: str) -> str:
     return md(text, strip=['span', 'div', 'colgroup', 'col']).strip()
 
 
+def _derive_parent_number(number: str) -> str:
+    """
+    从层级编号推导其直接父级编号。
+    例如 '1.2.1' → '1.2'，'1.2' → '1'，'1' → ''，'前言' → ''
+    """
+    parts = number.split('.')
+    if len(parts) <= 1:
+        return ''
+    return '.'.join(parts[:-1])
+
+
+def _build_full_path(number: str, node_map: dict[str, dict]) -> str:
+    """
+    从 number 向上遍历父级链，构建完整祖先路径。
+    返回格式如 '1/1.2/1.2.1'（不含自身编号）。
+    """
+    ancestors: list[str] = []
+    current = number
+    while True:
+        parent_num = _derive_parent_number(current)
+        if not parent_num or parent_num not in node_map:
+            break
+        ancestors.append(parent_num)
+        current = parent_num
+    ancestors.reverse()
+    return '/'.join(ancestors)
+
+
 def parse_clause_json(filepath: str) -> list[Clause]:
     """
     解析 clause_list JSON 文件，返回清洗后的条款列表。
@@ -177,6 +205,7 @@ def parse_clause_json(filepath: str) -> list[Clause]:
     - 从 response.clause_list 提取条款数组
     - 将 content 字段中的 HTML（Quill 编辑器产出的表格等）转为 Markdown
     - content 中的编号前缀（如 "1.2.1.  "）已在原始数据中存在，保持原样
+    - path 字段自动补全：原始 path 只含直接父级编号，自动构建完整祖先路径
     """
     with open(filepath, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -185,18 +214,30 @@ def parse_clause_json(filepath: str) -> list[Clause]:
     if not clause_list:
         raise ValueError(f"JSON 文件中未找到 response.clause_list: {filepath}")
 
+    number_set: dict[str, dict] = {raw.get('number', ''): raw for raw in clause_list}
+
     result: list[Clause] = []
     for raw in clause_list:
+        number = raw.get('number', '')
+        if number == '前言':
+            number = '0'
+        raw_path = raw.get('path', '')
+
+        if raw_path:
+            path = _build_full_path(number, number_set)
+        else:
+            path = ''
+
         clause: Clause = {
-            'number': raw.get('number', ''),
+            'number': number,
             'content': _convert_html_to_markdown(raw.get('content', '')),
             'level': raw.get('level', 0),
-            'path': raw.get('path', ''),
+            'path': path,
             'full_name': raw.get('full_name', ''),
         }
         result.append(clause)
 
-    logger.info(f"从 JSON 解析到 {len(result)} 个条款（已完成 HTML→Markdown 转换）")
+    logger.info(f"从 JSON 解析到 {len(result)} 个条款（已完成 HTML→Markdown 转换与路径补全）")
     return result
 
 

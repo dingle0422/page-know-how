@@ -1,0 +1,865 @@
+{
+  "request_id": "test_001",
+  "response": {
+    "clause_list": [
+      {
+        "number": "前言",
+        "content": "农产品领域财税业务指南（1.9万字深度版）\n指南说明\n适用对象：一线财税咨询顾问\n核心目标：掌握本指南，可覆盖95%以上农产品企业常见财税问题\n农产品（农业产品）定义：是指种植业、养殖业、林业、牧业、水产业生产的各种植物、动物的初级产品，以下做了简单的列示，具体农产品范围可以参考《财政部 税务总局关于增值税征税具体范围有关事项的公告》（财政部 税务总局公告2026年第9号）附件1《适用9%增值税税率货物范围注释》一、农产品。\n农业产品的范围包括以下两大类（具体参考“5.附件（农产品范围）”）：\n（1）植物类：粮食、蔬菜、烟叶、茶叶、园艺植物（比如干果、水果等）、药用植物（比如用作中药原药的各种植物的根、茎、皮、叶、花、果实等，中药饮片也属于）、油料植物（比如葵花籽、大豆、花生、芝麻）、纤维植物（比如棉花）、糖料植物（比如甘蔗）、林业产品、其他植物（比如树苗、花卉、干花、植物种子、植物类农产品的下脚料等），不包括芝麻油（香油）、豆油、花生油、菜籽油等食用植物油。\n（2）动物类：水产品（人工放养和人工捕捞的鱼、虾、蟹等）、畜牧产品（人工饲养、繁殖取得和捕获的各种畜禽及其肉、蛋、奶副产品，常见畜禽比如猪牛羊、鸡鸭鹅、马、驴等）、动物皮张、动物毛绒、其他动物组织（比如蜂蜜、蚕茧、蚕蛹、动物血液等），但是不包括羊粪、牛粪、鸡粪等动物粪便（属于肥料）。\n农业生产者是指直接从事种植业、养殖业、林业、牧业、水产业（如种植、收割、饲养、捕捞）的单位和个人。",
+        "level": 1,
+        "path": "",
+        "full_name": "农产品精简版|前言"
+      },
+      {
+        "number": "1",
+        "content": "1.  会计处理",
+        "level": 1,
+        "path": "",
+        "full_name": "农产品精简版|第一条"
+      },
+      {
+        "number": "1.1",
+        "content": "1.1.  会计处理核心：农产品企业的会计处理核心围绕生物资产与农产品的确认、计量、收获、处置等环节。本部分将依据《企业会计准则》与《小企业会计准则》，梳理核心业务的会计分录。",
+        "level": 2,
+        "path": "1",
+        "full_name": "农产品精简版|第一条|第一款"
+      },
+      {
+        "number": "1.2",
+        "content": "1.2.  生物资产相关账务处理：生物资产分为三大类，消耗性生物资产（为出售而持有，如育肥猪、蔬菜）、生产性生物资产（为产出农产品而持有，如果树、产畜）和公益性生物资产（以环保为目的）。",
+        "level": 2,
+        "path": "1",
+        "full_name": "农产品精简版|第一条|第二款"
+      },
+      {
+        "number": "1.2.1",
+        "content": "1.2.1.  消耗性生物资产",
+        "level": 3,
+        "path": "1.2",
+        "full_name": "农产品精简版|第一条|第二款|第一项"
+      },
+      {
+        "number": "1.2.1.1",
+        "content": "1.2.1.1.  消耗性生物资产定义：指为出售而持有的、或在将来收获为农产品的生物资产，如：生长中的蔬菜、用材林、存栏待售的牲畜（育肥猪、肉鸡）等。",
+        "level": 4,
+        "path": "1.2.1",
+        "full_name": "农产品精简版|第一条|第二款|第一项|第一目"
+      },
+      {
+        "number": "1.2.1.2",
+        "content": "1.2.1.2.  消耗性生物资产核心处理原则\n（1）初始计量：按实际成本入账（包括购买价款、相关税费、运输费、保险费、直接归属的其他支出）。\n（2）后续支出：在达到可出售状态前发生的饲料、人工、防疫等直接费用，予以资本化，增加资产成本。\n（3）收获/出售时：将账面价值结转至“农产品”或“主营业务成本”",
+        "level": 4,
+        "path": "1.2.1",
+        "full_name": "农产品精简版|第一条|第二款|第一项|第二目"
+      },
+      {
+        "number": "1.2.1.3",
+        "content": "1.2.1.3.  消耗性生物资产常见业务分录\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">业务场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">会计分录</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">具体说明</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">政策依据</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）外购幼崽、幼苗等</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：消耗性生物资产—XX&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：银行存款/应付账款</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">成本包括购买价款、相关税费、运输费、保险费以及可直接归属于购买该资产的其他支出。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">《企业会计准则第5号—生物资产》第七条</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）发生饲养费用（饲料、人工、防疫等）</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：消耗性生物资产—XX&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：原材料/应付职工薪酬/银行存款等</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">出售前发生的必要支出需资本化</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">《企业会计准则第5号—生物资产》第八条</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）自行营造的林木郁闭前成本</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：消耗性生物资产—林木&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：原材料/应付职工薪酬/银行存款等</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">郁闭前的的造林费、抚育费、营林设施费、良种试验费、调查设计费和应分摊的间接费用等必要支出</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">《企业会计准则第5号—生物资产》第八条</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）收获农产品（如采摘苹果、收割小麦）</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：农产品/库存商品</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;存货跌价准备—消耗性生物资产（若涉及）</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：消耗性生物资产</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">将收获时的账面价值结转至农产品；对于不通过入库直接销售的鲜活产品等，按实际成本，借记“主营业务成本”科目。</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">《企业会计准则第5号—生物资产》第四条</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（5）对外出售</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">确认收入：</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：银行存款&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：主营业务收入&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应交税费—应交增值税（销项税额）【一般纳税人】/应交税费—应交增值税【小规模纳税人】</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">结转成本：&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：主营业务成本&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：农产品/库存商品</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">若为免税业务，则无“应交税费—应交增值税（销项税额）”/“应交税费—应交增值税”科目；若收获时未计入农产品或库存商品，则直接从“消耗性生物资产”结转成本。</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">《企业会计准则第14号—收入(2017年修订)》第四条</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（6）盘亏或死亡</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">发现盘亏或死亡时&nbsp;：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：待处理财产损溢&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：消耗性生物资产/农产品/库存商品&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(管理不善需转出进项税：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;贷：应交税费—应交增值税(进项税额转出))</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">批准后处理&nbsp;：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：其他应收款(赔款)&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;管理费用(管理不善)&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;营业外支出(自然灾害)&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：待处理财产损溢</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">小企业准则下，损失统一计入“营业外支出”</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">《企业会计准则第&nbsp;5&nbsp;号—生物资产》（财会〔2006〕3号）第二十六条；《企业会计准则第1号—存货》第二十一条</span></p></td></tr><tr data-row=\"8\"><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（7）产品临期或过期低价销售</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">计提跌价准备（若可变现净值低于成本）：&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：资产减值损失&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：存货跌价准备&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">销售时：</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：银行存款&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：主营业务收入&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应交税费—应交增值税（销项税额）【一般纳税人】/应交税费—应交增值税【小规模纳税人】</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：主营业务成本&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;存货跌价准备&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：库存商品</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><br></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">企业会计准则需要计提减值准备，小企业会计准则无需计提；已计提但未实际发生的跌价准备，企业所得税汇算清缴时要进行纳税调增。</span></p></td></tr></tbody></table>",
+        "level": 4,
+        "path": "1.2.1",
+        "full_name": "农产品精简版|第一条|第二款|第一项|第三目"
+      },
+      {
+        "number": "1.2.2",
+        "content": "1.2.2.  生产性生物资产",
+        "level": 3,
+        "path": "1.2",
+        "full_name": "农产品精简版|第一条|第二款|第二项"
+      },
+      {
+        "number": "1.2.2.1",
+        "content": "1.2.2.1.  生产性生物资产定义：指为产出农产品、提供劳务或出租等目的而持有的生物资产，如：产畜（奶牛、母猪）、经济林（果树、橡胶树）等。",
+        "level": 4,
+        "path": "1.2.2",
+        "full_name": "农产品精简版|第一条|第二款|第二项|第一目"
+      },
+      {
+        "number": "1.2.2.2",
+        "content": "1.2.2.2.  生产性生物资产核心处理原则：\n（1）初始计量：按实际成本入账。\n（2）后续支出：达到预定生产经营目的（如开始产奶、结果）前发生的支出，予以资本化；达到后发生的日常管护费用，计入当期费用（如“管理费用”或“农业生产成本”）。\n（3）折旧：达到预定生产经营目的后，按期计提折旧，计入相关产品成本或费用。折旧方法一般采用年限平均法。\n（4）处置：处置收入扣除其账面价值和相关税费后的差额，计入“资产处置损益”。",
+        "level": 4,
+        "path": "1.2.2",
+        "full_name": "农产品精简版|第一条|第二款|第二项|第二目"
+      },
+      {
+        "number": "1.2.2.3",
+        "content": "1.2.2.3.  生产性生物资产常见业务分录：\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">业务场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">会计分录&nbsp;(执行企业会计准则)</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">说明</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）外购产畜/果树（未成熟）</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：生产性生物资产—未成熟生产性生物资产&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">达到预定生产经营目的前</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）发生饲养、管护等成本</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：生产性生物资产—未成熟生产性生物资产&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：原材料/应付职工薪酬/银行存款</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">资本化</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）达到预定生产经营目的（如开始产奶）</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：生产性生物资产—成熟生产性生物资产</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：生产性生物资产—未成熟生产性生物资产</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">从“未成熟”转入“成熟”</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）成熟后发生饲料、防疫、折旧等支出</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：农业生产成本/生产成本</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：原材料/应付职工薪酬/生产性生物资产累计折旧/银行存款等</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">支出费用化，归集为产品成本</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（5）收获农产品验收入库（如牛奶、鸡蛋）</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：农产品/库存商品&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：农业生产成本/生产成本</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">将归集的成本转入“农产品”或“库存商品”</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（6）计提折旧</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：农业生产成本/生产成本/管理费用&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：生产性生物资产累计折旧</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">根据资产用途确认借方科目</span></p></td></tr><tr data-row=\"8\"><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（7）出售生产性生物资产（如淘汰奶牛）</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：银行存款/应收账款等</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;生产性生物资产累计折旧</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;生产性生物资产减值准备（若涉及）</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：生产性生物资产</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;资产处置损益（或借方）</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">差额计入“资产处置损益”（小企业准则计入“营业外收入”或“营业外支出”）</span></p></td></tr><tr data-row=\"9\"><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">自行繁殖小奶牛</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;归集母牛孕期及接产成本：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：农业生产成本—繁育成本</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：原材料/应付职工薪酬等</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">小牛出生时：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;-&nbsp;作为消耗性（育肥出售）：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;借：消耗性生物资产—犊牛</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;贷：农业生产成本—繁育成本</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;-&nbsp;作为生产性（留种产奶）：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;借：生产性生物资产—未成熟(犊牛)</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;贷：农业生产成本—繁育成本</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">后续饲养小牛时：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;-&nbsp;作为消耗性（育肥出售）：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;借：消耗性生物资产—犊牛</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;贷：原材料—饲料</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应付职工薪酬/银行存款等</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;-&nbsp;作为生产性（留种产奶）：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;借：生产性生物资产—未成熟(犊牛)</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;贷：原材料—饲料</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应付职工薪酬</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;银行存款</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">小牛成本为分娩过程中发生的必要支出</span></p></td></tr><tr data-row=\"10\"><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">生产性生物资产死亡</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">发现时：</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：待处理财产损溢</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;生产性生物资产累计折旧</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：生产性生物资产</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应交税费—应交增值税（进项税额转出）（仅当管理不善造成时需做，否则可省略）</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">批准后处理：</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：其他应收款（如有保险赔款或责任人赔款）</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;营业外支出（用于非正常损失，如因病死亡）</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;管理费用（如因管理不善造成）</span></p><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：待处理财产损溢</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">损失原因需清晰，以区分责任</span></p></td></tr></tbody></table>",
+        "level": 4,
+        "path": "1.2.2",
+        "full_name": "农产品精简版|第一条|第二款|第二项|第三目"
+      },
+      {
+        "number": "1.2.3",
+        "content": "1.2.3.  公益性生物资产",
+        "level": 3,
+        "path": "1.2",
+        "full_name": "农产品精简版|第一条|第二款|第三项"
+      },
+      {
+        "number": "1.2.3.1",
+        "content": "1.2.3.1.  公益性生物资产定义：公益性生物资产，是指以防护、环境保护为主要目的的生物资产，包括防风固沙林、水土保持林和水源涵养林等。",
+        "level": 4,
+        "path": "1.2.3",
+        "full_name": "农产品精简版|第一条|第二款|第三项|第一目"
+      },
+      {
+        "number": "1.2.3.2",
+        "content": "1.2.3.2.  公益性生物资产核心处理原则：\n（1）初始计量：按实际成本进行初始入账，包括自行营造、天然起源、外购等方式取得时发生的可直接归属于该资产的必要支出。\n（2）后续支出：发生的管护、抚育、防火、防疫等后续支出，直接计入当期损益，通常计入 “管理费用” 等科目，一般不予资本化。\n（3）折旧与减值：公益性生物资产不计提折旧与减值准备",
+        "level": 4,
+        "path": "1.2.3",
+        "full_name": "农产品精简版|第一条|第二款|第三项|第二目"
+      },
+      {
+        "number": "1.2.3.3",
+        "content": "1.2.3.3.  公益性生物资产常见业务分录\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">业务场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">会计分录&nbsp;(执行企业会计准则)</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">说明</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）外购树苗或自行营造</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：公益性生物资产</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">达到预定生产经营目的前</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）天然起源的公益性生物资产</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：&nbsp;公益性生物资产</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：营业外收入</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按名义金额</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）消耗性生物资产、生产性生物资产转为公益性生物资产</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：公益性生物资产</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;生产性生物资产累计折旧</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;生产性生物资产减值准备</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;存货跌价准备</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：消耗性生物资产、生产性生物资产</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）择伐、间伐或抚育更新等生产性采伐而补植林木类公益性生物资产发生的后续支出</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：消耗性生物资产</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（5）林木类公益性生物资产郁闭后发生的管护费用等其他后续支出</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：管理费用</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr></tbody></table>",
+        "level": 4,
+        "path": "1.2.3",
+        "full_name": "农产品精简版|第一条|第二款|第三项|第三目"
+      },
+      {
+        "number": "1.2.4",
+        "content": "1.2.4.  特殊业务场景账务处理及风险\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">业务场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">会计分录</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">说明</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">&nbsp;风险提示与应对策略</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）“买一赠一”方式购进货物（如购油送挂面）</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：库存商品—食用油</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;库存商品—挂面</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应交税费—应交增值税（进项税额）</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：应付账款/银行存款等</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">将总价按公允价值在正品与赠品间分摊</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><br></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">风险：分摊比例不合理，导致成本不实。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">策略：以供应商发票或市场价为基准，采用公允价值比例法分摊。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）“买一赠一”方式进行销售（如送大米促销）</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：银行存款&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：主营业务收入—商品A&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;主营业务收入—商品B</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">将总销售额按商品公允价值比例分摊确认收入，不属于无偿捐赠，不视同销售。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">风险：错误地将赠品做视同销售，多交税。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">策略：确保在合同或发票中注明“买一赠一”的组合销售模式。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）采购农产品收到相同货物的赠品（如采购76000个苹果，供应商又赠送了32个）</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><br></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：库存商品&nbsp;(76000个的总价，入库76032个)</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;应交税费—应交增值税（进项税额）</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：应付账款/银行存款等</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">总成本不变，重新计算入库单价</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）销售生产过程中的边角料/下脚料</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：银行存款&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：其他业务收入&nbsp;</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;应交税费—应交增值税(销项税额)</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">相关的成本已经隐含在正品的成本中，由于下脚料相对于正品来说金额较低，按照会计核算的重要性原则，一般不需要追溯调减正品的生产成本。实务中，若企业担心无匹配的成本，计入营业外收入也是可以的。</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">风险：漏记收入或适用错误税率（如农产品下脚料可能适用9%而非13%）。</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">策略：确认下脚料是否属于农产品范围，准确选择税率。</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（5）原材料入库后挑选，分不同等级入库</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">领料时：</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：生产成本</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：原材料</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">发生人工成本时：</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：生产成本</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：应付职工薪酬等</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;完工入库时：</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：原材料-A1等级</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;原材料-A2等级</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：生产成本</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">将此过程视为加工过程，结转相关费用到原材料成本中，成本按合理方法（如售价法）分摊。</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">策略：建立合理的成本分摊标准（如售价、重量、数量），并保持一贯性。</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（6）以前年度进项税未转出被税局查补（追溯调整）</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">①进项税额转出：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：以前年度损益调整</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：应交税费-增值税检查调整</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">②进项税额转出补缴增值税：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：应交税费-增值税检查调整</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：应交税费-未交增值税</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">③按照实际补缴的增值税计算需要补缴的附加税费：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：以前年度损益调整</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：应交税费-应交城建税</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应交税费-应交教育费附加</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应交税费-应交地方教育费附加等</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">④进项税额转出部分依法可追补扣除：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：应交税费-应交企业所得税</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：以前年度损益调整</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">⑤调整留存收益：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：利润分配-未分配利润</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;盈余公积-法定公积金</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：以前年度损益调整</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">⑥实际补缴增值税：</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：应交税费-未交增值税</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;应交税费-应交城建税等</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;营业外支出（滞纳金+罚款）</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><br></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">企业会计准则需要追溯调整，小企业会计准则采用未来适用法，计入当期损益。</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">风险：税务稽查发现后，不仅补税，还有滞纳金和罚款。</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">策略：定期自查，确保用于免税/简易计税项目的进项税及时转出。</span></p></td></tr><tr data-row=\"8\"><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（7）“公司+农户”模式养殖蛋鸡</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">①移交蛋鸡给农户：</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：生产性生物资产—蛋鸡(农户)</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：生产性生物资产—蛋鸡(场部)</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">②发放饲料/兽药：</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：消耗性生物资产—养殖成本</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：原材料</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">③支付农户服务费：</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：消耗性生物资产—养殖成本</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：银行存款</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">④鸡蛋入库：</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;借：库存商品—鸡蛋</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;贷：消耗性生物资产—养殖成本</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">⑤销售鸡蛋/淘汰鸡：</span></p><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;确认收入并结转成本。</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农户提供的仅是劳务，所有权始终归公司，会计上按自有资产核算。</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr><tr data-row=\"9\"><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">集团内销售免税农产品，合并报表抵销（乙方将农产品销售给集团内甲方）</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">①甲方采购的农产品未对外销售，仍为集团内存货：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：主营业务收入&nbsp;(乙方确认的内部收入)</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：主营业务成本&nbsp;(乙方内部成本)</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;存货&nbsp;(内部未实现利润)</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：存货&nbsp;(甲方已抵扣的进项税)</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：递延收益&nbsp;(未来实现销售时转入损益)</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">②甲方采购的农产品已对外实现销售（集团外）：</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">借：主营业务收入（乙方确认的内部销售收入）</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">贷：主营业务成本（乙方结转的内部销售成本）</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">主营业务成本（补回甲方抵扣的进项税对应的成本差额）</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">在编制合并财务报表并抵销出售方对有关产品的未实现内部销售损益与购入方相应的存货账面价值时，该部分因增值税进项税额产生的差额在合并财务报表中可以确认为一项递延收益，并随着后续产品实现向第三方销售时再转入当期损益。</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">此处理应遵循《监管规则适用指引——会计类第1号》，确保合并报表层面正确反映增值税影响。</span></p></td></tr></tbody></table>",
+        "level": 3,
+        "path": "1.2",
+        "full_name": "农产品精简版|第一条|第二款|第四项"
+      },
+      {
+        "number": "2",
+        "content": "2.  涉税处理",
+        "level": 1,
+        "path": "",
+        "full_name": "农产品精简版|第二条"
+      },
+      {
+        "number": "2.1",
+        "content": "2.1.  增值税",
+        "level": 2,
+        "path": "2",
+        "full_name": "农产品精简版|第二条|第一款"
+      },
+      {
+        "number": "2.1.1",
+        "content": "2.1.1.  增值税是农产品财税问题的重中之重，核心围绕“进项税抵扣”与“销项税免税/征税”两大主题。",
+        "level": 3,
+        "path": "2.1",
+        "full_name": "农产品精简版|第二条|第一款|第一项"
+      },
+      {
+        "number": "2.1.2",
+        "content": "2.1.2.  进项税额",
+        "level": 3,
+        "path": "2.1",
+        "full_name": "农产品精简版|第二条|第一款|第二项"
+      },
+      {
+        "number": "2.1.2.1",
+        "content": "2.1.2.1.  进项税额抵扣（核心难点）：农产品进项税抵扣规则复杂，需根据发票类型、销售方身份、购进农产品用途综合判断。",
+        "level": 4,
+        "path": "2.1.2",
+        "full_name": "农产品精简版|第二条|第一款|第二项|第一目"
+      },
+      {
+        "number": "2.1.2.2",
+        "content": "2.1.2.2.  发票类型与抵扣规则汇总表\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"2\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">发票类型</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">销售方身份/业务性质</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">购买方抵扣规则</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">关键条件与风险提示</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"2\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"2\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农产品销售发票</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）数电免税普票</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">自产自销</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按票面金额×9%计算抵扣【票面金额通常是指不含税金额，但是免税情形下，票面金额和含税金额也是相等的，不需要做价税分离】</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"5\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">发票左上角必须有&nbsp;“自产农产品销售”&nbsp;标签，否则无法勾选抵扣。这是最大风险点！</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）税控系统开具的免税普票</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">自产自销</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按票面金额×9%计算抵扣</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">无标签要求，但需通过“待处理农产品发票”模块预处理后勾选。需确保业务实质为自产。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（3）税务机关代开的免税普票</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">自然人自产自销</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按票面金额×9%计算抵扣</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">若为数电票，同样需要“自产农产品销售”标签；非数电票则需在“代开农产品发票录入”模块补录信息。</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（4）农产品收购发票</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">购买方向农业生产者个人收购自产农产品时自行开具</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按票面金额×9%计算抵扣</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">发票需注明“收购”或“农产品收购”字样。一般只限本县（市、区）范围内开具。</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（5）3%增值税专用发票</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">小规模纳税人（不区分是否自产）</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按票面金额×9%计算抵扣</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">需先在“待处理农产品发票”模块处理。这是最有利的专票类型，可实现“低征高扣”。</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（6）1%&nbsp;增值税专用发票</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">小规模纳税人（不区分是否自产）</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">只能按票面注明的1%税额抵扣，不能按9%计算抵扣</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">常见误区：很多企业误以为1%专票也能按9%抵扣，这是严重错误！</span></p></td></tr><tr data-row=\"8\"><td data-row=\"8\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（7）9%增值税专用发票</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">一般纳税人（不区分是否自产）</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按票面注明的9%税额进行抵扣</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">常规凭票抵扣，无特殊计算。</span></p></td></tr><tr data-row=\"9\"><td data-row=\"9\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（8）海关进口增值税专用缴款书</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">进口农产品</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按缴款书注明的增值税额抵扣</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr><tr data-row=\"10\"><td data-row=\"10\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（9）流通环节免税普票</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">批发、零售免税蔬菜/鲜活肉蛋/种子种苗的纳税人</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">不得抵扣</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">这是最容易被误抵扣的发票！此类发票用于已享受免税的流通环节，进项税不得抵扣。</span></p></td></tr><tr data-row=\"11\"><td data-row=\"11\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"11\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">（10）带税率的普通发票</span></p></td><td data-row=\"11\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"11\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">任何纳税人（如小规模纳税人开具1%/3%普票）</span></p></td><td data-row=\"11\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"11\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">不得抵扣</span></p></td><td data-row=\"11\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"11\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">普通发票无论税率多少，均不能作为进项抵扣凭证。必须取得专用发票、农产品销售发票（自产自销）、农产品收购发票、海关进口增值税专用缴款书才可以抵扣进项税额。</span></p></td></tr></tbody></table>",
+        "level": 4,
+        "path": "2.1.2",
+        "full_name": "农产品精简版|第二条|第一款|第二项|第二目"
+      },
+      {
+        "number": "2.1.2.3",
+        "content": "2.1.2.3.  加计扣除1%的历史与现状\n（1）历史政策（2026年1月1日前）：纳税人购进农产品用于生产或委托加工13%税率货物（如生产果汁、罐头），在按9%抵扣的基础上，可在生产领用当期再加计扣除1%，总计扣除10%。\n（2）现状（2026年1月1日起）：2026年1月1日起，若后续没有相关政策发布，农产品将不再享受加计扣除优惠。但是，目前电子税务局还有“农产品加计扣除”相关模块，过去取得的农产品发票是否可继续加计扣除建议与主管税务机关确认。",
+        "level": 4,
+        "path": "2.1.2",
+        "full_name": "农产品精简版|第二条|第一款|第二项|第三目"
+      },
+      {
+        "number": "2.1.2.4",
+        "content": "2.1.2.4.  核定扣除\n（1）适用范围：从事液体乳及乳制品、酒及酒精、植物油等特定行业的一般纳税人。\n（2）核心原则：进项税额不再凭票抵扣，而是根据销售数量、农产品单耗、平均购买单价等因素，通过投入产出法、成本法、参照法等核定方法计算扣除。\n（3）会计处理：购进时全额计入成本；销售后，按核定金额确认进项税，并冲减“主营业务成本”。\n购进时：\n借：原材料 (全额)\n贷：银行存款\n销售后，核定进项税时：\n借：应交税费—应交增值税(进项税额)\n贷：主营业务成本\n（4）发票处理：核定扣除企业取得的农产品发票，在电子税务局勾选发票时选择“不抵扣勾选”，避免重复抵扣。\n（5）成本法公式：当期允许抵扣农产品增值税进项税额 = 当期主营业务成本 × 农产品耗用率 × 扣除率 / (1 + 扣除率)；  其中，农产品耗用率 = 上年投入生产的农产品外购金额 / 上年生产成本；扣除率为销售货物的适用税率。",
+        "level": 4,
+        "path": "2.1.2",
+        "full_name": "农产品精简版|第二条|第一款|第二项|第四目"
+      },
+      {
+        "number": "2.1.2.5",
+        "content": "2.1.2.5.  需要注意的是，以下是哪怕取得了发票都不可抵扣进项税额的情形：\n（1）用于简易计税方法计税项目。\n（2）用于免征增值税项目（如批发零售免税蔬菜、鲜活肉蛋）。\n（3）用于集体福利或个人消费（如食堂领用、员工礼品、招待客户）。\n（4）非正常损失（如管理不善造成货物被盗、霉烂变质）。\n（5）购进并直接用于消费的餐饮服务、居民日常服务和娱乐服务。",
+        "level": 4,
+        "path": "2.1.2",
+        "full_name": "农产品精简版|第二条|第一款|第二项|第五目"
+      },
+      {
+        "number": "2.1.2.6",
+        "content": "2.1.2.6.  农产品免税发票不用价税分离计算抵扣：不需要价税分离的政策自1994年1月1日起实施，且暂无截止日期。这是因为农业生产者销售自产农产品享受增值税免征优惠从1994年1月1日开始施行，在取得免税农产品发票后，由于发票免税无税额，票面金额即为农产品买价，因此无需价税分离，可直接按买价乘以9%计算进项税额进行抵扣；取得小规模纳税人开具的3%农产品专票，以增值税专用发票上注明的不含税金额×9%计算进项税额。",
+        "level": 4,
+        "path": "2.1.2",
+        "full_name": "农产品精简版|第二条|第一款|第二项|第六目"
+      },
+      {
+        "number": "2.1.3",
+        "content": "2.1.3.  销项税额",
+        "level": 3,
+        "path": "2.1",
+        "full_name": "农产品精简版|第二条|第一款|第三项"
+      },
+      {
+        "number": "2.1.3.1",
+        "content": "2.1.3.1.  免征增值税的核心场景\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">业务场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">免税条件</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">开票规定</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">风险提示</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）农业生产者销售自产农产品</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">直接从事植物种植、动物饲养、捕捞的单位和个人销售其初级农产品。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">开具免税普通发票，非自然人可以放弃优惠开具专票，自然人不得开具增值税专用发票。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">享受免税优惠必须是“自产”，外购再销售不享受；</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">“公司+农户”模式，2026年起政策未明确，需与主管税局确认。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）流通环节销售蔬菜</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">从事蔬菜批发、零售的纳税人。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">开具免税普通发票，非自然人可以放弃优惠开具专票，自然人不得开具增值税专用发票。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1范围参照《财政部&nbsp;国家税务总局关于免征蔬菜流通环节增值税有关问题的通知》（财税[2011]137号）的附件《蔬菜主要品种目录》，各种蔬菜罐头不享受；</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">若放弃免税，需书面声明，36个月内不得再申请。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）流通环节销售部分鲜活肉蛋产品</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">从事批发、零售的纳税人销售猪、牛、羊、鸡、鸭、鹅的鲜、冷、冻肉及组织，以及鸡蛋、鸭蛋、鹅蛋。</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">开具免税普通发票，非自然人可以放弃优惠开具专票，自然人不得开具增值税专用发票。</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">仅限列举的几种家畜家禽和蛋类，鹌鹑蛋、鸵鸟蛋等不享受；</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">不包括国家珍贵、濒危野生动物。</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）批发和零售种子、种苗</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">税收优惠有效期至2027年12月31日。</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">开具免税普通发票，非自然人可以放弃优惠开具专票，自然人不得开具增值税专用发票。</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（5）生产销售和批发、零售有机肥</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">税收优惠有效期至2027年12月31日，产品需符合有机肥料、生物有机肥等国家标准。</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">开具免税普通发票，非自然人可以放弃优惠开具专票，自然人不得开具增值税专用发票。</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">有机肥不属于农产品，但是比较容易混淆。享受有机肥税收优惠需单独核算有机肥销售额，并向税务机关备案。</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（6）承担粮食收储任务的国有粮食购销企业销售粮食</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按不免税方式开具增值税专用发票，购买方凭票抵扣。</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">属于特殊规定，免税业务但可开专票。</span></p></td></tr><tr data-row=\"8\"><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（7）纳税人将国有农用地出租给农业生产者用于农业生产</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">需开具免税普通发票。</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr><tr data-row=\"9\"><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（8）“公司+农户”模式销售畜禽（2026年1月1日前）</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">属于农业生产者销售自产农产品。</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">需开具免税普通发票。</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2026年1月1日起政策衔接不明，各地口径可能不同，需与主管税务机关确认。</span></p></td></tr></tbody></table>\n注：进口农产品在批发、零售环节销售，如果属于批发零售环节免征增值税的农产品类别，则可以享受免税政策。",
+        "level": 4,
+        "path": "2.1.3",
+        "full_name": "农产品精简版|第二条|第一款|第三项|第一目"
+      },
+      {
+        "number": "2.1.3.2",
+        "content": "2.1.3.2.  征税场景下的适用税率\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(51, 51, 51);\">征税场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(51, 51, 51);\">一般纳税人</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(51, 51, 51);\">小规模纳税人</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）销售初级农产品（非免税）</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">9%</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）销售深加工农产品（如罐头、精制茶、中成药）</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">13%</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）销售非农产品（如种植土等容易与农产品混淆的产品）</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">13%</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）销售初加工大米连同包装物</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">9%</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr></tbody></table>\n注：区分初级农产品与深加工产品是关键。例如：毛茶（9%/免税），精制茶（13%）；鲜奶（9%/免税），酸奶、调制乳（13%）；中药材（9%/免税），中成药（13%）。",
+        "level": 4,
+        "path": "2.1.3",
+        "full_name": "农产品精简版|第二条|第一款|第三项|第二目"
+      },
+      {
+        "number": "2.1.4",
+        "content": "2.1.4.  发票开具规范\n（1）免税发票：税率栏显示“免税”，不得显示“0%”。开具免税发票意味着放弃开具专用发票的权利。\n（2）应税发票：根据纳税人类别和货物类型，选择1%、3%、9%、13% 等适用税率。\n（3）农产品销售发票（数电票）：必须通过特定业务模块开具，并选择“自产农产品销售”标签，否则购买方无法抵扣。\n（4）农产品收购发票：由收购方自行开具，需通过特定业务模块选择“农产品收购”，并填写销售方（自然人）的证件类型和号码。税率栏选择“免税”。\n（5）增值税专用发票（放弃免税）：纳税人可以书面声明放弃免税权，按适用税率缴税并开具增值税专用发票。一经放弃，36个月内不得再申请免税（小规模纳税人除外）。",
+        "level": 3,
+        "path": "2.1",
+        "full_name": "农产品精简版|第二条|第一款|第四项"
+      },
+      {
+        "number": "2.2",
+        "content": "2.2.  企业所得税",
+        "level": 2,
+        "path": "2",
+        "full_name": "农产品精简版|第二条|第二款"
+      },
+      {
+        "number": "2.2.1",
+        "content": "2.2.1.  免征与减征项目\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">优惠类型</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">具体项目</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">免征企业所得税</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;蔬菜、谷物、薯类、油料、豆类、棉花、麻类、糖料、水果、坚果的种植。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;农作物新品种的选育。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3.&nbsp;中药材的种植。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">4.&nbsp;林木的培育和种植。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">5.&nbsp;牲畜、家禽的饲养。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">6.&nbsp;林产品的采集。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">7.&nbsp;灌溉、农产品初加工、兽医、农技推广、农机作业和维修等农、林、牧、渔服务业项目。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">8.&nbsp;远洋捕捞。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">减半征收企业所得税</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;花卉、茶以及其他饮料作物和香料作物的种植。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;海水养殖、内陆养殖。</span></p></td></tr></tbody></table>",
+        "level": 3,
+        "path": "2.2",
+        "full_name": "农产品精简版|第二条|第二款|第一项"
+      },
+      {
+        "number": "2.2.2",
+        "content": "2.2.2.  核心规则与风险点\n（1）“自产”是前提：企业外购农产品直接销售，不能享受所得减免优惠。\n（2）“再种植/养殖”可视为自产：将购入的农产品进行育肥、育秧等再种植、养殖，经过一定生长周期使其生物形态发生变化的，可视为自产，享受优惠。需留存县级以上政府主管部门的确认意见。\n（3）“公司+农户”模式：该模式下，公司从农户回收再销售，属于从事农、林、牧、渔业项目，可享受企业所得税减免。\n（4）农产品初加工所得免税：对农产品进行初加工（如分拣、清洗、干燥、剥皮、简单切割）后销售，所得可享受免税。但外购农产品进行初加工再销售，实务中存在争议，建议与主管局确认。\n（5）加工费收入也可免税：企业受托对农产品进行初加工，所收取的加工费，也可享受免征企业所得税优惠。\n（6）查账征收是前提：享受农、林、牧、渔业项目所得减免优惠，必须查账征收。核定征收企业不能享受。\n（7）会计核算要求：必须对免税和征税项目进行分别核算。未分别核算的，不能享受优惠。\n（8）留存备查资料： 经营业务属于《国民经济行业分类》中农、林、牧、渔业具体项目的说明；县级以上政府主管部门的确认意见（在难以确定是否可视为种植、养殖项目时提供）；农作物新品种选育的认定证书复印件等；自产自销证明、采购合同、付款凭证等能证明业务真实性的资料。\n（9）税前扣除：购进免税农产品，税前扣除通常需要取得合规发票（如增值税普通发票或税务机关代开发票）才能进行。但特殊情况下，可以凭内部凭证或其他凭证税前扣除：从境外采购免税农产品时，可凭对方开具的发票、具有发票性质的收款凭证或相关税费缴纳凭证作为税前扣除凭证； 向依法无需税务登记的单位或从事小额零星经营的个人采购（实务中一般按次不超过1000元），可凭载明收款方名称（个人需包含身份证号）、支出项目和金额的收款凭证（如内部自制凭证）进行税前扣除。\n（10）受托从事农、林、牧、渔业项目：企业受托从事农、林、牧、渔业项目取得的收入，比照委托方享受相应的税收优惠政策。\n（11）农业承包：承包户从事农、林、牧、渔业项目取得的收入，享受企业所得税免税或减半优惠；采用农场内部承包经营的业务模式，农场（发包方）从家庭农场承包户以“土地承包费”形式取得的从事农林牧渔业生产的收入，可以享受减免企业所得税优惠。但是只是收取承包费收入，实际并不涉及相关种植、养殖等农林牧渔收入的业务模式，一般不可以享受减免企业所得税优惠，建议与主管税局确认。",
+        "level": 3,
+        "path": "2.2",
+        "full_name": "农产品精简版|第二条|第二款|第二项"
+      },
+      {
+        "number": "2.3",
+        "content": "2.3.  其他税种\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">税种</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">核心规则</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(0, 0, 0);\">风险提示</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）印花税</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">免征：农民、家庭农场、农民专业合作社、农村集体经济组织、村民委员会销售农产品书立的买卖合同。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">不征：个人（含个体户）书立的动产买卖合同。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">征税：除上述主体外，企业之间签订的农产品买卖合同，按价款的万分之三缴纳。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">计税依据为不含增值税的合同金额。若合同未单独列明增值税，则需按全额计税。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）个人所得税</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">暂不征收：个人、个体户、个人独资企业、合伙企业从事种植业、养殖业、饲养业、捕捞业（“四业”）取得的所得。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">核定征收除外：实行核定征收的个人独资企业和合伙企业，不能享受该优惠。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">支付给农户的农产品收购款或委托饲养费，</span><strong style=\"color: rgb(0, 0, 0);\">无需</strong><span style=\"color: rgb(0, 0, 0);\">代扣代缴个人所得税。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）城镇土地使用税</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">免征：直接用于农、林、牧、渔业的生产用地（包括经营采摘、观光农业的种植、养殖、饲养土地）。</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">办公用地、加工厂用地等不属于生产用地，需缴纳。</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）环保税</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">不缴纳：对畜禽养殖废弃物进行综合利用和无害化处理，不属于直接排放。</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">需缴纳：达到省级政府确定的规模标准且有污染物排放口。</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">禽畜养殖业水污染物应纳税额&nbsp;=&nbsp;月均存栏量&nbsp;÷&nbsp;污染当量值&nbsp;×&nbsp;单位税额；</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">月均存栏量&nbsp;=&nbsp;(月初存栏量&nbsp;+&nbsp;月末存栏量)&nbsp;/&nbsp;2。</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（5）烟叶税（烟叶特指</span><span style=\"color: rgb(0, 0, 0);\">烤烟叶和晾晒烟叶）</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">纳税人：在我国境内收购烟叶的单位。</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">计税依据：收购价款&nbsp;×&nbsp;(1+10%)。价外补贴统一按10%计算。</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">税率：20%。</span></p><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">纳税地点：烟叶收购地。</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">烟叶税计入农产品买价，作为计算增值税进项抵扣的基础。另外，烟叶不属于消费税范围，不需要缴纳消费税。</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（6）耕地占用税</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">耕地占用税以纳税人实际占用的属于耕地占用税征税范围的土地面积为计税依据，按应税土地当地适用税额计税，实行一次性征收。</span></p><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">耕地占用税计算公式为：应纳税额=应税土地面积×适用税额。</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">占用园地、林地、草地、农田水利用地等农用地建设建筑物、构筑物或者从事非农业建设的，需要依法缴纳耕地占用税；如果是建设直接为农业生产服务的生产设施，则不需要缴纳耕地占用税。</span></p></td></tr></tbody></table>",
+        "level": 2,
+        "path": "2",
+        "full_name": "农产品精简版|第二条|第三款"
+      },
+      {
+        "number": "3",
+        "content": "3.  实务操作",
+        "level": 1,
+        "path": "",
+        "full_name": "农产品精简版|第三条"
+      },
+      {
+        "number": "3.1",
+        "content": "3.1.  增值税申报表填写指南",
+        "level": 2,
+        "path": "3",
+        "full_name": "农产品精简版|第三条|第一款"
+      },
+      {
+        "number": "3.1.1",
+        "content": "3.1.1.  一般常规企业（非核定扣除）申报表填写",
+        "level": 3,
+        "path": "3.1",
+        "full_name": "农产品精简版|第三条|第一款|第一项"
+      },
+      {
+        "number": "3.1.1.1",
+        "content": "3.1.1.1.  附表二各栏次对应关系\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">栏次</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">栏次名称</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">适用发票类型</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">填写说明与风险提示</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第2栏</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">本期认证相符且本期申报抵扣</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;增值税专用发票（9%、1%税率）</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;海关进口增值税专用缴款书</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">按票面注明的税额直接填写。</span><strong style=\"color: rgb(0, 0, 0);\">注意</strong><span style=\"color: rgb(0, 0, 0);\">：1%专票只能按票面税额填此栏，不得按9%计算后填第6栏。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第6栏</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农产品收购发票或者销售发票</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;农产品收购发票</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;自产自销免税农产品普通发票（数电票需有标签）</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3.&nbsp;小规模纳税人开具的3%专票（按计算抵扣）</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">4.&nbsp;税务机关代开的自产农产品免税发票</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(0, 0, 0);\">核心栏次</strong><span style=\"color: rgb(0, 0, 0);\">：填写按买价×9%计算出的进项税额。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(0, 0, 0);\">风险</strong><span style=\"color: rgb(0, 0, 0);\">：流通环节免税普票、1%专票、带税率普票均</span><strong style=\"color: rgb(0, 0, 0);\">不得</strong><span style=\"color: rgb(0, 0, 0);\">填入此栏。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第8a栏</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">加计扣除农产品进项税额</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">仅限2026年1月1日之前的业务</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">用于生产13%税率货物的农产品，在生产领用当期加计扣除1%。</span><strong style=\"color: rgb(0, 0, 0);\">2026年起此栏不再使用</strong><span style=\"color: rgb(0, 0, 0);\">。</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第14栏</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">进项税额转出额</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">已抵扣但用于免税项目</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">填写转出的税额。</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><br></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第15栏</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">进项税额转出额</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">已抵扣但用于不得抵扣项目（集体福利、个人消费）</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">填写转出的税额。</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第16栏</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">进项税额转出额</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">已抵扣但出现非正常损失</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">填写转出的税额。</span></p></td></tr><tr data-row=\"8\"><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第17栏</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">进项税额转出额</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">已抵扣但用于简易计税方法征税项目</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">填写转出的税额。</span></p></td></tr><tr data-row=\"9\"><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第23b栏</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">其他应作进项税额转出的情形</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">取得红字发票、税务稽查调增转出、不得抵扣非应税交易项目、年度清算调整、长期资产不得抵扣的进项税额</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">填写红字发票对应的税额或其他应转出额。</span></p><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">从2026年1月所属期开始，附表二23b“其他应作进项税额转出的情形”栏次不能直接填写了，点击该栏次后会有弹框，在弹框中填写数据后，小计栏次的数据将自动提取到附表二23b栏了。</span></p></td></tr><tr data-row=\"10\"><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">第31栏</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农产品收购发票或者销售发票</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">未申报抵扣的农产品发票</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(0, 0, 0);\">当企业已取得发票但暂不抵扣时，填入此栏；待实际抵扣时，再从第6栏抵扣（以单张发票为单位，不可拆分）。</span></p></td></tr></tbody></table>",
+        "level": 4,
+        "path": "3.1.1",
+        "full_name": "农产品精简版|第三条|第一款|第一项|第一目"
+      },
+      {
+        "number": "3.2",
+        "content": "3.2.  发票勾选指南",
+        "level": 2,
+        "path": "3",
+        "full_name": "农产品精简版|第三条|第二款"
+      },
+      {
+        "number": "3.2.1",
+        "content": "3.2.1.  在数电票试点后，农产品发票的进项抵扣必须先通过电子税务局进行“抵扣勾选”（税控票时期企业通过增值税发票综合服务平台勾选发票，目前仍在使用税控盘开具发票的企业极少，基本上都是通过电子税务局开具、勾选发票），不能直接填表。具体操作路径：\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"2\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">发票类型</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">操作路径</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">说明</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"2\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"2\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农产品销售发票</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">左上角带“自产农产品销售”标签的免税数电票</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">【抵扣勾选】→&nbsp;直接勾选</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">与常规专票操作相同。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">税控系统开具的自产农产品免税发票</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">【待处理农产品发票】→【自产农产品销售发票】→&nbsp;处理&nbsp;→&nbsp;再回到【抵扣勾选】</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">需先预处理，确认是否为自产。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">小规模纳税人开具的3%农产品专票</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">【待处理农产品发票】→【从小规模处购进的3%农产品专票】→&nbsp;处理（选择“按票面金额和基础扣除率”）→&nbsp;再回到【抵扣勾选】</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">预处理时需选择抵扣方式：</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">①按票面金额×9%计算抵扣（推荐）</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">②按票面税额抵扣（不推荐）</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">税务机关代开的农产品免税发票（个人自产）</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">【抵扣勾选】→【代开农产品发票录入】→&nbsp;补录信息&nbsp;→&nbsp;再回到【抵扣勾选】</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">补录销售方信息、发票代码、号码、金额等。</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">农产品收购发票</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">【抵扣勾选】→&nbsp;直接勾选</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">由购买方自行开具，系统可识别。</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"2\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"2\"><span style=\"color: rgb(51, 51, 51);\">1%农产品专票</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">【抵扣勾选】→&nbsp;直接勾选</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">按票面税额抵扣，无需特殊处理。</span></p></td></tr></tbody></table>",
+        "level": 3,
+        "path": "3.2",
+        "full_name": "农产品精简版|第三条|第二款|第一项"
+      },
+      {
+        "number": "3.2.1.1",
+        "content": "3.2.1.1.  常见申报异常及处理\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">异常提示</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">原因分析</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">处理建议</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">“行业为房屋建筑业、房地产业，《附列资料二》第6行不应填报”</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">部分地区税务局设置了内部校验，认为该行业不应抵扣农产品。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">①确认业务真实合规后，可忽略提示继续申报（提示类校验）。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">②若为强制校验，可强制申报，但可能导致开票系统被锁，需联系税务局解锁。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">③建议与主管局沟通，将企业纳入可抵扣行业清单。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">“附表二第6栏税额XX应等于农产品核定扣除增值税进项税额计算表（汇总表）中当期允许抵扣税额XX”</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">企业被认定为核定扣除企业，但附表二第6栏填写了其他金额。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">①检查是否属于核定扣除范围。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">②若属于，第6栏必须等于核定计算表合计数，且不得包含发票税额。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">③若部分产品核定扣除、部分非核定，需到税务局大厅申报。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">“农产品进项税额填报异常（第6栏、第8a栏）”</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">税局票表比对校验不通过，可能数据填报有误。</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">①核对发票勾选数据与申报表是否一致。</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">②确认2026年后是否错误填写了第8a栏。</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">③数据正确可继续申报；错误则修改后重新申报。</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农产品收购发票或者销售发票税额比对不通过</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">《增值税纳税申报表附列资料二》第6栏“农产品收购发票或者销售发票”的税额，以及《农产品核定扣除进项税额计算表（汇总表）》中的“本期允许抵扣进项税额”合计数不一致。</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">如果数据不相等，建议核对并修正申报表中的相关数据，确保准确无误后重新提交。</span></p></td></tr></tbody></table>",
+        "level": 4,
+        "path": "3.2.1",
+        "full_name": "农产品精简版|第三条|第二款|第一项|第一目"
+      },
+      {
+        "number": "3.2.2",
+        "content": "3.2.2.  农产品核定扣除企业申报",
+        "level": 3,
+        "path": "3.2",
+        "full_name": "农产品精简版|第三条|第二款|第二项"
+      },
+      {
+        "number": "3.2.2.1",
+        "content": "3.2.2.1.  核定扣除核心原则：进项税额不再凭票抵扣，而是根据核定方法计算。",
+        "level": 4,
+        "path": "3.2.2",
+        "full_name": "农产品精简版|第三条|第二款|第二项|第一目"
+      },
+      {
+        "number": "3.2.2.2",
+        "content": "3.2.2.2.  核定扣除操作流程\n（1）计算当期允许抵扣进项税额：根据投入产出法、成本法或参照法，填写《农产品核定扣除增值税进项税额计算表》。\n（2）数据自动流转：计算表中的合计数会自动带入《农产品核定扣除增值税进项税额计算表（汇总表）》，最终汇总到附表二第6栏“税额”（不填写份数和金额）。\n（3）发票处理： 取得的农产品发票，在电子税务局若可见，建议选择“不抵扣勾选”；若发票不可见，则无需任何操作。\n（4）非农产品进项：购进的非农产品货物、服务，仍凭专票等扣税凭证正常抵扣。\n（5）",
+        "level": 4,
+        "path": "3.2.2",
+        "full_name": "农产品精简版|第三条|第二款|第二项|第二目"
+      },
+      {
+        "number": "3.2.2.3",
+        "content": "3.2.2.3.  风险提示：切勿将已勾选抵扣的农产品发票税额再填入附表二，否则会导致重复抵扣；错误勾选抵扣，需在当期做进项税额转出，填写附表二第23b栏。",
+        "level": 4,
+        "path": "3.2.2",
+        "full_name": "农产品精简版|第三条|第二款|第二项|第三目"
+      },
+      {
+        "number": "3.3",
+        "content": "3.3.  发票开具指南",
+        "level": 2,
+        "path": "3",
+        "full_name": "农产品精简版|第三条|第三款"
+      },
+      {
+        "number": "3.3.1",
+        "content": "3.3.1.  数电票特定业务标签：在数电票系统中，农产品业务需使用特定业务模块开具。\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">特定业务标签</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">适用场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">操作要点</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">风险提示</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">自产农产品销售</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农业生产者（企业、合作社、农户）销售自产的初级农产品。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;必须经税务机关授权，若选项缺失，联系主管局完成“业务归类”。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;开具时选择此标签，税率栏选“免税”。</span></p><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3.&nbsp;发票左上角自动生成“自产农产品销售”标识。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">未使用此标签开具的免税数电票，购买方无法抵扣进项税。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">农产品收购</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">企业向农业生产者个人收购自产免税农产品时，由购买方自行开具；收购非自产则不能开具。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;需经税务机关授权。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;开具时勾选“自然人”，并填写其证件类型和号码（否则会报错“证件类型和证件号码不能为空”）。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3.&nbsp;税率栏选“免税”。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;仅限本县（市、区）范围内使用，跨区域收购请让农户代开普票。</span></p><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"4\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;不得对非自产农产品（如从商贩处收购）开具收购发票。</span></p></td></tr></tbody></table>",
+        "level": 3,
+        "path": "3.3",
+        "full_name": "农产品精简版|第三条|第三款|第一项"
+      },
+      {
+        "number": "3.3.2",
+        "content": "3.3.2.  批量开票说明\n（1）支持“农产品收购发票”的批量开具。需要提醒的是，开具农产品收购发票会影响数电票的可用额度。发票开具后，“可用发票额度”会根据开具的收购金额自动减少。\n（2）暂不支持“自产农产品销售发票”的批量开具。",
+        "level": 3,
+        "path": "3.3",
+        "full_name": "农产品精简版|第三条|第三款|第二项"
+      },
+      {
+        "number": "3.3.3",
+        "content": "3.3.3.  发票开具常见问题与处理\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">问题场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">正确处理方式</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\" style=\"background-color: rgb(245, 247, 250);\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\" data-cell-bg=\"rgb(245, 247, 250)\"><strong style=\"color: rgb(51, 51, 51);\">错误操作及风险</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）自产农产品销售，开票时税率栏选了“0%”</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">应作废或红冲，重新开具税率栏为“免税”的发票。</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">“0%”适用于出口业务，用于内销免税业务属于不合规发票，购买方无法抵扣。</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）收到对方开具的“0%”税率农产品发票</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">退回对方，要求重开“免税”发票。</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">不可作为进项抵扣凭证。</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）农产品收购发票信息错误（如姓名、身份证号）且已跨月</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;由开票方（购买方）发起红冲，开具红字数电发票。</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;在红冲当期做进项税额转出（填写附表二第23b栏）。</span></p><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3.&nbsp;重新开具正确的收购发票，重新勾选抵扣。</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">若未转出，会导致少缴税款；若金额错误未调整，成本核算不准。</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）已抵扣的农产品发票需要部分红冲</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">1.&nbsp;购买方开具红字信息表/确认单。</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">2.&nbsp;对方确认后开具红字发票。</span></p><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3.&nbsp;购买方在红字信息表通过的当期做进项税额转出（附表二第23b栏）。</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">转出时间错误（如在抵扣当期转出）会导致申报不符。</span></p></td></tr><tr data-row=\"6\"><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（5）农产品收购发票错误开具为“0%”或“9%”</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">红冲后重开，税率栏必须为“免税”。</span></p></td><td data-row=\"6\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"6\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">税率错误属于不合规发票，不得作为税前扣除凭证。</span></p></td></tr><tr data-row=\"7\"><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（6）跨区域收购农产品，无法开具收购发票</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">要求农户到当地税务机关代开免税普通发票，企业凭票入账并计算抵扣（非数电票需补录信息）。</span></p></td><td data-row=\"7\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"7\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">不得强行开具本县（市、区）的收购发票。</span></p></td></tr><tr data-row=\"8\"><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（7）销售方有自产能力，但未使用“自产农产品销售”标签开具数电票</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">联系销售方红冲重开，必须使用特定业务标签。</span></p></td><td data-row=\"8\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"8\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">购买方无法勾选抵扣进项税。</span></p></td></tr><tr data-row=\"9\"><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（8）流通环节免税蔬菜/鲜活肉蛋，客户要求开专票</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">告知客户此业务免税，无法开具专票；&nbsp;若客户坚持要专票，企业可书面声明放弃免税，按9%或3%缴税后开具专票（36个月内不得再免税）。</span></p></td><td data-row=\"9\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"9\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">擅自开具“免税”专票属于违规开票。</span></p></td></tr><tr data-row=\"10\"><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（9）开具农产品发票失败，提示：“农产品收购发票，证件类型和证件号码不能为空”</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">在开票界面（例如【蓝票开具】）中，找到并勾选“自然人”选项；然后，选择“农产品收购”作为特定业务；填写自然人的详细信息，包括证件类型和证件号码；完成这些步骤后，即可正常开具发票。</span></p></td><td data-row=\"10\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"10\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">——</span></p></td></tr></tbody></table>",
+        "level": 3,
+        "path": "3.3",
+        "full_name": "农产品精简版|第三条|第三款|第三项"
+      },
+      {
+        "number": "3.3.4",
+        "content": "3.3.4.  发票备注栏规范",
+        "level": 3,
+        "path": "3.3",
+        "full_name": "农产品精简版|第三条|第三款|第四项"
+      },
+      {
+        "number": "3.3.4.1",
+        "content": "3.3.4.1.  虽然政策上农产品发票未强制要求备注特定内容，但建议在以下情况主动备注，以降低税务风险：\n（1）农产品收购发票：备注栏要清楚填写农户养殖或种植场所详细地址、农户真实有效的联系方式以及货款支付方式,如银行转账、支付宝、微信支付等；\n（2）苗木用于绿化工程：备注项目名称、地点，以便与简易计税项目区分（涉及建筑服务则必须填写）；\n（3）农产品附带包装：备注可注明“礼品盒包装”，确保与实际货物一致。",
+        "level": 4,
+        "path": "3.3.4",
+        "full_name": "农产品精简版|第三条|第三款|第四项|第一目"
+      },
+      {
+        "number": "3.3.5",
+        "content": "3.3.5.  发票盖章：如果是纸质发票，必须加盖发票专用章；如果是电子发票，以版式文件上的标识为准，若标注“销售方（章）”字样，需加盖电子发票专用章，否则无需盖章。",
+        "level": 3,
+        "path": "3.3",
+        "full_name": "农产品精简版|第三条|第三款|第五项"
+      },
+      {
+        "number": "3.4",
+        "content": "3.4.  企业所得税申报表填写指南",
+        "level": 2,
+        "path": "3",
+        "full_name": "农产品精简版|第三条|第四款"
+      },
+      {
+        "number": "3.4.1",
+        "content": "3.4.1.  季度预缴申报（企业所得税季度预缴纳税申报表A类）",
+        "level": 3,
+        "path": "3.4",
+        "full_name": "农产品精简版|第三条|第四款|第一项"
+      },
+      {
+        "number": "3.4.1.1",
+        "content": "3.4.1.1.  选择优惠事项：在报表第23.1、23.2等行次，根据实际享受的优惠类型，选择对应的优惠事项名称：\n（1）免税项目：如蔬菜、谷物、牲畜饲养等（具体包括蔬菜、谷物、薯类、油料、豆类、棉花、麻类、糖料、水果、坚果的种植；农作物新品种选育；中药材种植；林木培育和种植；牲畜、家禽饲养；林产品采集；农、林、牧、渔服务业项目；远洋捕捞）。\n（2）减半项目：如花卉、茶、香料作物种植；海水养殖、内陆养殖。\n（3）免税项目：填报项目所得额（即全额减免）。\n（4）减半项目：填报项目所得额 × 50%。\n（5）项目所得额计算公式：项目所得额 = 项目收入 － 项目成本 － 相关税费 － 应分摊的期间费用。如果计算结果为负数，填写0。",
+        "level": 4,
+        "path": "3.4.1",
+        "full_name": "农产品精简版|第三条|第四款|第一项|第一目"
+      },
+      {
+        "number": "3.4.1.2",
+        "content": "3.4.1.2.  自动汇总：所填数据会自动汇总至第23行“所得减免”栏。",
+        "level": 4,
+        "path": "3.4.1",
+        "full_name": "农产品精简版|第三条|第四款|第一项|第二目"
+      },
+      {
+        "number": "3.4.1.3",
+        "content": "3.4.1.3.  注意事项\n（1）如果主表第18+19-20-21-22行计算结果 ≤ 0（即利润总额为负或零），则第23行“所得减免”无需填写。\n（2）报表中的收入、成本、利润总额等栏次仍需如实填报，不得省略。",
+        "level": 4,
+        "path": "3.4.1",
+        "full_name": "农产品精简版|第三条|第四款|第一项|第三目"
+      },
+      {
+        "number": "3.4.2",
+        "content": "3.4.2.  年度汇算清缴",
+        "level": 3,
+        "path": "3.4",
+        "full_name": "农产品精简版|第三条|第四款|第二项"
+      },
+      {
+        "number": "3.4.2.1",
+        "content": "3.4.2.1.  需填写《所得减免优惠明细表》（A107020），但前提是《企业所得税年度纳税申报主表》（A100000）第24行“纳税调整后所得”不为负数。如果为负数，则无需填报本表。\n（1）需要在A107020所得减免优惠明细表中填写，若表单还未勾选，在简化选表中，将A107020所得减免优惠明细表选为“填报”，打开报表后填写减免项目一“农、林、牧、渔业项目”栏次：\n第1列\"项目名称\"：填写企业实际从事的免税项目名称（如“林木种植”“牲畜饲养”等）；\n第2列“优惠事项名称”:按照该项目享受所得减免企业所得税优惠事项的具体政策内容选择（如1.蔬菜、谷物、薯类、油料、豆类、棉花、麻类、糖料、水果、坚果的种植；2.农作物新品种的选育；3.中药材的种植等）；\n第3列“优惠方式”：选择享受所得减免企业所得税优惠的具体方式，免税收入选择免税；\n第4列“项目收入”：填报该免税项目对应的收入金额；\n第5列“项目成本”：填报该免税项目发生的成本总额；\n第6列“相关税费”：填报该免税项目实际发生的有关税费总额，包括除企业所得税和允许抵扣的增值税以外的各项税金及其附加、合同签订费用、律师费等相关费用及其他支出；\n第7列“应分摊期间费用”：填报该免税项目合理分摊的期间费用总额。合理分摊比例可以按照投资额、销售收入、资产额、人员工资等参数确定，一经确定，不得随意变更。\n第8列“纳税调整额”：填报纳税人按照税收规定需要调整减免税项目收入、成本、费用的金额，纳税调减以“-”号填列；\n第9列“项目所得额-免税项目”：为计算确认的本期免税项目所得额。根据第3列分析填报，第3列填报“免税”的，填报第4-5-6-7+8列金额，当第4-5-6-7+8列＜0时，填报0；\n第11列“减免所得额”：为该项目按照税收规定实际可以享受免征、减征的所得额，按第9列+第10列×50%金额填报。\n（2）当A107020表合计行第11列≥0，且≤表A100000第24行时， 合计行第11列＝表A100000第25行；当A107020表合计行第11列≥0，且＞表A100000第24行时，合计行第11列＝表A100000第24行。",
+        "level": 4,
+        "path": "3.4.2",
+        "full_name": "农产品精简版|第三条|第四款|第二项|第一目"
+      },
+      {
+        "number": "4",
+        "content": "4.  高频“踩坑”风险与应对策略",
+        "level": 1,
+        "path": "",
+        "full_name": "农产品精简版|第四条"
+      },
+      {
+        "number": "4.1",
+        "content": "4.1.  风险点1：人为拆分支出，滥用“小额零星”规则\n（1）场景：为用收据作税前扣除凭证，将每月向同一人采购的2000元蔬菜拆分为1000元以下的收据。\n（2）风险：税局不认可。持续性的、月累计超过起征点（按次纳税1000元）的采购，必须取得发票。\n（3）应对：建议找固定商家合作并取得发票；或通过正规渠道（税务大厅、电子税务局）代开发票。",
+        "level": 2,
+        "path": "4",
+        "full_name": "农产品精简版|第四条|第一款"
+      },
+      {
+        "number": "4.2",
+        "content": "4.2.  风险点2：误抵扣流通环节免税农产品发票\n（1）场景：从超市、批发市场购进蔬菜、猪肉，取得免税普通发票，按9%计算抵扣了进项税。\n（2）风险：严重错误。流通环节免税发票是“死票”，绝对不能抵扣。\n（3）应对：严格区分发票来源。只有农业生产者自产自销环节的免税普票或收购发票才能抵扣。",
+        "level": 2,
+        "path": "4",
+        "full_name": "农产品精简版|第四条|第二款"
+      },
+      {
+        "number": "4.3",
+        "content": "4.3.  风险点3：忽视数电票“自产农产品销售”标签\n（1）场景：收到农业公司开具的免税农产品数电票，左上角无“自产农产品销售”标签，直接勾选抵扣。\n（2）风险：无法勾选或勾选后比对异常，进项税无法抵扣。\n（3）应对：企业在接收数电票时，必须核查左上角是否有此标签。若无，应要求销售方红冲重开。",
+        "level": 2,
+        "path": "4",
+        "full_name": "农产品精简版|第四条|第三款"
+      },
+      {
+        "number": "4.4",
+        "content": "4.4.  风险点4：取得1%农产品专票，错误按9%计算抵扣\n（1）场景：从小规模纳税人处购进农产品，取得1%专票，财务人员按票面金额×9%计算抵扣。\n（2）风险：多抵扣进项税，构成偷税风险。\n（3）应对：只有3% 的农产品专票才能按9%计算抵扣。1%专票只能按票面税额抵扣。",
+        "level": 2,
+        "path": "4",
+        "full_name": "农产品精简版|第四条|第四款"
+      },
+      {
+        "number": "4.5",
+        "content": "4.5.  风险点5：用于免税/福利项目的进项税未转出\n（1）场景：公司将自产或外购的农产品用于员工食堂、节日福利、免费赠送客户，进项税已抵扣未转出。\n（2）风险：用于集体福利、个人消费的进项税不得抵扣，未转出构成偷税。\n（3）应对：定期自查，将用于上述项目的农产品对应的进项税及时做转出处理。",
+        "level": 2,
+        "path": "4",
+        "full_name": "农产品精简版|第四条|第五款"
+      },
+      {
+        "number": "4.6",
+        "content": "4.6.  风险点6：“公司+农户”模式增值税政策衔接不清\n（1）场景：2026年后，企业继续沿用之前的理解，对该模式下的畜禽销售开具免税发票。\n（2）风险：2026年第10号公告未明确该模式是否继续免税，各地口径不一，可能被认定为违规。\n（3）应对：建议企业立即与主管税务机关沟通确认2026年后的具体执行口径。",
+        "level": 2,
+        "path": "4",
+        "full_name": "农产品精简版|第四条|第六款"
+      },
+      {
+        "number": "4.7",
+        "content": "4.7.  风险点7：农产品收购发票跨区域开具\n（1）场景：企业到外县市收购农户的农产品，自行开具了农产品收购发票。\n（2）风险：农产品收购发票通常仅限本县（市、区）范围内开具，跨区域使用可能被认定为不合规发票，进项税不得抵扣。\n（3）应对：跨区域收购时，应要求农户到当地税务机关代开普通发票。",
+        "level": 2,
+        "path": "4",
+        "full_name": "农产品精简版|第四条|第七款"
+      },
+      {
+        "number": "5",
+        "content": "5.  附件（农产品范围）",
+        "level": 1,
+        "path": "",
+        "full_name": "农产品精简版|第五条"
+      },
+      {
+        "number": "5.1",
+        "content": "5.1.  植物类",
+        "level": 2,
+        "path": "5",
+        "full_name": "农产品精简版|第五条|第一款"
+      },
+      {
+        "number": "5.1.1",
+        "content": "5.1.1.  粮食",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第一项"
+      },
+      {
+        "number": "5.1.1.1",
+        "content": "5.1.1.1.  粮食，是指各种主食食科植物果实的总称。本货物的征税范围包括小麦、稻谷、玉米、高粱、谷子和其他杂粮(如大麦、燕麦等)，以及经碾磨、脱壳等工艺加工后的粮食(如面粉，米，玉米面、渣等)。",
+        "level": 4,
+        "path": "5.1.1",
+        "full_name": "农产品精简版|第五条|第一款|第一项|第一目"
+      },
+      {
+        "number": "5.1.1.2",
+        "content": "5.1.1.2.  切面、饺子皮、馄饨皮、面皮、米粉、挂面等粮食复制品以及玉米胚芽，属于本货物的征税范围。以粮食为原料加工的速冻食品、方便面、副食品和各种熟食品，不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.1",
+        "full_name": "农产品精简版|第五条|第一款|第一项|第二目"
+      },
+      {
+        "number": "5.1.2",
+        "content": "5.1.2.  蔬菜",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第二项"
+      },
+      {
+        "number": "5.1.2.1",
+        "content": "5.1.2.1.  蔬菜，是指可作副食的草本、木本植物的总称。本货物的征税范围包括各种蔬菜、菌类植物和少数可作副食的木本植物。",
+        "level": 4,
+        "path": "5.1.2",
+        "full_name": "农产品精简版|第五条|第一款|第二项|第一目"
+      },
+      {
+        "number": "5.1.2.2",
+        "content": "5.1.2.2.  经晾晒、冷藏、冷冻、包装、脱水等工序加工的蔬菜，腌菜、咸菜、酱菜和盐渍蔬菜等，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.2",
+        "full_name": "农产品精简版|第五条|第一款|第二项|第二目"
+      },
+      {
+        "number": "5.1.2.3",
+        "content": "5.1.2.3.  各种蔬菜罐头(罐头是指以金属罐、玻璃瓶和其他材料为容器，经处理、装罐、密封、杀菌或无菌包装而制成的各种食品。下同)不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.2",
+        "full_name": "农产品精简版|第五条|第一款|第二项|第三目"
+      },
+      {
+        "number": "5.1.3",
+        "content": "5.1.3.  烟叶",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第三项"
+      },
+      {
+        "number": "5.1.3.1",
+        "content": "5.1.3.1.  烟叶，是指各种烟草的叶片和经过简单加工的叶片。本货物的征税范围包括晒烟叶、晾烟叶和初烤烟叶。\n(1) 晒烟叶，是指利用太阳能露天晒制的烟叶。\n(2) 晾烟叶，是指在晾房内自然干燥的烟叶。\n(3) 初烤烟叶，是指烟草种植者直接烤制的烟叶，不包括专业复烤厂烤制的复烤烟叶。",
+        "level": 4,
+        "path": "5.1.3",
+        "full_name": "农产品精简版|第五条|第一款|第三项|第一目"
+      },
+      {
+        "number": "5.1.4",
+        "content": "5.1.4.  茶叶",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第四项"
+      },
+      {
+        "number": "5.1.4.1",
+        "content": "5.1.4.1.  茶叶，是指从茶树上采摘下来的鲜叶和嫩芽(即茶青)，以及经吹干、揉拌、发酵、烘干等工序初制的茶。本货物的征税范围包括各种毛茶(如红毛茶、绿毛茶、乌龙毛茶、白毛茶、黑毛茶等)。",
+        "level": 4,
+        "path": "5.1.4",
+        "full_name": "农产品精简版|第五条|第一款|第四项|第一目"
+      },
+      {
+        "number": "5.1.4.2",
+        "content": "5.1.4.2.  精制茶、边销茶及掺兑各种药物的茶和茶饮料，不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.4",
+        "full_name": "农产品精简版|第五条|第一款|第四项|第二目"
+      },
+      {
+        "number": "5.1.5",
+        "content": "5.1.5.  园艺植物",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第五项"
+      },
+      {
+        "number": "5.1.5.1",
+        "content": "5.1.5.1.  园艺植物，是指可供食用的果实，如水果、果干(如荔枝干、桂圆干、葡萄干等)、干果、果仁、果用瓜(如甜瓜、西瓜、哈密瓜等)，以及胡椒、花椒、大料、咖啡豆等。",
+        "level": 4,
+        "path": "5.1.5",
+        "full_name": "农产品精简版|第五条|第一款|第五项|第一目"
+      },
+      {
+        "number": "5.1.5.2",
+        "content": "5.1.5.2.  经冷冻、冷藏、包装等工序加工的园艺植物，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.5",
+        "full_name": "农产品精简版|第五条|第一款|第五项|第二目"
+      },
+      {
+        "number": "5.1.5.3",
+        "content": "5.1.5.3.  各种水果罐头，果脯，蜜饯，炒制的果仁、坚果，碾磨后的园艺植物(如胡椒粉、花椒粉等)，不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.5",
+        "full_name": "农产品精简版|第五条|第一款|第五项|第三目"
+      },
+      {
+        "number": "5.1.6",
+        "content": "5.1.6.  药用植物",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第六项"
+      },
+      {
+        "number": "5.1.6.1",
+        "content": "5.1.6.1.  药用植物，是指用作中药原药的各种植物的根、茎、皮、叶、花、果实等。",
+        "level": 4,
+        "path": "5.1.6",
+        "full_name": "农产品精简版|第五条|第一款|第六项|第一目"
+      },
+      {
+        "number": "5.1.6.2",
+        "content": "5.1.6.2.  利用上述药用植物加工制成的片、丝、块、段等中药饮片，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.6",
+        "full_name": "农产品精简版|第五条|第一款|第六项|第二目"
+      },
+      {
+        "number": "5.1.6.3",
+        "content": "5.1.6.3.  干姜、姜黄属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.6",
+        "full_name": "农产品精简版|第五条|第一款|第六项|第三目"
+      },
+      {
+        "number": "5.1.6.4",
+        "content": "5.1.6.4.  中成药不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.6",
+        "full_name": "农产品精简版|第五条|第一款|第六项|第四目"
+      },
+      {
+        "number": "5.1.7",
+        "content": "5.1.7.  油料植物",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第七项"
+      },
+      {
+        "number": "5.1.7.1",
+        "content": "5.1.7.1.  油料植物，是指主要用作榨取油脂的各种植物的根、茎、叶、果实、花或者胚芽组织等初级产品，如菜子(包括芥菜子)、花生、大豆、葵花子、蓖麻子、芝麻子、胡麻子、茶子、桐子、橄榄仁、棕榈仁、棉籽等。",
+        "level": 4,
+        "path": "5.1.7",
+        "full_name": "农产品精简版|第五条|第一款|第七项|第一目"
+      },
+      {
+        "number": "5.1.7.2",
+        "content": "5.1.7.2.  提取芳香油的芳香油料植物，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.7",
+        "full_name": "农产品精简版|第五条|第一款|第七项|第二目"
+      },
+      {
+        "number": "5.1.8",
+        "content": "5.1.8.  纤维植物",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第八项"
+      },
+      {
+        "number": "5.1.8.1",
+        "content": "5.1.8.1.  纤维植物，是指利用其纤维作纺织、造纸原料或者绳索的植物，如棉(包括籽棉、皮棉、絮棉)、大麻、黄麻、槿麻、苎麻、苘麻、亚麻、罗布麻、蕉麻、剑麻等。",
+        "level": 4,
+        "path": "5.1.8",
+        "full_name": "农产品精简版|第五条|第一款|第八项|第一目"
+      },
+      {
+        "number": "5.1.8.2",
+        "content": "5.1.8.2.  棉短绒和麻纤维经脱胶后的精干(洗)麻，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.8",
+        "full_name": "农产品精简版|第五条|第一款|第八项|第二目"
+      },
+      {
+        "number": "5.1.9",
+        "content": "5.1.9.  糖料植物",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第九项"
+      },
+      {
+        "number": "5.1.9.1",
+        "content": "5.1.9.1.  糖料植物，是指主要用作制糖的各种植物，如甘蔗、甜菜等。",
+        "level": 4,
+        "path": "5.1.9",
+        "full_name": "农产品精简版|第五条|第一款|第九项|第一目"
+      },
+      {
+        "number": "5.1.10",
+        "content": "5.1.10.  林业产品",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第十项"
+      },
+      {
+        "number": "5.1.10.1",
+        "content": "5.1.10.1.  林业产品，是指乔木、灌木和竹类植物，以及天然树脂、天然橡胶。本货物的征税范围包括：\n(1) 原木，是指将砍伐倒的乔木去其枝芽、梢头或者皮的乔木、灌木，以及锯成一定长度的木段。\n锯材不属于本货物的征税范围。\n(2) 原竹，是指将砍倒的竹去其枝、梢或者叶的竹类植物，以及锯成一定长度的竹段。\n(3) 天然树脂，是指木科植物的分泌物，包括生漆、树脂和树胶，如松脂、桃胶、樱胶、阿拉伯胶、古巴胶和天然橡胶(包括乳胶和干胶)等。\n(4) 其他林业产品，是指除上述列举林业产品以外的其他各种林业产品，如竹笋、笋干、棕竹、棕榈衣、树枝、树叶、树皮、藤条等。",
+        "level": 4,
+        "path": "5.1.10",
+        "full_name": "农产品精简版|第五条|第一款|第十项|第一目"
+      },
+      {
+        "number": "5.1.10.2",
+        "content": "5.1.10.2.  盐水竹笋属于本货物的征税范围。竹笋罐头不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.10",
+        "full_name": "农产品精简版|第五条|第一款|第十项|第二目"
+      },
+      {
+        "number": "5.1.11",
+        "content": "5.1.11.  其他植物",
+        "level": 3,
+        "path": "5.1",
+        "full_name": "农产品精简版|第五条|第一款|第十一项"
+      },
+      {
+        "number": "5.1.11.1",
+        "content": "5.1.11.1.  其他植物，是指除上述列举植物以外的其他各种人工种植和野生的植物，如树苗、花卉、植物种子、植物叶子、草、麦秸、豆类、薯类、藻类植物等。",
+        "level": 4,
+        "path": "5.1.11",
+        "full_name": "农产品精简版|第五条|第一款|第十一项|第一目"
+      },
+      {
+        "number": "5.1.11.2",
+        "content": "5.1.11.2.  干花、干草、薯干、干制的藻类植物，植物类农产品的下脚料等，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.1.11",
+        "full_name": "农产品精简版|第五条|第一款|第十一项|第二目"
+      },
+      {
+        "number": "5.1.11.3",
+        "content": "5.1.11.3.  豆制品(如豆腐、豆皮等)，不属于农产品的征税范围。",
+        "level": 4,
+        "path": "5.1.11",
+        "full_name": "农产品精简版|第五条|第一款|第十一项|第三目"
+      },
+      {
+        "number": "5.2",
+        "content": "5.2.  动物类\n动物类包括人工养殖和天然生长的各种动物的初级产品。具体征税范围为：",
+        "level": 2,
+        "path": "5",
+        "full_name": "农产品精简版|第五条|第二款"
+      },
+      {
+        "number": "5.2.1",
+        "content": "5.2.1.  水产品",
+        "level": 3,
+        "path": "5.2",
+        "full_name": "农产品精简版|第五条|第二款|第一项"
+      },
+      {
+        "number": "5.2.1.1",
+        "content": "5.2.1.1.  水产品，是指人工放养和人工捕捞的鱼、虾、蟹、鳖、贝类、棘皮类、软体类、腔肠类、海兽类动物。本货物的征税范围包括鱼、虾、蟹、鳖、贝类、棘皮类、软体类、腔肠类、海兽类、鱼苗(卵)、虾苗、蟹苗、贝苗(秧)，以及经冷冻、冷藏、盐渍等防腐处理和包装的水产品。",
+        "level": 4,
+        "path": "5.2.1",
+        "full_name": "农产品精简版|第五条|第二款|第一项|第一目"
+      },
+      {
+        "number": "5.2.1.2",
+        "content": "5.2.1.2.  干制的鱼、虾、蟹、贝类、棘皮类、软体类、腔肠类，如干鱼、干虾、干虾仁、干贝等，以及未加工成工艺品的贝壳、珍珠，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.2.1",
+        "full_name": "农产品精简版|第五条|第二款|第一项|第二目"
+      },
+      {
+        "number": "5.2.1.3",
+        "content": "5.2.1.3.  熟制的水产品和各类水产品的罐头，不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.2.1",
+        "full_name": "农产品精简版|第五条|第二款|第一项|第三目"
+      },
+      {
+        "number": "5.2.2",
+        "content": "5.2.2.  畜牧产品",
+        "level": 3,
+        "path": "5.2",
+        "full_name": "农产品精简版|第五条|第二款|第二项"
+      },
+      {
+        "number": "5.2.2.1",
+        "content": "5.2.2.1.  畜牧产品，是指人工饲养、繁殖取得和捕获的各种畜禽。本货物的征税范围包括：\n(1) 兽类、禽类和爬行类动物，如牛、马、猪、羊、鸡、鸭等。\n(2) 兽类、禽类和爬行类动物的肉产品，包括整块或者分割的鲜肉、冷藏或者冷冻肉、盐渍肉，兽类、禽类和爬行类动物的内脏、头、尾、蹄等组织。各种兽类、禽类和爬行类动物的肉类生制品，如腊肉、腌肉、熏肉等，属于本货物的征税范围。各种肉类罐头、肉类熟制品，不属于本货物的征税范围。\n(3) 蛋类产品，是指各种禽类动物和爬行类动物的卵，包括鲜蛋、冷藏蛋。经加工的咸蛋、松花蛋、腌制的蛋等，属于本货物的征税范围。各种蛋类的罐头不属于本货物的征税范围。\n(4) 鲜奶，是指各种哺乳类动物的乳汁和经净化、杀菌等加工工序生产的乳汁。按照《食品安全国家标准巴氏杀菌乳》(GB 19645-2010)生产的巴氏杀菌乳、按照《食品安全国家标准灭菌乳》(GB 25190-2010)生产的灭菌乳，属于本货物的征税范围。用鲜奶加工的各种奶制品，如酸奶、奶酪、奶油等，不属于本货物的征税范围。按照《食品安全国家标准调制乳》(GB 25191-2010)生产的调制乳，不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.2.2",
+        "full_name": "农产品精简版|第五条|第二款|第二项|第一目"
+      },
+      {
+        "number": "5.2.3",
+        "content": "5.2.3.  动物皮张",
+        "level": 3,
+        "path": "5.2",
+        "full_name": "农产品精简版|第五条|第二款|第三项"
+      },
+      {
+        "number": "5.2.3.1",
+        "content": "5.2.3.1.  动物皮张，是指从各种动物身上直接剥取的，未经鞣制的生皮、生皮张。",
+        "level": 4,
+        "path": "5.2.3",
+        "full_name": "农产品精简版|第五条|第二款|第三项|第一目"
+      },
+      {
+        "number": "5.2.3.2",
+        "content": "5.2.3.2.  将生皮、生皮张用清水、盐水或者防腐药水浸泡、刮里、脱毛、晒干或者熏干，未经鞣制的，属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.2.3",
+        "full_name": "农产品精简版|第五条|第二款|第三项|第二目"
+      },
+      {
+        "number": "5.2.4",
+        "content": "5.2.4.  动物毛绒",
+        "level": 3,
+        "path": "5.2",
+        "full_name": "农产品精简版|第五条|第二款|第四项"
+      },
+      {
+        "number": "5.2.4.1",
+        "content": "5.2.4.1.  动物毛绒，是指未经洗净的各种动物的毛发、绒发和羽毛。",
+        "level": 4,
+        "path": "5.2.4",
+        "full_name": "农产品精简版|第五条|第二款|第四项|第一目"
+      },
+      {
+        "number": "5.2.4.2",
+        "content": "5.2.4.2.  洗净毛、洗净绒等不属于本货物的征税范围。",
+        "level": 4,
+        "path": "5.2.4",
+        "full_name": "农产品精简版|第五条|第二款|第四项|第二目"
+      },
+      {
+        "number": "5.2.5",
+        "content": "5.2.5.  其他动物及其他动物组织",
+        "level": 3,
+        "path": "5.2",
+        "full_name": "农产品精简版|第五条|第二款|第五项"
+      },
+      {
+        "number": "5.2.5.1",
+        "content": "5.2.5.1.  其他动物，是指水产品、兽类、禽类、爬行类动物以外的动物，如昆虫类、两栖类动物等。",
+        "level": 4,
+        "path": "5.2.5",
+        "full_name": "农产品精简版|第五条|第二款|第五项|第一目"
+      },
+      {
+        "number": "5.2.5.2",
+        "content": "5.2.5.2.  其他动物组织，是指上述列举以外各种动物的其他组织。本货物的征税范围包括：\n(1) 蚕茧，包括鲜茧和干茧，以及蚕蛹。\n(2) 天然蜂蜜，是指采集的未经加工的天然蜂蜜、鲜蜂王浆等。\n(3) 动物树脂，如虫胶等。\n(4) 其他动物组织，如动物骨、动物骨粒、壳、兽角、动物血液、动物分泌物、蚕种等。\n燕窝、干鱼翅、动物排泄物不属于农产品的征税范围。",
+        "level": 4,
+        "path": "5.2.5",
+        "full_name": "农产品精简版|第五条|第二款|第五项|第二目"
+      }
+    ]
+  },
+  "success": "1",
+  "msg": "正常返回",
+  "duration": 0.036,
+  "status_code": 200
+}

@@ -167,10 +167,12 @@ class AgentGraph:
             answer = self._clean_answer(answer)
 
         trace_log = self._build_trace_log()
+        relevant_chapters = self._collect_relevant_chapters()
 
         return {
             "answer": answer,
             "trace_log": trace_log,
+            "relevant_chapters": relevant_chapters,
         }
 
     def _standard_pipeline(self) -> str:
@@ -219,6 +221,40 @@ class AgentGraph:
             f"-{max(len(f.heading_path) for f in fragments)}"
         )
         return organized
+
+    def _collect_relevant_chapters(self) -> list[str]:
+        """从所有智能体结果中提取去重的相关章节序号"""
+        all_dirs = []
+        for r in self.all_results:
+            all_dirs.extend(r.relevant_dirs)
+
+        if self.retrieval_mode:
+            for frag in self.retrieval_registry.get_all():
+                if frag.directory_path not in all_dirs:
+                    all_dirs.append(frag.directory_path)
+
+        chapters = set()
+        for dir_path in all_dirs:
+            rel = os.path.relpath(dir_path, self.knowledge_root)
+            if rel == ".":
+                continue
+            parts = rel.replace("\\", "/").split("/")
+            leaf = parts[-1]
+            if "_" in leaf:
+                chapter_num = leaf.split("_")[0]
+                chapters.add(chapter_num)
+
+        def _chapter_sort_key(ch: str) -> list:
+            segments = ch.split(".")
+            result = []
+            for s in segments:
+                try:
+                    result.append(int(s))
+                except ValueError:
+                    result.append(float("inf"))
+            return result
+
+        return sorted(chapters, key=_chapter_sort_key)
 
     def _flatten_results(self, result: AgentResult) -> list[AgentResult]:
         """递归展平所有子智能体的结果"""

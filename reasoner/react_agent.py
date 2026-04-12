@@ -40,6 +40,7 @@ class AgentResult:
     agent_id: str
     explored_dir: str
     evidence: list[str] = field(default_factory=list)
+    relevant_dirs: list[str] = field(default_factory=list)
     reasoning_chain: str = ""
     conclusion: str = ""
     trace: list[TraceStep] = field(default_factory=list)
@@ -78,6 +79,7 @@ class ReactAgent:
         self.retrieval_registry = retrieval_registry
 
         self.evidence: list[str] = []
+        self.relevant_dirs: list[str] = []
         self.trace: list[TraceStep] = []
         self.reasoning_parts: list[str] = []
         self.content_conclusion: str = ""
@@ -153,6 +155,7 @@ class ReactAgent:
                     all_child_results.extend(child_results)
                     for cr in child_results:
                         self.evidence.extend(cr.evidence)
+                        self.relevant_dirs.extend(cr.relevant_dirs)
                     return self._build_result(
                         conclusion=f"根节点已衍生 {len(child_results)} 个子智能体全面探索所有一级目录",
                         child_results=all_child_results,
@@ -173,15 +176,17 @@ class ReactAgent:
                     is_relevant = assessment.get("is_relevant", False)
                     assess_reason = assessment.get("reason", "")
 
-                    if is_relevant and self.retrieval_registry:
-                        heading_path = self._compute_heading_path(current_dir)
-                        from reasoner.agent_graph import KnowledgeFragment
-                        fragment = KnowledgeFragment(
-                            content=knowledge_content,
-                            heading_path=heading_path,
-                            directory_path=current_dir,
-                        )
-                        added = self.retrieval_registry.add(fragment)
+                    if is_relevant:
+                        self.relevant_dirs.append(current_dir)
+                        if self.retrieval_registry:
+                            heading_path = self._compute_heading_path(current_dir)
+                            from reasoner.agent_graph import KnowledgeFragment
+                            fragment = KnowledgeFragment(
+                                content=knowledge_content,
+                                heading_path=heading_path,
+                                directory_path=current_dir,
+                            )
+                            added = self.retrieval_registry.add(fragment)
                         logger.info(
                             f"[{self.agent_id}] 相关性评估: 相关 "
                             f"(层级={'> '.join(heading_path)}, 新增={added})"
@@ -205,6 +210,7 @@ class ReactAgent:
 
                     if has_relevant:
                         self.evidence.extend(assessment.get("evidence", []))
+                        self.relevant_dirs.append(current_dir)
                         conclusion = assessment.get("conclusion", "")
                         summary = assessment.get("summary", "")
                         if conclusion:
@@ -291,6 +297,7 @@ class ReactAgent:
 
                 for cr in child_results:
                     self.evidence.extend(cr.evidence)
+                    self.relevant_dirs.extend(cr.relevant_dirs)
 
                 conclusion_text = self.content_conclusion or f"已衍生 {len(child_results)} 个子智能体探索"
                 return self._build_result(
@@ -383,6 +390,69 @@ class ReactAgent:
         return [
             d for d in sorted(os.listdir(directory))
             if os.path.isdir(os.path.join(directory, d))
+        ]
+
+    @staticmethod
+    def _strip_section(content: str, heading: str) -> str:
+        """去除 knowledge.md 中指定 ## 段落（从该标题到下一个 ## 标题之间的内容）"""
+        idx = content.find(heading)
+        if idx == -1:
+            return content
+        next_heading_idx = content.find("\n## ", idx + len(heading))
+        if next_heading_idx != -1:
+            return content[:idx].rstrip() + "\n\n" + content[next_heading_idx + 1:]
+        return content[:idx].rstrip()
+
+    @staticmethod
+    def _strip_subdirs_overview(content: str) -> str:
+        """去除 knowledge.md 中的 '## 子目录概览'、'## 项目条款名称'、'## 全称' 段落，减少冗余信息"""
+        for heading in ("## 项目条款名称", "## 全称"):
+            content = ReactAgent._strip_section(content, heading)
+        marker = "## 子目录概览"
+        idx = content.find(marker)
+        if idx != -1:
+            content = content[:idx].rstrip()
+        return content
+
+    def _build_upstream_tree(self, current_dir: str) -> str:
+        """构建上游路径树，每层附带未探索的平级目录；无可探索平级的上级层级整体移除"""
+        lines = []
+        for dir_path in self.upstream_path:
+            name = os.path.basename(dir_path)
+            is_current = os.path.normpath(dir_path) == os.path.normpath(current_dir)
+
+            parent = os.path.dirname(dir_path)
+            unexplored = []
+            if parent and os.path.isdir(parent):
+                siblings = self._list_subdirs(parent)
+                unexplored = [
+                    s for s in siblings
+                    if s != name and not (
+                        self.registry and self.registry.is_explored(
+                            os.path.join(parent, s)
+                        )
+                    )
+                ]
+
+            if not is_current and not unexplored:
+                continue
+
+            indent = "  " * len(lines)
+            label = f"{indent}→ {name}" + (" ← 当前位置" if is_current else "")
+            lines.append(label)
+
+            if unexplored:
+                lines.append(f"{indent}  可回溯探索的平级目录: {', '.join(unexplored)}")
+
+        return "\n".join(lines) if lines else "（所有上游路径均已探索）"
+
+    def _filter_explored_subdirs(self, available_subdirs: list[str], current_dir: str) -> list[str]:
+        """过滤掉已被探索的子目录，防止 LLM 重复选择"""
+        if not self.registry:
+            return available_subdirs
+        return [
+            d for d in available_subdirs
+            if not self.registry.is_explored(os.path.join(current_dir, d))
         ]
 
     def _correct_targets(
@@ -502,53 +572,54 @@ class ReactAgent:
     def _ask_root_llm(self, knowledge_content: str, available_subdirs: list[str]) -> dict | None:
         """根节点专用：单次 LLM 调用获取全面探索决策"""
         subdirs_str = "\n".join(f"- {d}" for d in available_subdirs) if available_subdirs else "（无子目录）"
+        stripped_content = self._strip_subdirs_overview(knowledge_content)
         prompt = ROOT_DISCLOSURE_PROMPT.format(
             question=self.question,
-            knowledge_content=knowledge_content,
+            knowledge_content=stripped_content,
             available_subdirs=subdirs_str,
         )
         return self._call_llm_json(prompt)
 
     def _assess_content(self, knowledge_content: str, current_dir: str) -> dict | None:
         """标准模式：评估当前层级知识是否包含与用户问题相关的证据"""
-        upstream_str = " -> ".join(self.upstream_path) if self.upstream_path else "（根目录）"
+        stripped_content = self._strip_subdirs_overview(knowledge_content)
         prompt = CONTENT_ASSESS_PROMPT.format(
             question=self.question,
-            upstream_path=upstream_str,
             parent_summary=self.parent_summary or "（无上游摘要）",
-            knowledge_content=knowledge_content,
+            knowledge_content=stripped_content,
         )
         return self._call_llm_json(prompt)
 
     def _assess_relevance(self, knowledge_content: str, current_dir: str) -> dict | None:
         """召回模式：评估当前层级知识是否与用户问题相关"""
-        upstream_str = " -> ".join(self.upstream_path) if self.upstream_path else "（根目录）"
+        stripped_content = self._strip_subdirs_overview(knowledge_content)
         prompt = RELEVANCE_ASSESS_PROMPT.format(
             question=self.question,
-            upstream_path=upstream_str,
             parent_summary=self.parent_summary or "（无上游摘要）",
-            knowledge_content=knowledge_content,
+            knowledge_content=stripped_content,
         )
         return self._call_llm_json(prompt)
 
     def _ask_navigation(self, knowledge_content: str, available_subdirs: list[str], current_dir: str) -> dict | None:
         """非根节点：决定探索方向（EXPLORE / BACKTRACK / STOP）"""
-        upstream_str = " -> ".join(self.upstream_path) if self.upstream_path else "（根目录）"
-        subdirs_str = "\n".join(f"- {d}" for d in available_subdirs) if available_subdirs else "（无子目录）"
+        upstream_tree = self._build_upstream_tree(current_dir)
+        filtered_subdirs = self._filter_explored_subdirs(available_subdirs, current_dir)
+        subdirs_str = "\n".join(f"- {d}" for d in filtered_subdirs) if filtered_subdirs else "（无子目录）"
+        stripped_content = self._strip_subdirs_overview(knowledge_content)
         if self.retrieval_mode:
             prompt = RETRIEVAL_DISCLOSURE_PROMPT.format(
                 question=self.question,
-                upstream_path=upstream_str,
+                upstream_path=upstream_tree,
                 parent_summary=self.parent_summary or "（无上游摘要）",
-                knowledge_content=knowledge_content,
+                knowledge_content=stripped_content,
                 available_subdirs=subdirs_str,
             )
         else:
             prompt = DISCLOSURE_PROMPT.format(
                 question=self.question,
-                upstream_path=upstream_str,
+                upstream_path=upstream_tree,
                 parent_summary=self.parent_summary or "（无上游摘要）",
-                knowledge_content=knowledge_content,
+                knowledge_content=stripped_content,
                 available_subdirs=subdirs_str,
             )
         return self._call_llm_json(prompt)
@@ -629,11 +700,12 @@ class ReactAgent:
     def _force_retrieval_judge(self, current_dir: str) -> AgentResult:
         """召回模式下轮次用尽时的强制相关性判定"""
         knowledge_content = self._read_knowledge_md(current_dir)
+        stripped_content = self._strip_subdirs_overview(knowledge_content)
         path_str = " -> ".join(self.upstream_path) if self.upstream_path else current_dir
 
         prompt = RETRIEVAL_FORCE_SUMMARY_PROMPT.format(
             question=self.question,
-            knowledge_content=knowledge_content,
+            knowledge_content=stripped_content,
             exploration_path=path_str,
         )
 
@@ -651,15 +723,17 @@ class ReactAgent:
             is_relevant = decision.get("is_relevant", False)
             reason = decision.get("reason", "")
 
-            if is_relevant and self.retrieval_registry:
-                heading_path = self._compute_heading_path(current_dir)
-                from reasoner.agent_graph import KnowledgeFragment
-                fragment = KnowledgeFragment(
-                    content=knowledge_content,
-                    heading_path=heading_path,
-                    directory_path=current_dir,
-                )
-                self.retrieval_registry.add(fragment)
+            if is_relevant:
+                self.relevant_dirs.append(current_dir)
+                if self.retrieval_registry:
+                    heading_path = self._compute_heading_path(current_dir)
+                    from reasoner.agent_graph import KnowledgeFragment
+                    fragment = KnowledgeFragment(
+                        content=knowledge_content,
+                        heading_path=heading_path,
+                        directory_path=current_dir,
+                    )
+                    self.retrieval_registry.add(fragment)
 
             self.trace.append(TraceStep(
                 directory=current_dir,
@@ -738,6 +812,7 @@ class ReactAgent:
             agent_id=self.agent_id,
             explored_dir=self.current_dir,
             evidence=list(self.evidence),
+            relevant_dirs=list(self.relevant_dirs),
             reasoning_chain="\n".join(self.reasoning_parts),
             conclusion=conclusion,
             trace=list(self.trace),

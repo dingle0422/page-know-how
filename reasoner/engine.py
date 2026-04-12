@@ -119,6 +119,7 @@ def _process_single_question(
         result = graph.run()
         answer = result["answer"]
         trace_log = result["trace_log"]
+        relevant_chapters = result.get("relevant_chapters", [])
         full_output = answer + TRACE_SEPARATOR + trace_log
         elapsed = round(time.time() - q_start, 1)
 
@@ -127,6 +128,7 @@ def _process_single_question(
             "原始序号": original_index,
             "问题": question,
             "答案": answer,
+            "相关章节": ", ".join(relevant_chapters),
             "完整输出（含追踪）": full_output,
             "耗时(秒)": elapsed,
             "状态": "成功",
@@ -179,16 +181,20 @@ def run_single_question(
     result = graph.run()
     answer = result["answer"]
     trace_log = result["trace_log"]
+    relevant_chapters = result.get("relevant_chapters", [])
     full_output = answer + TRACE_SEPARATOR + trace_log
 
     print("\n" + "=" * 60)
     print("【答案】")
     print(answer)
+    if relevant_chapters:
+        print(f"\n【相关章节】{', '.join(relevant_chapters)}")
     print("=" * 60)
 
     return {
         "问题": question,
         "答案": answer,
+        "相关章节": ", ".join(relevant_chapters),
         "完整输出（含追踪）": full_output,
         "状态": "成功",
     }

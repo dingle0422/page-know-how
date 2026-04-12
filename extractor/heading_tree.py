@@ -13,6 +13,7 @@ class HeadingNode:
     number: str                          # "1.1.2" 或 "0"（文档标题）
     title: str
     content: str = ""
+    full_name: str = ""
     children: list['HeadingNode'] = field(default_factory=list)
 
     @property
@@ -155,19 +156,22 @@ def build_tree_from_clauses(clauses: list[dict]) -> list[HeadingNode]:
         level = clause['level']
         path = clause.get('path', '')
 
-        title_match = HEADING_PATTERN.match(content)
+        first_line = content.split('\n', 1)[0].strip()
+        title_match = HEADING_PATTERN.match(first_line)
         if title_match:
             title = title_match.group(2).strip()
         else:
-            title = content.split('\n', 1)[0].strip()
+            title = first_line
 
-        node = HeadingNode(number=number, title=title, content=content)
+        full_name = clause.get('full_name', '')
+        node = HeadingNode(number=number, title=title, content=content, full_name=full_name)
         node_map[number] = node
 
         if not path:
             root_nodes.append(node)
         else:
-            parent = node_map.get(path)
+            parent_number = path.rsplit('/', 1)[-1]
+            parent = node_map.get(parent_number)
             if parent is not None:
                 parent.children.append(node)
             else:

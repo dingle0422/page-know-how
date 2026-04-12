@@ -15,11 +15,15 @@ CHILD_SUMMARY_HINT = (
 )
 
 
-def _build_knowledge_md(node: HeadingNode, abs_dir: str) -> str:
+def _build_knowledge_md(node: HeadingNode, abs_dir: str, knowledge_root: str) -> str:
     """为单个节点生成 knowledge.md 的内容"""
     sections = []
 
-    sections.append(f"## 当前路径\n\n{abs_dir}")
+    rel_path = os.path.relpath(abs_dir, knowledge_root)
+    sections.append(f"## 当前路径\n\n{rel_path}")
+
+    if node.full_name:
+        sections.append(f"## 项目条款名称\n\n{node.full_name}")
 
     if node.content:
         sections.append(f"## 本章节内容\n\n{node.content}")
@@ -40,7 +44,7 @@ def _build_knowledge_md(node: HeadingNode, abs_dir: str) -> str:
 def _build_root_knowledge_md(nodes: list[HeadingNode], abs_root: str) -> str:
     """为知识目录的根目录生成 knowledge.md"""
     sections = []
-    sections.append(f"## 当前路径\n\n{abs_root}")
+    sections.append("## 当前路径\n\n.")
     sections.append("## 文档概览\n\n本目录为文档知识的结构化根目录，包含以下一级章节：")
 
     child_lines = []
@@ -53,7 +57,7 @@ def _build_root_knowledge_md(nodes: list[HeadingNode], abs_root: str) -> str:
     return "\n\n".join(sections) + "\n"
 
 
-def _build_dirs_recursive(nodes: list[HeadingNode], base_dir: str):
+def _build_dirs_recursive(nodes: list[HeadingNode], base_dir: str, knowledge_root: str):
     """递归构建目录结构和 knowledge.md"""
     for node in nodes:
         folder_name = node.folder_name
@@ -61,13 +65,13 @@ def _build_dirs_recursive(nodes: list[HeadingNode], base_dir: str):
         os.makedirs(node_dir, exist_ok=True)
 
         abs_dir = os.path.abspath(node_dir)
-        knowledge_content = _build_knowledge_md(node, abs_dir)
+        knowledge_content = _build_knowledge_md(node, abs_dir, knowledge_root)
         knowledge_path = os.path.join(node_dir, "knowledge.md")
         with open(knowledge_path, "w", encoding="utf-8") as f:
             f.write(knowledge_content)
 
         if node.children:
-            _build_dirs_recursive(node.children, node_dir)
+            _build_dirs_recursive(node.children, node_dir, knowledge_root)
 
 
 def extract(filepath: str) -> str:
@@ -104,9 +108,10 @@ def extract(filepath: str) -> str:
         return knowledge_root
 
     logger.info(f"识别到 {len(tree)} 个一级标题，开始构建目录结构...")
-    _build_dirs_recursive(tree, knowledge_root)
+    abs_knowledge_root = os.path.abspath(knowledge_root)
+    _build_dirs_recursive(tree, knowledge_root, abs_knowledge_root)
 
-    root_knowledge = _build_root_knowledge_md(tree, os.path.abspath(knowledge_root))
+    root_knowledge = _build_root_knowledge_md(tree, abs_knowledge_root)
     with open(os.path.join(knowledge_root, "knowledge.md"), "w", encoding="utf-8") as f:
         f.write(root_knowledge)
 
