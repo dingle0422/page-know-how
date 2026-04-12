@@ -313,10 +313,7 @@ class ReactAgent:
                 self.reasoning_parts.append(f"[BACKTRACK] -> {target_dir}: {reason}")
 
                 if not os.path.isdir(target_dir):
-                    for up_dir in reversed(self.upstream_path):
-                        if target_dir in up_dir or os.path.basename(up_dir).startswith(target_dir.split('_')[0] if '_' in target_dir else target_dir):
-                            target_dir = up_dir
-                            break
+                    target_dir = self._correct_backtrack_target(target_dir)
 
                 if self.registry and self.registry.is_explored(target_dir):
                     logger.info(f"[{self.agent_id}] 回溯目标已被探索: {target_dir}，终止并记录意图")
@@ -345,11 +342,7 @@ class ReactAgent:
                     observation=f"回溯到: {target_dir}，原因: {reason}"
                 ))
 
-                new_upstream = []
-                for p in self.upstream_path:
-                    new_upstream.append(p)
-                    if p == target_dir:
-                        break
+                new_upstream = self._truncate_upstream(target_dir)
                 self.upstream_path = new_upstream
                 current_dir = target_dir
                 continue
@@ -454,6 +447,59 @@ class ReactAgent:
             d for d in available_subdirs
             if not self.registry.is_explored(os.path.join(current_dir, d))
         ]
+
+    def _correct_backtrack_target(self, target_dir: str) -> str:
+        """当 LLM 返回的 BACKTRACK target_dir 不是有效目录时，尝试修正。
+        优先按名称在各上游层级的平级目录中精确拼接，再回退到模糊匹配。
+        """
+        for up_dir in self.upstream_path:
+            parent = os.path.dirname(up_dir)
+            if parent and os.path.isdir(parent):
+                candidate = os.path.join(parent, target_dir)
+                if os.path.isdir(candidate):
+                    logger.info(f"[{self.agent_id}] 回溯目标修正(名称拼接): '{target_dir}' -> '{candidate}'")
+                    return candidate
+
+        for up_dir in reversed(self.upstream_path):
+            if target_dir in up_dir or os.path.basename(up_dir).startswith(
+                target_dir.split('_')[0] if '_' in target_dir else target_dir
+            ):
+                logger.info(f"[{self.agent_id}] 回溯目标修正(上游匹配): '{target_dir}' -> '{up_dir}'")
+                return up_dir
+
+        for up_dir in self.upstream_path:
+            parent = os.path.dirname(up_dir)
+            if parent and os.path.isdir(parent):
+                for sibling in self._list_subdirs(parent):
+                    sibling_path = os.path.join(parent, sibling)
+                    if target_dir in sibling or sibling.startswith(
+                        target_dir.split('_')[0] if '_' in target_dir else target_dir
+                    ):
+                        logger.info(f"[{self.agent_id}] 回溯目标修正(平级模糊): '{target_dir}' -> '{sibling_path}'")
+                        return sibling_path
+
+        logger.warning(f"[{self.agent_id}] 回溯目标无法修正: '{target_dir}'，保持原值")
+        return target_dir
+
+    def _truncate_upstream(self, target_dir: str) -> list[str]:
+        """根据 BACKTRACK target_dir 截断 upstream_path。
+        支持两种情况：target 是上游路径自身，或 target 是某上游路径的平级目录。
+        """
+        target_norm = os.path.normpath(target_dir)
+        target_parent_norm = os.path.normpath(os.path.dirname(target_dir))
+
+        new_upstream = []
+        for p in self.upstream_path:
+            p_norm = os.path.normpath(p)
+            new_upstream.append(p)
+            if p_norm == target_norm:
+                return new_upstream
+            if p_norm == target_parent_norm:
+                new_upstream.append(target_dir)
+                return new_upstream
+
+        new_upstream.append(target_dir)
+        return new_upstream
 
     def _correct_targets(
         self, targets: list[str], available_subdirs: list[str], current_dir: str

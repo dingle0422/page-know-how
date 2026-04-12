@@ -22,6 +22,15 @@ def cmd_extract(args):
     print(f"输出目录: {result_dir}")
 
 
+def _import_engine(version: str):
+    """根据版本号动态导入 engine 模块"""
+    if version == "v0":
+        from reasoner.v0.engine import run_single_question, run_reasoning
+    else:
+        from reasoner.v1.engine import run_single_question, run_reasoning
+    return run_single_question, run_reasoning
+
+
 def cmd_reason(args):
     has_single = bool(getattr(args, "single_question", None))
     has_batch = bool(getattr(args, "questions", None))
@@ -33,8 +42,11 @@ def cmd_reason(args):
         print("错误：必须指定 --single-question 或 --questions 之一")
         raise SystemExit(1)
 
+    version = getattr(args, "version", "v1")
+    run_single_question, run_reasoning = _import_engine(version)
+    print(f"使用 reasoner {version} 版本")
+
     if has_single:
-        from reasoner.engine import run_single_question
         run_single_question(
             question=args.single_question,
             knowledge_dir=args.knowledge_dir,
@@ -49,7 +61,6 @@ def cmd_reason(args):
         if not args.question_column:
             print("错误：使用 --questions 时必须同时指定 --question-column")
             raise SystemExit(1)
-        from reasoner.engine import run_reasoning
         output_path = run_reasoning(
             questions_file=args.questions,
             question_column=args.question_column,
@@ -131,6 +142,10 @@ def main():
     reason_parser.add_argument(
         "--retrieval-mode", action="store_true", default=False,
         help="启用召回模式：子智能体仅做相关性判定并收集原始知识，避免探索阶段信息畸变"
+    )
+    reason_parser.add_argument(
+        "--version", default="v1", choices=["v0", "v1"],
+        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, 默认 v1）"
     )
 
     args = parser.parse_args()
