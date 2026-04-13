@@ -40,6 +40,7 @@ class AgentGraph:
         clean_answer: bool = False,
         summary_batch_size: int = 0,
         retrieval_mode: bool = False,
+        check_pitfalls: bool = False,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -49,6 +50,7 @@ class AgentGraph:
         self.clean_answer = clean_answer
         self.summary_batch_size = summary_batch_size
         self.retrieval_mode = retrieval_mode
+        self.check_pitfalls = check_pitfalls
         self.registry = ExploredRegistry()
         self.pitfalls_registry = PitfallsRegistry()
         self.retrieval_registry = RetrievalKnowledgeRegistry() if retrieval_mode else None
@@ -71,6 +73,7 @@ class AgentGraph:
             model=self.model,
             retrieval_mode=self.retrieval_mode,
             retrieval_registry=self.retrieval_registry,
+            subtree_root=self.knowledge_root,
         )
 
         root_result = root_agent.run()
@@ -83,7 +86,8 @@ class AgentGraph:
         else:
             answer = self._standard_pipeline()
 
-        answer = self._pitfalls_check(answer)
+        if self.check_pitfalls:
+            answer = self._pitfalls_check(answer)
 
         if self.clean_answer:
             answer = self._clean_answer(answer)

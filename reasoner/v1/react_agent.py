@@ -54,6 +54,7 @@ class ReactAgent:
         model: str = "deepseek-v3.2",
         retrieval_mode: bool = False,
         retrieval_registry=None,
+        subtree_root: str = "",
     ):
         self.agent_id = f"Agent-{uuid.uuid4().hex[:6]}"
         self.question = question
@@ -68,6 +69,7 @@ class ReactAgent:
         self.model = model
         self.retrieval_mode = retrieval_mode
         self.retrieval_registry = retrieval_registry
+        self.subtree_root = subtree_root or knowledge_root
 
         self.evidence: list[str] = []
         self.relevant_dirs: list[str] = []
@@ -322,6 +324,12 @@ class ReactAgent:
     def _is_root_level(self, current_dir: str) -> bool:
         return os.path.normpath(current_dir) == os.path.normpath(self.knowledge_root)
 
+    def _is_within_subtree(self, path: str) -> bool:
+        """判断路径是否在当前智能体的子树边界内"""
+        path_norm = os.path.normpath(path)
+        subtree_norm = os.path.normpath(self.subtree_root)
+        return path_norm == subtree_norm or path_norm.startswith(subtree_norm + os.sep)
+
     def _read_knowledge_md(self, directory: str) -> str:
         km_path = os.path.join(directory, "knowledge.md")
         if os.path.exists(km_path):
@@ -373,23 +381,33 @@ class ReactAgent:
             if not self.registry.is_explored(os.path.join(directory, d))
         ]
 
+    def _get_unclaimed_subdirs_in_subtree(self, directory: str) -> list[str]:
+        """获取目录下未被认领且在子树边界内的子目录"""
+        unclaimed = self._get_unclaimed_subdirs(directory)
+        return [
+            d for d in unclaimed
+            if self._is_within_subtree(os.path.join(directory, d))
+        ]
+
     def _build_three_level_tree(self, current_dir: str) -> str:
-        """构建三层可见目录树：父级同级、当前同级、子级（均排除已认领目录）"""
+        """构建三层可见目录树：父级同级、当前同级、子级。
+        均排除已认领目录，且限定在 subtree_root 内，防止跨知识库串台。
+        """
         current_name = os.path.basename(current_dir)
         parent_dir = os.path.dirname(current_dir)
         parent_name = os.path.basename(parent_dir) if parent_dir else None
         grandparent_dir = os.path.dirname(parent_dir) if parent_dir else None
 
-        unclaimed_children = self._get_unclaimed_subdirs(current_dir)
+        unclaimed_children = self._get_unclaimed_subdirs_in_subtree(current_dir)
 
         unclaimed_siblings = []
         if parent_dir and os.path.isdir(parent_dir):
-            siblings = self._get_unclaimed_subdirs(parent_dir)
+            siblings = self._get_unclaimed_subdirs_in_subtree(parent_dir)
             unclaimed_siblings = [s for s in siblings if s != current_name]
 
         unclaimed_parent_siblings = []
         if grandparent_dir and os.path.isdir(grandparent_dir) and parent_name:
-            parent_siblings = self._get_unclaimed_subdirs(grandparent_dir)
+            parent_siblings = self._get_unclaimed_subdirs_in_subtree(grandparent_dir)
             unclaimed_parent_siblings = [s for s in parent_siblings if s != parent_name]
 
         lines = []
@@ -417,7 +435,9 @@ class ReactAgent:
     # ========================= 目标解析 =========================
 
     def _resolve_targets(self, targets: list[str], current_dir: str) -> list[str]:
-        """将 LLM 返回的目录名解析为绝对路径，按三层优先级匹配"""
+        """将 LLM 返回的目录名解析为绝对路径，按三层优先级匹配。
+        所有解析结果必须在 subtree_root 内，防止跨知识库串台。
+        """
         parent_dir = os.path.dirname(current_dir)
         grandparent_dir = os.path.dirname(parent_dir) if parent_dir else None
 
@@ -429,24 +449,34 @@ class ReactAgent:
 
         resolved = []
         for name in targets:
+            candidate = None
             if name in child_dirs:
-                resolved.append(os.path.join(current_dir, name))
+                candidate = os.path.join(current_dir, name)
             elif name in sibling_dirs:
-                resolved.append(os.path.join(parent_dir, name))
+                candidate = os.path.join(parent_dir, name)
             elif name in parent_sibling_dirs:
-                resolved.append(os.path.join(grandparent_dir, name))
+                candidate = os.path.join(grandparent_dir, name)
             else:
                 match = self._fuzzy_match_subdir(name, all_candidates)
                 if match:
                     logger.info(f"[{self.agent_id}] 目录名模糊修正: '{name}' -> '{match}'")
                     if match in child_dirs:
-                        resolved.append(os.path.join(current_dir, match))
+                        candidate = os.path.join(current_dir, match)
                     elif match in sibling_dirs:
-                        resolved.append(os.path.join(parent_dir, match))
+                        candidate = os.path.join(parent_dir, match)
                     elif match in parent_sibling_dirs:
-                        resolved.append(os.path.join(grandparent_dir, match))
+                        candidate = os.path.join(grandparent_dir, match)
                 else:
                     logger.warning(f"[{self.agent_id}] 无法解析目录名: '{name}'，已跳过")
+
+            if candidate:
+                if self._is_within_subtree(candidate):
+                    resolved.append(candidate)
+                else:
+                    logger.warning(
+                        f"[{self.agent_id}] 目标 '{name}' 解析为 '{candidate}' "
+                        f"超出子树边界 '{self.subtree_root}'，已跳过"
+                    )
 
         return resolved
 
@@ -775,8 +805,10 @@ class ReactAgent:
     ) -> list[AgentResult]:
         """为多个目标目录并行创建子智能体"""
         results = []
+        is_root_spawning = self._is_root_level(parent_dir)
 
         def _run_child(target_path):
+            child_subtree = target_path if is_root_spawning else self.subtree_root
             child_upstream = self._update_upstream(target_path, parent_dir)
             child = ReactAgent(
                 question=self.question,
@@ -791,6 +823,7 @@ class ReactAgent:
                 model=self.model,
                 retrieval_mode=self.retrieval_mode,
                 retrieval_registry=self.retrieval_registry,
+                subtree_root=child_subtree,
             )
             return child.run()
 

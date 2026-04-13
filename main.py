@@ -71,6 +71,7 @@ def cmd_reason(args):
             clean_answer=args.clean_answer,
             summary_batch_size=args.summary_batch_size,
             retrieval_mode=args.retrieval_mode,
+            check_pitfalls=args.check_pitfalls,
         )
     else:
         if not args.question_column:
@@ -88,6 +89,7 @@ def cmd_reason(args):
             clean_answer=args.clean_answer,
             summary_batch_size=args.summary_batch_size,
             retrieval_mode=args.retrieval_mode,
+            check_pitfalls=args.check_pitfalls,
         )
         print(f"\n推理完成！")
         print(f"结果文件: {output_path}")
@@ -167,8 +169,12 @@ def main():
         help="启用召回模式：子智能体仅做相关性判定并收集原始知识，避免探索阶段信息畸变"
     )
     reason_parser.add_argument(
+        "--check-pitfalls", action="store_true", default=False,
+        help="启用易错点检查：在总结后追加一轮 LLM 调用，基于探索中收集的易错点对答案做逐条校验"
+    )
+    reason_parser.add_argument(
         "--version", default="v1", choices=["v0", "v1"],
-        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, 默认 v1）"
+        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树，v1探索太激进建议开启召回模式, 默认 v1）"
     )
 
     args = parser.parse_args()

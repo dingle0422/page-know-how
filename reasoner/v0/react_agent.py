@@ -63,6 +63,7 @@ class ReactAgent:
         model: str = "deepseek-v3.2",
         retrieval_mode: bool = False,
         retrieval_registry=None,
+        subtree_root: str = "",
     ):
         self.agent_id = f"Agent-{uuid.uuid4().hex[:6]}"
         self.question = question
@@ -77,6 +78,7 @@ class ReactAgent:
         self.model = model
         self.retrieval_mode = retrieval_mode
         self.retrieval_registry = retrieval_registry
+        self.subtree_root = subtree_root or knowledge_root
 
         self.evidence: list[str] = []
         self.relevant_dirs: list[str] = []
@@ -315,6 +317,18 @@ class ReactAgent:
                 if not os.path.isdir(target_dir):
                     target_dir = self._correct_backtrack_target(target_dir)
 
+                if not self._is_within_subtree(target_dir):
+                    logger.warning(
+                        f"[{self.agent_id}] 回溯目标超出子树边界，忽略: "
+                        f"'{target_dir}' 不在 '{self.subtree_root}' 内"
+                    )
+                    self.trace.append(TraceStep(
+                        directory=current_dir,
+                        action="BACKTRACK_BLOCKED",
+                        observation=f"目标 {target_dir} 超出子树边界 {self.subtree_root}，已忽略"
+                    ))
+                    continue
+
                 if self.registry and self.registry.is_explored(target_dir):
                     logger.info(f"[{self.agent_id}] 回溯目标已被探索: {target_dir}，终止并记录意图")
                     self.trace.append(TraceStep(
@@ -370,6 +384,12 @@ class ReactAgent:
         """判断当前目录是否为知识目录根节点"""
         return os.path.normpath(current_dir) == os.path.normpath(self.knowledge_root)
 
+    def _is_within_subtree(self, path: str) -> bool:
+        """判断路径是否在当前智能体的子树边界内"""
+        path_norm = os.path.normpath(path)
+        subtree_norm = os.path.normpath(self.subtree_root)
+        return path_norm == subtree_norm or path_norm.startswith(subtree_norm + os.sep)
+
     def _read_knowledge_md(self, directory: str) -> str:
         km_path = os.path.join(directory, "knowledge.md")
         if os.path.exists(km_path):
@@ -408,7 +428,9 @@ class ReactAgent:
         return content
 
     def _build_upstream_tree(self, current_dir: str) -> str:
-        """构建上游路径树，每层附带未探索的平级目录；无可探索平级的上级层级整体移除"""
+        """构建上游路径树，每层附带未探索的平级目录；无可探索平级的上级层级整体移除。
+        平级目录限定在 subtree_root 内，防止跨知识库串台。
+        """
         lines = []
         for dir_path in self.upstream_path:
             name = os.path.basename(dir_path)
@@ -420,7 +442,9 @@ class ReactAgent:
                 siblings = self._list_subdirs(parent)
                 unexplored = [
                     s for s in siblings
-                    if s != name and not (
+                    if s != name
+                    and self._is_within_subtree(os.path.join(parent, s))
+                    and not (
                         self.registry and self.registry.is_explored(
                             os.path.join(parent, s)
                         )
@@ -451,16 +475,19 @@ class ReactAgent:
     def _correct_backtrack_target(self, target_dir: str) -> str:
         """当 LLM 返回的 BACKTRACK target_dir 不是有效目录时，尝试修正。
         优先按名称在各上游层级的平级目录中精确拼接，再回退到模糊匹配。
+        所有候选路径必须在 subtree_root 内，防止跨知识库串台。
         """
         for up_dir in self.upstream_path:
             parent = os.path.dirname(up_dir)
             if parent and os.path.isdir(parent):
                 candidate = os.path.join(parent, target_dir)
-                if os.path.isdir(candidate):
+                if os.path.isdir(candidate) and self._is_within_subtree(candidate):
                     logger.info(f"[{self.agent_id}] 回溯目标修正(名称拼接): '{target_dir}' -> '{candidate}'")
                     return candidate
 
         for up_dir in reversed(self.upstream_path):
+            if not self._is_within_subtree(up_dir):
+                continue
             if target_dir in up_dir or os.path.basename(up_dir).startswith(
                 target_dir.split('_')[0] if '_' in target_dir else target_dir
             ):
@@ -472,6 +499,8 @@ class ReactAgent:
             if parent and os.path.isdir(parent):
                 for sibling in self._list_subdirs(parent):
                     sibling_path = os.path.join(parent, sibling)
+                    if not self._is_within_subtree(sibling_path):
+                        continue
                     if target_dir in sibling or sibling.startswith(
                         target_dir.split('_')[0] if '_' in target_dir else target_dir
                     ):
@@ -803,8 +832,10 @@ class ReactAgent:
     ) -> list[AgentResult]:
         """为多个目标子目录并行创建子智能体"""
         results = []
+        is_root_spawning = self._is_root_level(parent_dir)
 
         def _run_child(target_path):
+            child_subtree = target_path if is_root_spawning else self.subtree_root
             child = ReactAgent(
                 question=self.question,
                 knowledge_root=self.knowledge_root,
@@ -818,6 +849,7 @@ class ReactAgent:
                 model=self.model,
                 retrieval_mode=self.retrieval_mode,
                 retrieval_registry=self.retrieval_registry,
+                subtree_root=child_subtree,
             )
             return child.run()
 
