@@ -397,12 +397,19 @@ class ReactAgent:
                 return f.read()
         return "（当前目录无 knowledge.md 文件）"
 
+    _IGNORED_DIRS = frozenset({
+        "__pycache__", ".ipynb_checkpoints", ".git", ".svn",
+        "node_modules", ".venv", "venv", ".tox",
+    })
+
     def _list_subdirs(self, directory: str) -> list[str]:
         if not os.path.isdir(directory):
             return []
         return [
             d for d in sorted(os.listdir(directory))
             if os.path.isdir(os.path.join(directory, d))
+            and not d.startswith(".")
+            and d not in self._IGNORED_DIRS
         ]
 
     @staticmethod
@@ -832,10 +839,8 @@ class ReactAgent:
     ) -> list[AgentResult]:
         """为多个目标子目录并行创建子智能体"""
         results = []
-        is_root_spawning = self._is_root_level(parent_dir)
 
         def _run_child(target_path):
-            child_subtree = target_path if is_root_spawning else self.subtree_root
             child = ReactAgent(
                 question=self.question,
                 knowledge_root=self.knowledge_root,
@@ -849,7 +854,7 @@ class ReactAgent:
                 model=self.model,
                 retrieval_mode=self.retrieval_mode,
                 retrieval_registry=self.retrieval_registry,
-                subtree_root=child_subtree,
+                subtree_root=self.subtree_root,
             )
             return child.run()
 
