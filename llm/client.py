@@ -35,7 +35,7 @@ def chat(messages: str, vendor: str = "aliyun", model: str = "qwen3.6-plus", sys
     }
 
     logger.debug(f"LLM 请求 [{vendor}/{model}]: {messages[:100]}...")
-    response = requests.post(URL, data=json.dumps(PAYLOAD), headers=HEADERS).json()
+    response = requests.post(URL, data=json.dumps(PAYLOAD), headers=HEADERS, timeout=(30, 360)).json()
 
     if "success" in response:
         raise Exception(response.get("errorContext", "未知错误"))
