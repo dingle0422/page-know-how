@@ -21,8 +21,37 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Page Know-How 单问题推理服务")
 
-# policyId -> knowledge_dir 内存缓存，避免重复抽取
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+_PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
+_POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
+
+# policyId -> knowledge_dir 内存缓存
 _knowledge_cache: dict[str, str] = {}
+
+
+def _load_policy_index() -> dict[str, str]:
+    """从磁盘加载 policyId -> 目录名 的持久化索引"""
+    if os.path.exists(_POLICY_INDEX_FILE):
+        try:
+            with open(_POLICY_INDEX_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"加载 policy 索引文件失败，将重建: {e}")
+    return {}
+
+
+def _save_policy_index(index: dict[str, str]) -> None:
+    """将 policyId -> 目录名 的索引持久化到磁盘"""
+    os.makedirs(_PAGE_KNOWLEDGE_DIR, exist_ok=True)
+    try:
+        with open(_POLICY_INDEX_FILE, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        logger.error(f"保存 policy 索引文件失败: {e}")
+
+
+def _is_valid_knowledge_dir(dir_path: str) -> bool:
+    return os.path.isdir(dir_path) and os.path.exists(os.path.join(dir_path, "knowledge.md"))
 
 
 class ReasonRequest(BaseModel):
@@ -42,17 +71,45 @@ class ReasonResponse(BaseModel):
 
 
 def _get_or_extract_knowledge(policy_id: str) -> str:
-    """获取或抽取 policyId 对应的知识目录，优先使用缓存"""
+    """
+    获取 policyId 对应的知识目录，按以下优先级查找：
+    1. 内存缓存
+    2. 磁盘索引文件 (_policy_index.json)
+    3. 均未命中则调用 API 抽取，并更新缓存与索引
+    """
+    # 1) 内存缓存
     if policy_id in _knowledge_cache:
         cached = _knowledge_cache[policy_id]
-        if os.path.isdir(cached) and os.path.exists(os.path.join(cached, "knowledge.md")):
-            logger.info(f"命中缓存知识目录: {cached}")
+        if _is_valid_knowledge_dir(cached):
+            logger.info(f"[命中内存缓存] policyId={policy_id} -> {cached}")
             return cached
 
-    logger.info(f"开始抽取知识目录, policyId={policy_id}")
+    # 2) 磁盘索引
+    disk_index = _load_policy_index()
+    if policy_id in disk_index:
+        dir_name = disk_index[policy_id]
+        candidate = os.path.join(_PAGE_KNOWLEDGE_DIR, dir_name)
+        if _is_valid_knowledge_dir(candidate):
+            _knowledge_cache[policy_id] = candidate
+            logger.info(f"[命中磁盘索引] policyId={policy_id} -> {candidate}")
+            return candidate
+        else:
+            logger.warning(f"磁盘索引中记录的目录无效，将重新抽取: {candidate}")
+
+    # 3) 调用 API 抽取
+    logger.info(f"[新建抽取] policyId={policy_id}")
     knowledge_dir = extract_from_api(policy_id)
+
+    # 更新内存缓存
     _knowledge_cache[policy_id] = knowledge_dir
-    logger.info(f"知识目录抽取完成: {knowledge_dir}")
+
+    # 更新磁盘索引
+    disk_index = _load_policy_index()
+    dir_name = os.path.basename(knowledge_dir)
+    disk_index[policy_id] = dir_name
+    _save_policy_index(disk_index)
+
+    logger.info(f"知识目录抽取完成并已索引: {knowledge_dir}")
     return knowledge_dir
 
 
@@ -129,4 +186,4 @@ async def reason(req: ReasonRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)
