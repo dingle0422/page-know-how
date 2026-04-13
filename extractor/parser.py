@@ -264,8 +264,8 @@ def _extract_version_from_clause_name(clause_name: str) -> str:
 
 
 def _extract_policy_name(clause_name: str) -> str:
-    """从 clauseName 中提取策略名称（去掉编号前缀和版本号后缀）"""
-    name = re.sub(r'^[\d.]+_', '', clause_name)
+    """从 clauseName 中提取策略名称（去掉 'clauseNumber_' 前缀和版本号后缀）"""
+    name = re.sub(r'^[^_]+_', '', clause_name, count=1)
     name = re.sub(r'[（(]\d+[）)]', '', name).strip()
     return name
 
