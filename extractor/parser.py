@@ -252,3 +252,102 @@ def parse_document(filepath: str) -> list[ParsedLine]:
         return parse_txt(filepath)
     else:
         raise ValueError(f"不支持的文件类型: {ext}，仅支持 .docx 和 .txt")
+
+
+DEFAULT_API_URL = "http://10.199.0.40:8080/kg-platform/api/clauses/list"
+
+
+def _extract_version_from_clause_name(clause_name: str) -> str:
+    """从 clauseName 中提取括号内的版本号，如 '（20260413110049）' → '20260413110049'"""
+    m = re.search(r'[（(](\d+)[）)]', clause_name)
+    return m.group(1) if m else ''
+
+
+def _extract_policy_name(clause_name: str) -> str:
+    """从 clauseName 中提取策略名称（去掉编号前缀和版本号后缀）"""
+    name = re.sub(r'^[\d.]+_', '', clause_name)
+    name = re.sub(r'[（(]\d+[）)]', '', name).strip()
+    return name
+
+
+def fetch_api_clauses(
+    policy_id: str,
+    api_url: str = DEFAULT_API_URL,
+) -> tuple[list[Clause], str, str, dict[str, dict]]:
+    """
+    从 API 接口获取条款数据并转换为 Clause 列表。
+
+    参数:
+        policy_id: 策略 ID
+        api_url: API 接口地址
+
+    返回:
+        (clauses, policy_name, version, raw_clause_map)
+        - clauses: 转换后的 Clause 列表（与 parse_clause_json 格式一致）
+        - policy_name: 从 clauseName 提取的策略名称
+        - version: 从 clauseName 提取的版本号（用作目录时间戳后缀）
+        - raw_clause_map: number → 原始 API 条款数据的映射（用于保存 clause.json）
+    """
+    import requests
+
+    logger.info(f"从 API 获取条款数据: policyId={policy_id}, url={api_url}")
+    response = requests.post(api_url, json={"policyId": policy_id})
+    response.raise_for_status()
+
+    result = response.json()
+    if not result.get('success'):
+        raise ValueError(f"API 返回失败: {result.get('message', '未知错误')}")
+
+    api_clauses: list[dict] = result.get('data', {}).get('clauses', [])
+    if not api_clauses:
+        raise ValueError(f"API 未返回有效条款数据，policyId: {policy_id}")
+
+    policy_name = ''
+    version = ''
+    for c in api_clauses:
+        cn = c.get('clauseName', '')
+        v = _extract_version_from_clause_name(cn)
+        if v:
+            version = v
+            if not policy_name:
+                policy_name = _extract_policy_name(cn)
+            break
+
+    if not policy_name:
+        policy_name = policy_id
+
+    number_set: dict[str, dict] = {}
+    raw_clause_map: dict[str, dict] = {}
+    clauses: list[Clause] = []
+
+    for raw in api_clauses:
+        number = raw.get('clauseNumber', '')
+        if number == '前言':
+            number = '0'
+
+        number_set[number] = raw
+        raw_clause_map[number] = raw
+
+        search_labels = raw.get('searchLabels', [])
+        full_name = search_labels[0] if search_labels else ''
+
+        content = _convert_html_to_markdown(raw.get('clauseContent', ''))
+        level = int(raw.get('level', 0))
+
+        clause: Clause = {
+            'number': number,
+            'content': content,
+            'level': level,
+            'path': '',
+            'full_name': full_name,
+        }
+        clauses.append(clause)
+
+    for clause in clauses:
+        number = clause['number']
+        parent_num = _derive_parent_number(number)
+        if parent_num and parent_num in number_set:
+            clause['path'] = _build_full_path(number, number_set)
+
+    logger.info(f"从 API 获取到 {len(clauses)} 个条款（policyId: {policy_id}，版本: {version}）")
+    return clauses, policy_name, version, raw_clause_map

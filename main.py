@@ -16,8 +16,23 @@ def setup_logging(verbose: bool = False):
 
 
 def cmd_extract(args):
-    from extractor.builder import extract
-    result_dir = extract(args.input)
+    has_input = bool(getattr(args, "input", None))
+    has_policy = bool(getattr(args, "policy_id", None))
+
+    if has_input and has_policy:
+        print("错误：--input 与 --policy-id 不能同时使用")
+        raise SystemExit(1)
+    if not has_input and not has_policy:
+        print("错误：必须指定 --input 或 --policy-id 之一")
+        raise SystemExit(1)
+
+    if has_policy:
+        from extractor.builder import extract_from_api
+        result_dir = extract_from_api(args.policy_id, getattr(args, "api_url", None))
+    else:
+        from extractor.builder import extract
+        result_dir = extract(args.input)
+
     print(f"\n知识抽取完成！")
     print(f"输出目录: {result_dir}")
 
@@ -88,8 +103,16 @@ def main():
     # extract 子命令
     extract_parser = subparsers.add_parser("extract", help="从文档抽取知识并构建目录结构")
     extract_parser.add_argument(
-        "--input", "-i", required=True,
-        help="输入文档路径（支持 .docx、.txt 和 .json clause_list 格式）"
+        "--input", "-i",
+        help="输入文档路径（支持 .docx、.txt 和 .json clause_list 格式，与 --policy-id 互斥）"
+    )
+    extract_parser.add_argument(
+        "--policy-id", "-p",
+        help="从 API 接口获取条款数据的 policyId（与 --input 互斥）"
+    )
+    extract_parser.add_argument(
+        "--api-url",
+        help="API 接口地址（仅配合 --policy-id 使用，默认为内置地址）"
     )
 
     # reason 子命令
