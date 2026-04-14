@@ -10,7 +10,6 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from extractor.builder import extract_from_api
-from reasoner.agent_graph import AgentGraph
 
 logging.basicConfig(
     level=logging.INFO,
@@ -113,7 +112,7 @@ def _get_or_extract_knowledge(policy_id: str) -> str:
     return knowledge_dir
 
 
-def _build_kh_obj(graph: AgentGraph) -> dict[str, str]:
+def _build_kh_obj(graph) -> dict[str, str]:
     """从推理结果中构建 知识点名称 -> 章节编号 映射"""
     all_dirs: list[str] = []
     for r in graph.all_results:
@@ -139,16 +138,26 @@ def _build_kh_obj(graph: AgentGraph) -> dict[str, str]:
     return kh_map
 
 
-def _run_reasoning(question: str, knowledge_dir: str) -> dict:
+def _import_agent_graph(version: str):
+    if version == "v0":
+        from reasoner.v0.agent_graph import AgentGraph
+    else:
+        from reasoner.v1.agent_graph import AgentGraph
+    return AgentGraph
+
+
+def _run_reasoning(question: str, knowledge_dir: str, version: str = "v1", check_pitfalls: bool = False) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
-    graph = AgentGraph(
+    AgentGraphCls = _import_agent_graph(version)
+    graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
-        max_rounds=5,
+        max_rounds=10,
         vendor="aliyun",
         model="deepseek-v3.2",
         clean_answer=True,
-        retrieval_mode=False,
+        retrieval_mode=True,
+        check_pitfalls=check_pitfalls,
     )
     result = graph.run()
     kh_obj = _build_kh_obj(graph)
@@ -182,6 +191,23 @@ async def reason(req: ReasonRequest):
             status_code=500,
             message=f"推理失败: {str(e)}",
         )
+
+
+@app.get("/example")
+async def example():
+    """
+    Example health check endpoint.
+    """
+    return {"status": "ok", "message": "Server is running."}
+
+
+@app.get("/")
+async def check():
+    """
+    Example health check endpoint.
+    """
+    return {"status": "ok", "message": "Server is running."}
+
 
 
 if __name__ == "__main__":
