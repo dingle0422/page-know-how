@@ -46,6 +46,7 @@ class AgentResult:
     trace: list[TraceStep] = field(default_factory=list)
     backtrack_intent: BacktrackIntent | None = None
     child_results: list['AgentResult'] = field(default_factory=list)
+    pitfalls: list[str] = field(default_factory=list)
 
 
 class ReactAgent:
@@ -85,6 +86,7 @@ class ReactAgent:
         self.trace: list[TraceStep] = []
         self.reasoning_parts: list[str] = []
         self.content_conclusion: str = ""
+        self.local_pitfalls: list[str] = []
 
     def run(self) -> AgentResult:
         """执行 ReAct 循环"""
@@ -170,7 +172,7 @@ class ReactAgent:
             )
 
             if assessment:
-                self._collect_pitfalls(assessment)
+                self._collect_pitfalls(assessment, directory=current_dir)
 
             # ------ 处理内容评估结果 ------
             if self.retrieval_mode:
@@ -370,15 +372,19 @@ class ReactAgent:
             child_results=all_child_results
         )
 
-    def _collect_pitfalls(self, decision: dict) -> None:
-        """从 LLM 决策中提取 pitfalls 并注册到全局易错点缓存"""
+    def _collect_pitfalls(self, decision: dict, directory: str = "") -> None:
+        """从 LLM 决策中提取 pitfalls，注册到全局缓存并本地收集"""
         pitfalls = decision.get("pitfalls", [])
-        if pitfalls and self.pitfalls_registry:
-            if isinstance(pitfalls, list):
-                self.pitfalls_registry.add(pitfalls)
-            elif isinstance(pitfalls, str):
-                self.pitfalls_registry.add([pitfalls])
-            logger.info(f"[{self.agent_id}] 提取 {len(pitfalls) if isinstance(pitfalls, list) else 1} 条易错点")
+        if not pitfalls:
+            return
+        if isinstance(pitfalls, str):
+            pitfalls = [pitfalls]
+        for p in pitfalls:
+            if p and p not in self.local_pitfalls:
+                self.local_pitfalls.append(p)
+        if self.pitfalls_registry:
+            self.pitfalls_registry.add(pitfalls, directory=directory)
+        logger.info(f"[{self.agent_id}] 提取 {len(pitfalls)} 条易错点")
 
     def _is_root_level(self, current_dir: str) -> bool:
         """判断当前目录是否为知识目录根节点"""
@@ -901,4 +907,5 @@ class ReactAgent:
             trace=list(self.trace),
             backtrack_intent=backtrack_intent,
             child_results=child_results or [],
+            pitfalls=list(self.local_pitfalls),
         )

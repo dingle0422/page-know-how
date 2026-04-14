@@ -11,7 +11,6 @@ from reasoner.v1.prompts import (
     CLEAN_ANSWER_PROMPT,
     BATCH_SUMMARY_PROMPT,
     BATCH_MERGE_PROMPT,
-    PITFALLS_CHECK_PROMPT,
     RETRIEVAL_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_MERGE_PROMPT,
@@ -86,9 +85,6 @@ class AgentGraph:
         else:
             answer = self._standard_pipeline()
 
-        if self.check_pitfalls:
-            answer = self._pitfalls_check(answer)
-
         if self.clean_answer:
             answer = self._clean_answer(answer)
 
@@ -134,7 +130,13 @@ class AgentGraph:
         organized = []
         for frag in sorted_fragments:
             heading_label = " > ".join(frag.heading_path)
-            organized.append(f"【{heading_label}】\n{frag.content}")
+            text = f"【{heading_label}】\n{frag.content}"
+            if self.check_pitfalls:
+                dir_pitfalls = self.pitfalls_registry.get_by_dir(frag.directory_path)
+                if dir_pitfalls:
+                    pitfalls_str = "\n".join(f"- {p}" for p in dir_pitfalls)
+                    text += f"\n\n**易错点提醒：**\n{pitfalls_str}"
+            organized.append(text)
 
         logger.info(
             f"[Retrieval] 知识片段梳理：{len(fragments)} 个片段，"
@@ -188,11 +190,15 @@ class AgentGraph:
         agent_parts = []
         for r in self.all_results:
             evidence_str = "\n".join(f"  - {e}" for e in r.evidence) if r.evidence else "  （无证据）"
-            agent_parts.append(
+            part = (
                 f"### {r.agent_id} | 探索目录: {r.explored_dir}\n"
                 f"- 结论: {r.conclusion}\n"
                 f"- 证据:\n{evidence_str}"
             )
+            if self.check_pitfalls and r.pitfalls:
+                pitfalls_str = "\n".join(f"  - {p}" for p in r.pitfalls)
+                part += f"\n- 易错点提醒:\n{pitfalls_str}"
+            agent_parts.append(part)
         return agent_parts
 
     def _final_summary(self) -> str:
@@ -398,25 +404,6 @@ class AgentGraph:
         except Exception as e:
             logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
             return "召回分批合并失败，以下为各摘要：\n" + numbered
-
-    def _pitfalls_check(self, summary_answer: str) -> str:
-        pitfalls_context = self.pitfalls_registry.format_context()
-        logger.info(f"[PitfallsCheck] 全局易错点数量: {len(self.pitfalls_registry.get_all())}")
-        prompt = PITFALLS_CHECK_PROMPT.format(
-            question=self.question,
-            summary_answer=summary_answer,
-            pitfalls_context=pitfalls_context,
-        )
-        logger.info(f"[PitfallsCheck] prompt 长度: {len(prompt)} 字符")
-        logger.info(f"[PitfallsCheck] prompt 内容:\n{prompt}")
-        try:
-            checked = chat(prompt, vendor=self.vendor, model=self.model,
-                           system=SUMMARY_SYSTEM_PROMPT)
-            logger.info("[PitfallsCheck] 易错点检查完成")
-            return checked
-        except Exception as e:
-            logger.error(f"[PitfallsCheck] 易错点检查失败，返回原始 summary: {e}")
-            return summary_answer
 
     def _clean_answer(self, raw_answer: str) -> str:
         prompt = CLEAN_ANSWER_PROMPT.format(

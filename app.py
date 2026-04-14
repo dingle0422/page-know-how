@@ -27,6 +27,18 @@ _POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
 # policyId -> knowledge_dir 内存缓存
 _knowledge_cache: dict[str, str] = {}
 
+MAX_CONCURRENT_REASONING = int(os.environ.get("MAX_CONCURRENT_REASONING", "10"))
+_reasoning_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_reasoning_semaphore() -> asyncio.Semaphore:
+    """懒初始化，确保在事件循环内创建 Semaphore"""
+    global _reasoning_semaphore
+    if _reasoning_semaphore is None:
+        _reasoning_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REASONING)
+        logger.info(f"全局推理并发上限: {MAX_CONCURRENT_REASONING}")
+    return _reasoning_semaphore
+
 
 def _load_policy_index() -> dict[str, str]:
     """从磁盘加载 policyId -> 目录名 的持久化索引"""
@@ -146,7 +158,7 @@ def _import_agent_graph(version: str):
     return AgentGraph
 
 
-def _run_reasoning(question: str, knowledge_dir: str, version: str = "v1", check_pitfalls: bool = False) -> dict:
+def _run_reasoning(question: str, knowledge_dir: str, version: str = "v1", check_pitfalls: bool = True) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
     graph = AgentGraphCls(
@@ -156,6 +168,7 @@ def _run_reasoning(question: str, knowledge_dir: str, version: str = "v1", check
         vendor="aliyun",
         model="deepseek-v3.2",
         clean_answer=True,
+        summary_batch_size=3,
         retrieval_mode=True,
         check_pitfalls=check_pitfalls,
     )
@@ -169,28 +182,30 @@ def _run_reasoning(question: str, knowledge_dir: str, version: str = "v1", check
 
 @app.post("/api/reason", response_model=ReasonResponse)
 async def reason(req: ReasonRequest):
-    try:
-        knowledge_dir = await asyncio.to_thread(
-            _get_or_extract_knowledge, req.policyId
-        )
-        result = await asyncio.to_thread(
-            _run_reasoning, req.question, knowledge_dir
-        )
-        return ReasonResponse(
-            data=ReasonData(
-                khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
-                answer=result["answer"],
-            ),
-            status_code=200,
-            message="success",
-        )
-    except Exception as e:
-        logger.exception(f"推理失败: {e}")
-        return ReasonResponse(
-            data=None,
-            status_code=500,
-            message=f"推理失败: {str(e)}",
-        )
+    sem = _get_reasoning_semaphore()
+    async with sem:
+        try:
+            knowledge_dir = await asyncio.to_thread(
+                _get_or_extract_knowledge, req.policyId
+            )
+            result = await asyncio.to_thread(
+                _run_reasoning, req.question, knowledge_dir
+            )
+            return ReasonResponse(
+                data=ReasonData(
+                    khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
+                    answer=result["answer"],
+                ),
+                status_code=200,
+                message="success",
+            )
+        except Exception as e:
+            logger.exception(f"推理失败: {e}")
+            return ReasonResponse(
+                data=None,
+                status_code=500,
+                message=f"推理失败: {str(e)}",
+            )
 
 
 @app.get("/example")

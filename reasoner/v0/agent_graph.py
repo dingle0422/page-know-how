@@ -14,7 +14,6 @@ from reasoner.v0.prompts import (
     CLEAN_ANSWER_PROMPT,
     BATCH_SUMMARY_PROMPT,
     BATCH_MERGE_PROMPT,
-    PITFALLS_CHECK_PROMPT,
     RETRIEVAL_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_MERGE_PROMPT,
@@ -52,16 +51,29 @@ class PitfallsRegistry:
     def __init__(self):
         self._lock = threading.Lock()
         self._pitfalls: list[str] = []
+        self._dir_pitfalls: dict[str, list[str]] = {}
 
-    def add(self, pitfalls: list[str]) -> None:
+    def add(self, pitfalls: list[str], directory: str = "") -> None:
         with self._lock:
             for p in pitfalls:
                 if p and p not in self._pitfalls:
                     self._pitfalls.append(p)
+            if directory:
+                norm_dir = os.path.normpath(directory)
+                if norm_dir not in self._dir_pitfalls:
+                    self._dir_pitfalls[norm_dir] = []
+                for p in pitfalls:
+                    if p and p not in self._dir_pitfalls[norm_dir]:
+                        self._dir_pitfalls[norm_dir].append(p)
 
     def get_all(self) -> list[str]:
         with self._lock:
             return list(self._pitfalls)
+
+    def get_by_dir(self, directory: str) -> list[str]:
+        with self._lock:
+            norm_dir = os.path.normpath(directory)
+            return list(self._dir_pitfalls.get(norm_dir, []))
 
     def format_context(self) -> str:
         items = self.get_all()
@@ -164,9 +176,6 @@ class AgentGraph:
         else:
             answer = self._standard_pipeline()
 
-        if self.check_pitfalls:
-            answer = self._pitfalls_check(answer)
-
         if self.clean_answer:
             answer = self._clean_answer(answer)
 
@@ -217,7 +226,13 @@ class AgentGraph:
         organized = []
         for frag in sorted_fragments:
             heading_label = " > ".join(frag.heading_path)
-            organized.append(f"【{heading_label}】\n{frag.content}")
+            text = f"【{heading_label}】\n{frag.content}"
+            if self.check_pitfalls:
+                dir_pitfalls = self.pitfalls_registry.get_by_dir(frag.directory_path)
+                if dir_pitfalls:
+                    pitfalls_str = "\n".join(f"- {p}" for p in dir_pitfalls)
+                    text += f"\n\n**易错点提醒：**\n{pitfalls_str}"
+            organized.append(text)
 
         logger.info(
             f"[Retrieval] 知识片段梳理：{len(fragments)} 个片段，"
@@ -347,11 +362,15 @@ class AgentGraph:
         agent_parts = []
         for r in self.all_results:
             evidence_str = "\n".join(f"  - {e}" for e in r.evidence) if r.evidence else "  （无证据）"
-            agent_parts.append(
+            part = (
                 f"### {r.agent_id} | 探索目录: {r.explored_dir}\n"
                 f"- 结论: {r.conclusion}\n"
                 f"- 证据:\n{evidence_str}"
             )
+            if self.check_pitfalls and r.pitfalls:
+                pitfalls_str = "\n".join(f"  - {p}" for p in r.pitfalls)
+                part += f"\n- 易错点提醒:\n{pitfalls_str}"
+            agent_parts.append(part)
 
         intent_parts = []
         for ir in self.intent_resolve_results:
@@ -576,26 +595,6 @@ class AgentGraph:
         except Exception as e:
             logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
             return "召回分批合并失败，以下为各摘要：\n" + numbered
-
-    def _pitfalls_check(self, summary_answer: str) -> str:
-        """在 summary 之后、clean answer 之前，基于全局易错点对总结结果做逐条检查"""
-        pitfalls_context = self.pitfalls_registry.format_context()
-        logger.info(f"[PitfallsCheck] 全局易错点数量: {len(self.pitfalls_registry.get_all())}")
-        prompt = PITFALLS_CHECK_PROMPT.format(
-            question=self.question,
-            summary_answer=summary_answer,
-            pitfalls_context=pitfalls_context,
-        )
-        logger.info(f"[PitfallsCheck] prompt 长度: {len(prompt)} 字符")
-        logger.info(f"[PitfallsCheck] prompt 内容:\n{prompt}")
-        try:
-            checked = chat(prompt, vendor=self.vendor, model=self.model,
-                           system=SUMMARY_SYSTEM_PROMPT)
-            logger.info("[PitfallsCheck] 易错点检查完成")
-            return checked
-        except Exception as e:
-            logger.error(f"[PitfallsCheck] 易错点检查失败，返回原始 summary: {e}")
-            return summary_answer
 
     def _clean_answer(self, raw_answer: str) -> str:
         """调用 LLM 对 summary 结果做信息清洗，转为面向用户的客服口吻回答"""
