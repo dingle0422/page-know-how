@@ -1,0 +1,23 @@
+{
+  "clauseId": "778c37e2dd2e43d395caa125e91c18e9",
+  "clauseName": "1.3.14.1_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "1.3.14.1",
+  "clauseContent": "1.3.14.1.  会计分录\n（1））购入时：\n借：原材料\n贷：银行存款等\n（2）检验过程发生相关支出：\n借：生产成本\n贷：银行存款\n（3）分割鲜肉：\n借：库存商品\n贷：生产成本\n原材料\n（4）销售确认收入：\n借：应收账款等\n贷：主营业务收入\n（5）结转成本 ：\n借：主营业务成本\n贷：库存商品",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第一条|第三款|第十四项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

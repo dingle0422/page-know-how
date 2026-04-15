@@ -1,0 +1,23 @@
+{
+  "clauseId": "82efe636c6764ac088e5368aa0c7d5fb",
+  "clauseName": "1.3.8.1_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "1.3.8.1",
+  "clauseContent": "1.3.8.1.  会计分录\n①甲方采购的农产品未对外销售，仍为集团内存货：\n借：主营业务收入 (乙方确认的内部收入)\n贷：主营业务成本 (乙方内部成本)\n存货 (内部未实现利润)\n借：存货 (甲方已抵扣的进项税)\n贷：递延收益 (未来实现销售时转入损益)\n②甲方采购的农产品已对外实现销售（集团外）：\n借：主营业务收入（乙方确认的内部销售收入）\n贷：主营业务成本（乙方结转的内部销售成本）\n主营业务成本（补回甲方抵扣的进项税对应的成本差额）",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第一条|第三款|第八项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

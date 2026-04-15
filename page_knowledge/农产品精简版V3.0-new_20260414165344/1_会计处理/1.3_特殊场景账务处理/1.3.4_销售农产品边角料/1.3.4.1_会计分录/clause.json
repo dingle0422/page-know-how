@@ -1,0 +1,23 @@
+{
+  "clauseId": "2832c46e5b7c4f458837a627b69c0126",
+  "clauseName": "1.3.4.1_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "1.3.4.1",
+  "clauseContent": "1.3.4.1.  会计分录\n借：银行存款\n贷：其他业务收入\n应交税费—应交增值税(销项税额)",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第一条|第三款|第四项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

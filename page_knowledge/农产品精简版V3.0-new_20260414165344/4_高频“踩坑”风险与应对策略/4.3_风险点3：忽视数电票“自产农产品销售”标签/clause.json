@@ -1,0 +1,23 @@
+{
+  "clauseId": "61a47b249ae7455db98ab32054fcbaed",
+  "clauseName": "4.3_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "4.3",
+  "clauseContent": "4.3.  风险点3：忽视数电票“自产农产品销售”标签\n（1）场景：收到农业公司开具的免税农产品数电票，左上角无“自产农产品销售”标签，直接勾选抵扣。\n（2）风险：无法勾选或勾选后比对异常，进项税无法抵扣。\n（3）应对：企业在接收数电票时，必须核查左上角是否有此标签。若无，应要求销售方红冲重开。",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第四条|第三款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

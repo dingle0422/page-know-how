@@ -1,0 +1,23 @@
+{
+  "clauseId": "6ef6517900ac4387ac3eabb8c8d7f3e6",
+  "clauseName": "4.4_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "4.4",
+  "clauseContent": "4.4.  风险点4：取得1%农产品专票，错误按9%计算抵扣\n（1）场景：从小规模纳税人处购进农产品，取得1%专票，财务人员按票面金额×9%计算抵扣。\n（2）风险：多抵扣进项税，构成偷税风险。\n（3）应对：只有3% 的农产品专票才能按9%计算抵扣。1%专票只能按票面税额抵扣。",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第四条|第四款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

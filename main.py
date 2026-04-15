@@ -57,6 +57,22 @@ def cmd_reason(args):
         print("错误：必须指定 --single-question 或 --questions 之一")
         raise SystemExit(1)
 
+    has_knowledge_dir = bool(getattr(args, "knowledge_dir", None))
+    has_policy_id = bool(getattr(args, "policy_id", None))
+
+    if has_knowledge_dir and has_policy_id:
+        print("错误：--knowledge-dir 与 --policy-id 不能同时使用")
+        raise SystemExit(1)
+    if not has_knowledge_dir and not has_policy_id:
+        print("错误：必须指定 --knowledge-dir 或 --policy-id 之一")
+        raise SystemExit(1)
+
+    if has_policy_id:
+        from extractor.builder import extract_from_api
+        print(f"通过 policy-id 抽取知识目录: {args.policy_id}")
+        args.knowledge_dir = extract_from_api(args.policy_id, getattr(args, "api_url", None))
+        print(f"知识目录抽取完成: {args.knowledge_dir}")
+
     version = getattr(args, "version", "v1")
     run_single_question, run_reasoning = _import_engine(version)
     print(f"使用 reasoner {version} 版本")
@@ -134,8 +150,16 @@ def main():
         help="问题集中问题所在列的名称（使用 --questions 时必填）"
     )
     reason_parser.add_argument(
-        "--knowledge-dir", "-k", required=True,
-        help="page_knowledge 下的独立知识目录路径"
+        "--knowledge-dir", "-k",
+        help="page_knowledge 下的独立知识目录路径（与 --policy-id 互斥）"
+    )
+    reason_parser.add_argument(
+        "--policy-id", "-p",
+        help="通过 policyId 从 API 获取条款并自动抽取知识目录（与 --knowledge-dir 互斥）"
+    )
+    reason_parser.add_argument(
+        "--api-url",
+        help="API 接口地址（仅配合 --policy-id 使用，默认为内置地址）"
     )
     reason_parser.add_argument(
         "--output", "-o",

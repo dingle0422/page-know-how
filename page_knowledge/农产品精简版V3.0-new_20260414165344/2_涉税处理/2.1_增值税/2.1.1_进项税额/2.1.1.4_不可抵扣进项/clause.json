@@ -1,0 +1,23 @@
+{
+  "clauseId": "029d2220f8ec42b99fd3a7e09e1e4be1",
+  "clauseName": "2.1.1.4_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "2.1.1.4",
+  "clauseContent": "2.1.1.4.  不可抵扣进项\n需要注意的是，以下是哪怕取得了发票都不可抵扣进项税额的情形：\n（1）用于简易计税方法计税项目。\n（2）用于免征增值税项目（如批发零售免税蔬菜、鲜活肉蛋）。\n（3）用于集体福利或个人消费（如食堂领用、员工礼品、招待客户）。\n（4）非正常损失（如管理不善造成货物被盗、霉烂变质）。\n（5）购进并直接用于消费的餐饮服务、居民日常服务和娱乐服务。",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第二条|第一款|第一项|第四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

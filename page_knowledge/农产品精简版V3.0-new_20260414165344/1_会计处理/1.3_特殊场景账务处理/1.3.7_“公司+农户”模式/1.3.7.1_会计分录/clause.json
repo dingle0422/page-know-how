@@ -1,0 +1,23 @@
+{
+  "clauseId": "0267f7d430fe45028aaed92b812f7235",
+  "clauseName": "1.3.7.1_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "1.3.7.1",
+  "clauseContent": "1.3.7.1.  会计分录\n①移交蛋鸡给农户：\n借：生产性生物资产—蛋鸡(农户)\n贷：生产性生物资产—蛋鸡(场部)\n②发放饲料/兽药：\n借：消耗性生物资产—养殖成本\n贷：原材料\n③支付农户服务费：\n借：消耗性生物资产—养殖成本\n贷：银行存款\n④鸡蛋入库：\n借：库存商品—鸡蛋\n贷：消耗性生物资产—养殖成本\n⑤销售鸡蛋/淘汰鸡：\n确认收入并结转成本。",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第一条|第三款|第七项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

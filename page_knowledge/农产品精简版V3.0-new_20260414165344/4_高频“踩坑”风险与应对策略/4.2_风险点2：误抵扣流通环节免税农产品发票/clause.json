@@ -1,0 +1,23 @@
+{
+  "clauseId": "f53994c78d34415a9c376027d51d4b08",
+  "clauseName": "4.2_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "4.2",
+  "clauseContent": "4.2.  风险点2：误抵扣流通环节免税农产品发票\n（1）场景：从超市、批发市场购进蔬菜、猪肉，取得免税普通发票，按9%计算抵扣了进项税。\n（2）风险：严重错误。流通环节免税发票是“死票”，绝对不能抵扣。\n（3）应对：严格区分发票来源。只有农业生产者自产自销环节的免税普票或收购发票才能抵扣。",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第四条|第二款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

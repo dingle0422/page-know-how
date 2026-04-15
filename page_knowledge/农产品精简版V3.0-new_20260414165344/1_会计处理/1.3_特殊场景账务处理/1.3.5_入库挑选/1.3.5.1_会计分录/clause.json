@@ -1,0 +1,23 @@
+{
+  "clauseId": "9f3d213d9f23465d88ea27c824beb32b",
+  "clauseName": "1.3.5.1_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "1.3.5.1",
+  "clauseContent": "1.3.5.1.  会计分录\n（1）领料时：\n借：生产成本\n贷：原材料\n（2）发生人工成本时：\n借：生产成本\n贷：应付职工薪酬等\n（3）完工入库时：\n借：原材料-A1等级\n原材料-A2等级\n贷：生产成本",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第一条|第三款|第五项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

@@ -162,11 +162,12 @@ def _build_kh_obj_from_headings(headings: list[str]) -> dict[str, str]:
     """
     kh_map: dict[str, str] = {}
     for heading in headings:
-        parts = [p.strip() for p in heading.split(">")]
+        cleaned = heading.strip().strip("【】")
+        parts = [p.strip() for p in cleaned.split(">")]
         leaf = parts[-1]
         if "_" in leaf:
             chapter_num, chapter_name = leaf.split("_", 1)
-            if chapter_name not in kh_map:
+            if chapter_num and chapter_num[0].isdigit() and chapter_name not in kh_map:
                 kh_map[chapter_name] = chapter_num
     return kh_map
 

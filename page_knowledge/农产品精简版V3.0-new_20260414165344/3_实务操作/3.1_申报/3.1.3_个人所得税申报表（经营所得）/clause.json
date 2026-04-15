@@ -1,0 +1,23 @@
+{
+  "clauseId": "27a61a182b914391975c347aca49b93c",
+  "clauseName": "3.1.3_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "3.1.3",
+  "clauseContent": "3.1.3.  个人所得税申报表（经营所得）\n个体工商户、个人独资企业、合伙企业等申报经营所得的主体，从事农林牧渔业（四业）取得的所得，免征个人所得税（非个人所得税核定征收的情形），需要在申报经营所得时，按照以下流程申报：\n进入“预缴纳税申报”（年报点击“年度汇缴申报”），填写公共信息后，双击投资者信息进入报表，点击“减免税额”右侧“小红笔”图标，附表中选择“减免事项”和“减免性质”，填写减免税额后保存就可以了。",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第三条|第一款|第三项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

@@ -1,0 +1,23 @@
+{
+  "clauseId": "71dd73d0ca2e4f5bbbad87b5c12ae477",
+  "clauseName": "2.1.2.2_农产品精简版V3.0-new（20260414165344）",
+  "clauseNumber": "2.1.2.2",
+  "clauseContent": "2.1.2.2.  征税场景\n<div class=\"quill-better-table-wrapper\"><table class=\"quill-better-table\" style=\"width: 100%;\"><colgroup><col width=\"auto\"><col width=\"auto\"><col width=\"auto\"></colgroup><tbody><tr data-row=\"1\"><td data-row=\"1\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(51, 51, 51);\">征税场景</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(51, 51, 51);\">一般纳税人</strong></p></td><td data-row=\"1\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line ql-align-center\" data-row=\"1\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><strong style=\"color: rgb(51, 51, 51);\">小规模纳税人</strong></p></td></tr><tr data-row=\"2\"><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（1）销售初级农产品（非免税）</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">9%</span></p></td><td data-row=\"2\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"2\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr><tr data-row=\"3\"><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（2）销售深加工农产品（如罐头、精制茶、中成药）</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">13%</span></p></td><td data-row=\"3\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"3\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr><tr data-row=\"4\"><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（3）销售非农产品（如种植土等容易与农产品混淆的产品）</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">13%</span></p></td><td data-row=\"4\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"4\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr><tr data-row=\"5\"><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"1\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">（4）销售初加工大米连同包装物</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"2\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">9%</span></p></td><td data-row=\"5\" rowspan=\"1\" colspan=\"1\"><p class=\"qlbt-cell-line\" data-row=\"5\" data-cell=\"3\" data-rowspan=\"1\" data-colspan=\"1\"><span style=\"color: rgb(51, 51, 51);\">3%&nbsp;(2027.12.31前可减按1%)</span></p></td></tr></tbody></table>\n注1：区分初级农产品与深加工产品是关键。例如：毛茶（9%/免税），精制茶（13%）；鲜奶（9%/免税），酸奶、调制乳（13%）；中药材（9%/免税），中成药（13%）。初级农产品严格在《财政部 税务总局关于增值税征税具体范围有关事项的公告》（财政部 税务总局公告2026年第9号）附件1《适用9%增值税税率货物范围注释》一、农产品的正列举范围内。深加工则不在列举内，或明确排除。\n注2：外购生猪直接转售（鲜活）：一般纳税人可选 9% 计税（开专票）或选流通环节鲜活肉蛋免税（开普票）；小规模纳税人通常免税或选征收率3%（2027年底之前征收率为1%）；外购后屠宰分割再销售：仍属鲜活肉蛋，可享受流通环节免税；外购后深加工（如熟制、腌制），按13%计税。\n注3：个体工商户既可以是小规模纳税人，也可以登记为一般纳税人。",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版V3.0-new|第二条|第一款|第二项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-14T16:53:45",
+  "updatedAt": "2026-04-14T16:53:45",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null
+}

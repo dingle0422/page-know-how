@@ -119,6 +119,14 @@ class AgentGraph:
 
         chunks = build_knowledge_chunks(self.knowledge_root, self.chunk_size)
 
+        for chunk in chunks:
+            logger.info(
+                f"[Chunk] === 第 {chunk.index} 块知识内容 "
+                f"({len(chunk.content)} 字符, {len(chunk.directories)} 个目录) ===\n"
+                f"{chunk.content}\n"
+                f"[Chunk] === 第 {chunk.index} 块结束 ==="
+            )
+
         if not chunks:
             logger.warning("[Chunk] 未生成任何知识块，回退到标准模式")
             return self.run.__wrapped__(self) if hasattr(self.run, '__wrapped__') else {
@@ -343,11 +351,13 @@ class AgentGraph:
 
         if self._chunk_relevant_headings:
             for heading in self._chunk_relevant_headings:
-                parts = [p.strip() for p in heading.split(">")]
-                leaf = parts[-1]
-                if "_" in leaf:
-                    chapter_num = leaf.split("_")[0]
-                    chapters.add(chapter_num)
+                cleaned = heading.strip().strip("【】")
+                parts = [p.strip() for p in cleaned.split(">")]
+                for part in parts:
+                    if "_" in part:
+                        chapter_num = part.split("_")[0]
+                        if chapter_num and chapter_num[0].isdigit():
+                            chapters.add(chapter_num)
         else:
             all_dirs = []
             for r in self.all_results:
