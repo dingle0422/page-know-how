@@ -68,7 +68,7 @@ def _is_valid_knowledge_dir(dir_path: str) -> bool:
 class ReasonRequest(BaseModel):
     policyId: str
     question: str
-    chunkSize: int = Field(default=0, description="知识分块模式的字符数上限，0 表示不启用")
+    chunkSize: int = Field(default=5000, description="知识分块模式的字符数上限，0 表示不启用（默认 5000 启用 chunk 模式）")
 
 
 class ReasonData(BaseModel):
@@ -256,4 +256,4 @@ async def check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=5000, timeout_keep_alive=3600)
