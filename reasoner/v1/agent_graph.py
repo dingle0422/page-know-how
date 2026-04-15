@@ -14,7 +14,10 @@ from reasoner.v1.prompts import (
     RETRIEVAL_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_MERGE_PROMPT,
+    CHUNK_REASONING_PROMPT,
+    CHUNK_REASONING_WITH_PITFALLS_PROMPT,
 )
+from reasoner.v1.chunk_builder import build_knowledge_chunks
 
 from reasoner.v0.agent_graph import (
     ExploredRegistry,
@@ -40,6 +43,7 @@ class AgentGraph:
         summary_batch_size: int = 0,
         retrieval_mode: bool = False,
         check_pitfalls: bool = False,
+        chunk_size: int = 0,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -50,12 +54,19 @@ class AgentGraph:
         self.summary_batch_size = summary_batch_size
         self.retrieval_mode = retrieval_mode
         self.check_pitfalls = check_pitfalls
+        self.chunk_size = chunk_size
         self.registry = ExploredRegistry()
         self.pitfalls_registry = PitfallsRegistry()
         self.retrieval_registry = RetrievalKnowledgeRegistry() if retrieval_mode else None
         self.all_results: list[AgentResult] = []
+        self._chunk_directories: list[str] = []
+        self._chunk_relevant_headings: list[str] = []
+        self._chunk_reasoning_results: list[dict] = []
 
     def run(self) -> dict:
+        if self.chunk_size > 0:
+            return self._run_chunk_mode()
+
         mode_label = "召回模式" if self.retrieval_mode else "标准模式"
         logger.info(f"AgentGraph 启动 [{mode_label}]: 问题={self.question[:50]}...")
 
@@ -96,6 +107,187 @@ class AgentGraph:
             "trace_log": trace_log,
             "relevant_chapters": relevant_chapters,
         }
+
+    # ========================= Chunk 模式 =========================
+
+    def _run_chunk_mode(self) -> dict:
+        """Chunk 模式：程序化分块 -> 并行推理 -> 分批汇总"""
+        logger.info(
+            f"AgentGraph 启动 [Chunk模式 chunk_size={self.chunk_size}]: "
+            f"问题={self.question[:50]}..."
+        )
+
+        chunks = build_knowledge_chunks(self.knowledge_root, self.chunk_size)
+
+        if not chunks:
+            logger.warning("[Chunk] 未生成任何知识块，回退到标准模式")
+            return self.run.__wrapped__(self) if hasattr(self.run, '__wrapped__') else {
+                "answer": "知识目录为空，无法生成回答。",
+                "trace_log": "",
+                "relevant_chapters": [],
+            }
+
+        self._chunk_directories = []
+        for chunk in chunks:
+            self._chunk_directories.extend(chunk.directories)
+
+        answer = self._chunk_pipeline(chunks)
+
+        if self.clean_answer:
+            answer = self._clean_answer(answer)
+
+        trace_log = self._build_chunk_trace_log(chunks)
+        relevant_chapters = self._collect_relevant_chapters()
+
+        return {
+            "answer": answer,
+            "trace_log": trace_log,
+            "relevant_chapters": relevant_chapters,
+        }
+
+    def _chunk_pipeline(self, chunks) -> str:
+        """并行推理每个 chunk，解析 JSON 结果，然后分批汇总"""
+        total_chunks = len(chunks)
+        logger.info(f"[Chunk] 开始并行推理 {total_chunks} 个知识块")
+
+        raw_results = [None] * total_chunks
+        with ThreadPoolExecutor(max_workers=min(total_chunks, 10)) as executor:
+            futures = {
+                executor.submit(
+                    self._reason_on_chunk, chunk, total_chunks
+                ): chunk.index - 1
+                for chunk in chunks
+            }
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    raw_results[idx] = future.result()
+                except Exception as e:
+                    logger.error(f"[Chunk] 第 {idx+1} 块推理异常: {e}")
+                    raw_results[idx] = {
+                        "relevant_headings": [],
+                        "analysis": f"（第 {idx+1} 块推理失败: {e}）",
+                        "pitfalls": [],
+                    }
+
+        self._chunk_reasoning_results = raw_results
+
+        summary_parts = []
+        for i, result in enumerate(raw_results):
+            analysis = result.get("analysis", "")
+            headings = result.get("relevant_headings", [])
+            pitfalls = result.get("pitfalls", [])
+
+            if headings:
+                self._chunk_relevant_headings.extend(headings)
+
+            part_lines = [f"### 知识块 {i+1}/{total_chunks}"]
+            if headings:
+                part_lines.append(f"**引用章节：** {' | '.join(headings)}")
+            part_lines.append(analysis)
+            if pitfalls:
+                part_lines.append("\n**【易错点提醒】**")
+                for p in pitfalls:
+                    part_lines.append(f"- {p}")
+
+            summary_parts.append("\n".join(part_lines))
+
+        logger.info(
+            f"[Chunk] 所有 {total_chunks} 个知识块推理完成，"
+            f"共引用 {len(self._chunk_relevant_headings)} 个相关章节，"
+            f"进入汇总阶段"
+        )
+
+        if self.summary_batch_size > 0:
+            return self._recursive_batch_reduce(summary_parts, layer=1)
+        else:
+            return self._batch_final_merge(summary_parts, layer=1)
+
+    def _reason_on_chunk(self, chunk, total_chunks: int) -> dict:
+        """对单个 chunk 调用 LLM 推理，返回解析后的 JSON dict"""
+        template = (CHUNK_REASONING_WITH_PITFALLS_PROMPT
+                    if self.check_pitfalls
+                    else CHUNK_REASONING_PROMPT)
+        prompt = template.format(
+            question=self.question,
+            chunk_index=chunk.index,
+            total_chunks=total_chunks,
+            chunk_content=chunk.content,
+        )
+        mode_label = "推理+易错点" if self.check_pitfalls else "推理"
+        logger.info(
+            f"[Chunk] 第 {chunk.index}/{total_chunks} 块{mode_label} "
+            f"prompt 长度: {len(prompt)} 字符"
+        )
+        try:
+            response = chat(prompt, vendor=self.vendor, model=self.model,
+                            system=SUMMARY_SYSTEM_PROMPT)
+            return self._parse_chunk_json(response, chunk.index)
+        except Exception as e:
+            logger.error(f"[Chunk] 第 {chunk.index} 块 LLM 调用失败: {e}")
+            return {
+                "relevant_headings": [],
+                "analysis": f"（第 {chunk.index} 块推理失败: {e}）",
+                "pitfalls": [],
+            }
+
+    @staticmethod
+    def _parse_chunk_json(response: str, chunk_index: int) -> dict:
+        """解析 chunk 推理的 JSON 响应，解析失败时降级为纯文本"""
+        cleaned = response.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        try:
+            result = json.loads(cleaned.strip())
+            if not isinstance(result.get("relevant_headings"), list):
+                result["relevant_headings"] = []
+            if not isinstance(result.get("analysis"), str):
+                result["analysis"] = str(result.get("analysis", ""))
+            if not isinstance(result.get("pitfalls"), list):
+                result["pitfalls"] = []
+            return result
+        except (json.JSONDecodeError, Exception) as e:
+            logger.warning(
+                f"[Chunk] 第 {chunk_index} 块 JSON 解析失败，降级为纯文本: {e}"
+            )
+            return {
+                "relevant_headings": [],
+                "analysis": response,
+                "pitfalls": [],
+            }
+
+    def _build_chunk_trace_log(self, chunks) -> str:
+        """为 chunk 模式构建追踪日志，包含各块引用的相关章节"""
+        lines = [f"=== Chunk 模式 (chunk_size={self.chunk_size}) ===", ""]
+
+        results = getattr(self, '_chunk_reasoning_results', None) or []
+
+        for chunk in chunks:
+            lines.append(f"--- Chunk {chunk.index} ({len(chunk.content)} 字符) ---")
+            lines.append(f"  包含目录节点:")
+            for hp in chunk.heading_paths:
+                lines.append(f"    - {' > '.join(hp)}")
+
+            idx = chunk.index - 1
+            if idx < len(results) and results[idx]:
+                result = results[idx]
+                headings = result.get("relevant_headings", [])
+                pitfalls = result.get("pitfalls", [])
+                if headings:
+                    lines.append(f"  LLM 判定相关章节:")
+                    for h in headings:
+                        lines.append(f"    * {h}")
+                else:
+                    lines.append(f"  LLM 判定: 本块与问题无关")
+                if pitfalls:
+                    lines.append(f"  识别易错点: {len(pitfalls)} 条")
+            lines.append("")
+
+        return "\n".join(lines)
 
     def _standard_pipeline(self) -> str:
         """标准模式的后处理管线：直接汇总（无意图解决）"""
@@ -146,15 +338,19 @@ class AgentGraph:
         return organized
 
     def _collect_relevant_chapters(self) -> list[str]:
-        """从所有智能体结果中提取去重的相关章节序号"""
+        """从所有智能体结果或 chunk 目录中提取去重的相关章节序号"""
         all_dirs = []
-        for r in self.all_results:
-            all_dirs.extend(r.relevant_dirs)
 
-        if self.retrieval_mode:
-            for frag in self.retrieval_registry.get_all():
-                if frag.directory_path not in all_dirs:
-                    all_dirs.append(frag.directory_path)
+        if self._chunk_directories:
+            all_dirs = list(self._chunk_directories)
+        else:
+            for r in self.all_results:
+                all_dirs.extend(r.relevant_dirs)
+
+            if self.retrieval_mode and self.retrieval_registry:
+                for frag in self.retrieval_registry.get_all():
+                    if frag.directory_path not in all_dirs:
+                        all_dirs.append(frag.directory_path)
 
         chapters = set()
         for dir_path in all_dirs:

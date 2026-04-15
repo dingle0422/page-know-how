@@ -96,6 +96,7 @@ def _process_single_question(
     summary_batch_size: int = 0,
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
+    chunk_size: int = 0,
 ) -> dict:
     """处理单个问题并返回结果字典，供串行和并行模式共用。
     original_index: 问题在原始输入文件中的数据行索引（0-based）。
@@ -117,6 +118,7 @@ def _process_single_question(
             summary_batch_size=summary_batch_size,
             retrieval_mode=retrieval_mode,
             check_pitfalls=check_pitfalls,
+            chunk_size=chunk_size,
         )
         result = graph.run()
         answer = result["answer"]
@@ -159,6 +161,7 @@ def run_single_question(
     summary_batch_size: int = 0,
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
+    chunk_size: int = 0,
 ) -> dict:
     """
     对单个问题执行推理，直接返回结果字典，同时打印答案到终端。
@@ -181,6 +184,7 @@ def run_single_question(
         summary_batch_size=summary_batch_size,
         retrieval_mode=retrieval_mode,
         check_pitfalls=check_pitfalls,
+        chunk_size=chunk_size,
     )
     result = graph.run()
     answer = result["answer"]
@@ -217,13 +221,14 @@ def _run_sequential(
     summary_batch_size: int = 0,
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
+    chunk_size: int = 0,
 ) -> None:
     """串行逐个处理待推理问题。"""
     for original_index, display_pos, question in pending:
         result_dict = _process_single_question(
             question, original_index, display_pos, total,
             knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
-            retrieval_mode, check_pitfalls,
+            retrieval_mode, check_pitfalls, chunk_size,
         )
         results.append(result_dict)
         _flush_results(results, output_path)
@@ -244,6 +249,7 @@ def _run_parallel(
     summary_batch_size: int = 0,
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
+    chunk_size: int = 0,
 ) -> None:
     """并行处理待推理问题，线程安全地收集结果并实时落盘。"""
     lock = threading.Lock()
@@ -256,7 +262,7 @@ def _run_parallel(
                 _process_single_question,
                 question, original_index, display_pos, total,
                 knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
-                retrieval_mode, check_pitfalls,
+                retrieval_mode, check_pitfalls, chunk_size,
             ): (original_index, question)
             for original_index, display_pos, question in pending
         }
@@ -301,6 +307,7 @@ def run_reasoning(
     summary_batch_size: int = 0,
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
+    chunk_size: int = 0,
 ) -> str:
     """
     推理引擎主入口。
@@ -352,13 +359,13 @@ def run_reasoning(
         _run_sequential(
             pending, total, results, output_path,
             knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
-            retrieval_mode, check_pitfalls,
+            retrieval_mode, check_pitfalls, chunk_size,
         )
     else:
         _run_parallel(
             pending, total, results, output_path,
             knowledge_dir, max_rounds, vendor, model, max_workers, clean_answer, summary_batch_size,
-            retrieval_mode, check_pitfalls,
+            retrieval_mode, check_pitfalls, chunk_size,
         )
 
     total_elapsed = round(time.time() - total_start, 1)

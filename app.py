@@ -68,6 +68,7 @@ def _is_valid_knowledge_dir(dir_path: str) -> bool:
 class ReasonRequest(BaseModel):
     policyId: str
     question: str
+    chunkSize: int = Field(default=0, description="知识分块模式的字符数上限，0 表示不启用")
 
 
 class ReasonData(BaseModel):
@@ -126,6 +127,10 @@ def _get_or_extract_knowledge(policy_id: str) -> str:
 
 def _build_kh_obj(graph) -> dict[str, str]:
     """从推理结果中构建 知识点名称 -> 章节编号 映射"""
+    chunk_headings = getattr(graph, '_chunk_relevant_headings', [])
+    if chunk_headings:
+        return _build_kh_obj_from_headings(chunk_headings)
+
     all_dirs: list[str] = []
     for r in graph.all_results:
         all_dirs.extend(r.relevant_dirs)
@@ -150,6 +155,22 @@ def _build_kh_obj(graph) -> dict[str, str]:
     return kh_map
 
 
+def _build_kh_obj_from_headings(headings: list[str]) -> dict[str, str]:
+    """从 relevant_headings 列表构建 khObj，只取最细粒度的叶子节点。
+
+    例如 "2_涉税处理 > 2.1_增值税" -> {"增值税": "2.1"}
+    """
+    kh_map: dict[str, str] = {}
+    for heading in headings:
+        parts = [p.strip() for p in heading.split(">")]
+        leaf = parts[-1]
+        if "_" in leaf:
+            chapter_num, chapter_name = leaf.split("_", 1)
+            if chapter_name not in kh_map:
+                kh_map[chapter_name] = chapter_num
+    return kh_map
+
+
 def _import_agent_graph(version: str):
     if version == "v0":
         from reasoner.v0.agent_graph import AgentGraph
@@ -158,7 +179,13 @@ def _import_agent_graph(version: str):
     return AgentGraph
 
 
-def _run_reasoning(question: str, knowledge_dir: str, version: str = "v1", check_pitfalls: bool = True) -> dict:
+def _run_reasoning(
+    question: str,
+    knowledge_dir: str,
+    version: str = "v1",
+    check_pitfalls: bool = True,
+    chunk_size: int = 0,
+) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
     graph = AgentGraphCls(
@@ -169,8 +196,9 @@ def _run_reasoning(question: str, knowledge_dir: str, version: str = "v1", check
         model="deepseek-v3.2",
         clean_answer=True,
         summary_batch_size=3,
-        retrieval_mode=True,
+        retrieval_mode=True if chunk_size == 0 else False,
         check_pitfalls=check_pitfalls,
+        chunk_size=chunk_size,
     )
     result = graph.run()
     kh_obj = _build_kh_obj(graph)
@@ -189,7 +217,8 @@ async def reason(req: ReasonRequest):
                 _get_or_extract_knowledge, req.policyId
             )
             result = await asyncio.to_thread(
-                _run_reasoning, req.question, knowledge_dir
+                _run_reasoning, req.question, knowledge_dir,
+                chunk_size=req.chunkSize,
             )
             return ReasonResponse(
                 data=ReasonData(

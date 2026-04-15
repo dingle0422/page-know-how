@@ -72,6 +72,7 @@ def cmd_reason(args):
             summary_batch_size=args.summary_batch_size,
             retrieval_mode=args.retrieval_mode,
             check_pitfalls=args.check_pitfalls,
+            chunk_size=args.chunk_size,
         )
     else:
         if not args.question_column:
@@ -90,6 +91,7 @@ def cmd_reason(args):
             summary_batch_size=args.summary_batch_size,
             retrieval_mode=args.retrieval_mode,
             check_pitfalls=args.check_pitfalls,
+            chunk_size=args.chunk_size,
         )
         print(f"\n推理完成！")
         print(f"结果文件: {output_path}")
@@ -171,6 +173,11 @@ def main():
     reason_parser.add_argument(
         "--check-pitfalls", action="store_true", default=False,
         help="启用易错点检查：在总结后追加一轮 LLM 调用，基于探索中收集的易错点对答案做逐条校验"
+    )
+    reason_parser.add_argument(
+        "--chunk-size", type=int, default=0,
+        help="启用知识分块模式：按指定字符数上限对知识目录树进行程序化分块，"
+             "每个块并行推理后汇总。默认 0 表示不启用（使用原有 ReactAgent 探索模式）"
     )
     reason_parser.add_argument(
         "--version", default="v1", choices=["v0", "v1"],
