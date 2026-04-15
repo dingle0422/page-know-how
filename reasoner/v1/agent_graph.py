@@ -339,11 +339,17 @@ class AgentGraph:
 
     def _collect_relevant_chapters(self) -> list[str]:
         """从所有智能体结果或 chunk 目录中提取去重的相关章节序号"""
-        all_dirs = []
+        chapters = set()
 
-        if self._chunk_directories:
-            all_dirs = list(self._chunk_directories)
+        if self._chunk_relevant_headings:
+            for heading in self._chunk_relevant_headings:
+                parts = [p.strip() for p in heading.split(">")]
+                leaf = parts[-1]
+                if "_" in leaf:
+                    chapter_num = leaf.split("_")[0]
+                    chapters.add(chapter_num)
         else:
+            all_dirs = []
             for r in self.all_results:
                 all_dirs.extend(r.relevant_dirs)
 
@@ -352,16 +358,15 @@ class AgentGraph:
                     if frag.directory_path not in all_dirs:
                         all_dirs.append(frag.directory_path)
 
-        chapters = set()
-        for dir_path in all_dirs:
-            rel = os.path.relpath(dir_path, self.knowledge_root)
-            if rel == ".":
-                continue
-            parts = rel.replace("\\", "/").split("/")
-            leaf = parts[-1]
-            if "_" in leaf:
-                chapter_num = leaf.split("_")[0]
-                chapters.add(chapter_num)
+            for dir_path in all_dirs:
+                rel = os.path.relpath(dir_path, self.knowledge_root)
+                if rel == ".":
+                    continue
+                parts = rel.replace("\\", "/").split("/")
+                leaf = parts[-1]
+                if "_" in leaf:
+                    chapter_num = leaf.split("_")[0]
+                    chapters.add(chapter_num)
 
         def _chapter_sort_key(ch: str) -> list:
             segments = ch.split(".")
