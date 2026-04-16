@@ -150,12 +150,155 @@ def parse_txt(filepath: str) -> list[ParsedLine]:
     raise ValueError(f"无法识别文件编码: {filepath}")
 
 
-def _convert_html_to_markdown(text: str) -> str:
-    """将文本中的 HTML 片段转为 Markdown，纯文本原样返回"""
+def _expand_html_table_grid(table_tag) -> list[list[str]]:
+    """将 HTML 表格展开为二维文本 grid，正确处理 rowspan/colspan。
+
+    合并单元格的文本会被复制填充到其占据的每一个细单元格中，
+    确保展开后的 grid 每行列数一致、数据完整。
+    """
+    rows = table_tag.find_all('tr')
+    if not rows:
+        return []
+
+    max_cols = 0
+    for row in rows:
+        cols_in_row = sum(int(c.get('colspan', 1)) for c in row.find_all(['td', 'th']))
+        max_cols = max(max_cols, cols_in_row)
+
+    grid: list[list[str]] = []
+    fill: dict[tuple[int, int], str] = {}
+
+    for row_idx, row in enumerate(rows):
+        cells = row.find_all(['td', 'th'])
+        grid_row = [''] * max_cols
+        cell_idx = 0
+        col_pos = 0
+
+        while col_pos < max_cols:
+            if (row_idx, col_pos) in fill:
+                grid_row[col_pos] = fill[(row_idx, col_pos)]
+                col_pos += 1
+                continue
+
+            if cell_idx >= len(cells):
+                col_pos += 1
+                continue
+
+            cell = cells[cell_idx]
+            text = cell.get_text(strip=True).replace('\n', '；')
+            rs = int(cell.get('rowspan', 1))
+            cs = int(cell.get('colspan', 1))
+
+            for c in range(cs):
+                grid_row[col_pos + c] = text
+            for r in range(1, rs):
+                for c in range(cs):
+                    fill[(row_idx + r, col_pos + c)] = text
+
+            cell_idx += 1
+            col_pos += cs
+
+        grid.append(grid_row)
+
+    return grid
+
+
+def _build_narrative_headers(raw_header_row: list[str]) -> tuple[list[str], list[int]]:
+    """从展开后的表头行构建去重的列名列表。
+
+    - 相邻重复的列名（由 colspan 展开产生）以"列名1、列名2…"区分。
+    - 返回 (seen_headers, seen_indices)，seen_indices 覆盖所有有效列。
+    """
+    headers: list[str] = []
+    for h in raw_header_row:
+        cleaned = re.sub(r'\s+', '', h)
+        headers.append(cleaned)
+
+    name_positions: dict[str, list[int]] = {}
+    for i, h in enumerate(headers):
+        if h:
+            name_positions.setdefault(h, []).append(i)
+
+    final_names: list[str] = [''] * len(headers)
+    for name, positions in name_positions.items():
+        if len(positions) == 1:
+            final_names[positions[0]] = name
+        else:
+            for seq, pos in enumerate(positions, start=1):
+                final_names[pos] = f"{name}{seq}"
+
+    seen_headers: list[str] = []
+    seen_indices: list[int] = []
+    for i, h in enumerate(final_names):
+        if h and h not in seen_headers:
+            seen_headers.append(h)
+            seen_indices.append(i)
+
+    return seen_headers, seen_indices
+
+
+def _html_table_to_narrative(table_tag) -> str:
+    """将单个 HTML <table> 标签转为口语化编号列表，每条数据以（1）（2）… 列出。
+
+    正确处理 rowspan/colspan：合并单元格的文本填充到所有占据的位置。
+    表头若存在横向合并（colspan），展开为"表头名1、表头名2…"。
+    """
+    grid = _expand_html_table_grid(table_tag)
+    if not grid:
+        return ''
+
+    seen_headers, seen_indices = _build_narrative_headers(grid[0])
+
+    if not seen_headers:
+        return ''
+
+    if len(grid) <= 1:
+        return "表头：" + "、".join(seen_headers)
+
+    lines: list[str] = []
+    for row_idx, row in enumerate(grid[1:], start=1):
+        parts: list[str] = []
+        for i, col_idx in enumerate(seen_indices):
+            header = seen_headers[i]
+            value = row[col_idx] if col_idx < len(row) else ''
+            if value:
+                parts.append(f"{header}：{value}")
+        if parts:
+            lines.append(f"（{row_idx}）{'；'.join(parts)}。")
+
+    return '\n'.join(lines)
+
+
+def _convert_html_to_markdown(text: str, narrativize: bool = True) -> str:
+    """将文本中的 HTML 片段转为 Markdown，纯文本原样返回。
+
+    Args:
+        text: 原始文本（可能包含 HTML）
+        narrativize: 若为 True，将 HTML 表格转为口语化编号列表（（1）（2）…），
+                     结合字段名称描述每条数据，便于 LLM 理解；
+                     若为 False，使用常规 Markdown 表格格式。
+    """
     if not HTML_TAG_RE.search(text):
         return text
+
     from markdownify import markdownify as md
-    return md(text, strip=['span', 'div', 'colgroup', 'col']).strip()
+
+    if not narrativize:
+        return md(text, strip=['span', 'div', 'colgroup', 'col']).strip()
+
+    from bs4 import BeautifulSoup, NavigableString
+
+    soup = BeautifulSoup(text, 'html.parser')
+    tables = soup.find_all('table')
+
+    if not tables:
+        return md(text, strip=['span', 'div', 'colgroup', 'col']).strip()
+
+    for table in tables:
+        narrative = _html_table_to_narrative(table)
+        table.replace_with(NavigableString(narrative))
+
+    return md(str(soup), strip=['span', 'div', 'colgroup', 'col']).strip()
 
 
 def _derive_parent_number(number: str) -> str:

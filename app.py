@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import asyncio
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -78,6 +79,23 @@ class ReasonData(BaseModel):
 
 class ReasonResponse(BaseModel):
     data: ReasonData | None = None
+    status_code: int
+    message: str
+
+
+class KhUpdateRequest(BaseModel):
+    khId: str
+    version: str
+    typeId: str = Field(default="0", description="区分类型：行业经验0、基础知识1、三方知识2等")
+
+
+class KhUpdateData(BaseModel):
+    policyId: str
+    update_time: str = Field(description="毫秒级时间戳")
+
+
+class KhUpdateResponse(BaseModel):
+    data: KhUpdateData | None = None
     status_code: int
     message: str
 
@@ -207,6 +225,58 @@ def _run_reasoning(
         "answer": result["answer"],
         "kh_obj": kh_obj,
     }
+
+
+def _create_knowledge(policy_id: str) -> str:
+    """
+    新建知识目录。调用 API 抽取条款并生成目录树，更新缓存与索引。
+    不会删除已有目录——每个 policyId 对应唯一版本，旧版本知识仍可被推理任务使用。
+    """
+    logger.info(f"[新增知识] policyId={policy_id}")
+    knowledge_dir = extract_from_api(policy_id)
+
+    _knowledge_cache[policy_id] = knowledge_dir
+
+    disk_index = _load_policy_index()
+    disk_index[policy_id] = os.path.basename(knowledge_dir)
+    _save_policy_index(disk_index)
+
+    logger.info(f"知识目录新增完成并已索引: {knowledge_dir}")
+    return knowledge_dir
+
+
+@app.post("/api/kh/update", response_model=KhUpdateResponse)
+async def kh_update(req: KhUpdateRequest):
+    policy_id = f"{req.khId}_{req.version}"
+
+    disk_index = _load_policy_index()
+    if policy_id in disk_index:
+        existing_dir = os.path.join(_PAGE_KNOWLEDGE_DIR, disk_index[policy_id])
+        if _is_valid_knowledge_dir(existing_dir):
+            logger.warning(f"policyId 已存在，拒绝重复创建: {policy_id}")
+            return KhUpdateResponse(
+                data=None,
+                status_code=409,
+                message=f"知识更新失败: policyId={policy_id} 已存在，请勿重复提交相同的 khId+version 组合",
+            )
+
+    try:
+        await asyncio.to_thread(_create_knowledge, policy_id)
+        return KhUpdateResponse(
+            data=KhUpdateData(
+                policyId=policy_id,
+                update_time=str(int(time.time() * 1000)),
+            ),
+            status_code=200,
+            message="success",
+        )
+    except Exception as e:
+        logger.exception(f"知识更新失败: {e}")
+        return KhUpdateResponse(
+            data=None,
+            status_code=500,
+            message=f"知识更新失败: {str(e)}",
+        )
 
 
 @app.post("/api/reason", response_model=ReasonResponse)
