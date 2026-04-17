@@ -70,11 +70,17 @@ class ReasonRequest(BaseModel):
     policyId: str
     question: str
     chunkSize: int = Field(default=5000, description="知识分块模式的字符数上限，0 表示不启用（默认 5000 启用 chunk 模式）")
+    enableSkills: bool = Field(default=True, description="是否启用 skill 评估与 double-check（默认开启）")
 
 
 class ReasonData(BaseModel):
     khObj: str = Field(description="知识点名称到章节编号的 JSON 字符串映射")
+    policyId: str
     answer: str
+    skillsResult: dict[str, str] = Field(
+        default_factory=dict,
+        description="本次推理实际调用的 skill 结果：{skill_name: stdout}；未启用 skill 或未触发任何 skill 时为空 {}",
+    )
 
 
 class ReasonResponse(BaseModel):
@@ -204,6 +210,7 @@ def _run_reasoning(
     version: str = "v1",
     check_pitfalls: bool = True,
     chunk_size: int = 0,
+    enable_skills: bool = True,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
@@ -218,13 +225,39 @@ def _run_reasoning(
         retrieval_mode=True if chunk_size == 0 else False,
         check_pitfalls=check_pitfalls,
         chunk_size=chunk_size,
+        enable_skills=enable_skills,
     )
     result = graph.run()
     kh_obj = _build_kh_obj(graph)
+    skills_result = _build_skills_result(graph)
     return {
         "answer": result["answer"],
         "kh_obj": kh_obj,
+        "skills_result": skills_result,
     }
+
+
+def _build_skills_result(graph) -> dict[str, str]:
+    """聚合 skill_registry 中的执行结果为 {skill_name: dumped_stdout}。
+
+    - skill 关闭 / 未触发任何 skill / 全部失败    -> 返回 {}
+    - 同一 skill 多次调用                          -> stdout 以两个换行拼接
+    - 失败的调用                                   -> 跳过（保证字段语义为"可用结果"）
+    """
+    registry = getattr(graph, "skill_registry", None)
+    if registry is None or not registry.has_any():
+        return {}
+
+    bucket: dict[str, list[str]] = {}
+    for rec in registry.get_all():
+        if not rec.result.success:
+            continue
+        text = (rec.result.stdout or "").strip()
+        if not text:
+            continue
+        bucket.setdefault(rec.skill_name, []).append(text)
+
+    return {name: "\n\n".join(parts) for name, parts in bucket.items()}
 
 
 def _create_knowledge(policy_id: str) -> str:
@@ -290,11 +323,14 @@ async def reason(req: ReasonRequest):
             result = await asyncio.to_thread(
                 _run_reasoning, req.question, knowledge_dir,
                 chunk_size=req.chunkSize,
+                enable_skills=req.enableSkills,
             )
             return ReasonResponse(
                 data=ReasonData(
                     khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
                     answer=result["answer"],
+                    skillsResult=result.get("skills_result", {}),
+                    policyId=req.policyId,
                 ),
                 status_code=200,
                 message="success",

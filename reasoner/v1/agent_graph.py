@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -26,6 +27,13 @@ from reasoner.v0.agent_graph import (
     RetrievalKnowledgeRegistry,
 )
 
+from skills import (
+    SkillRunner,
+    SkillResultRegistry,
+    evaluate_and_run,
+    check_and_enhance,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +52,7 @@ class AgentGraph:
         retrieval_mode: bool = False,
         check_pitfalls: bool = False,
         chunk_size: int = 0,
+        enable_skills: bool = True,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -55,21 +64,34 @@ class AgentGraph:
         self.retrieval_mode = retrieval_mode
         self.check_pitfalls = check_pitfalls
         self.chunk_size = chunk_size
+        self.enable_skills = enable_skills
         self.registry = ExploredRegistry()
         self.pitfalls_registry = PitfallsRegistry()
         self.retrieval_registry = RetrievalKnowledgeRegistry() if retrieval_mode else None
+        self.skill_registry: SkillResultRegistry | None = (
+            SkillResultRegistry() if enable_skills else None
+        )
+        self.skill_runner: SkillRunner | None = SkillRunner() if enable_skills else None
         self.all_results: list[AgentResult] = []
         self._chunk_directories: list[str] = []
         self._chunk_relevant_headings: list[str] = []
         self._chunk_reasoning_results: list[dict] = []
 
-    def run(self) -> dict:
-        if self.chunk_size > 0:
-            return self._run_chunk_mode()
+    def _run_skill_evaluation(self) -> None:
+        """在独立线程中跑 evaluator 的 asyncio 事件循环"""
+        try:
+            asyncio.run(evaluate_and_run(
+                question=self.question,
+                registry=self.skill_registry,
+                runner=self.skill_runner,
+                vendor=self.vendor,
+                model=self.model,
+            ))
+        except Exception as e:
+            logger.exception(f"[Skill] 预评估阶段异常: {e}")
 
-        mode_label = "召回模式" if self.retrieval_mode else "标准模式"
-        logger.info(f"AgentGraph 启动 [{mode_label}]: 问题={self.question[:50]}...")
-
+    def _run_root_agent_and_flatten(self) -> None:
+        """主推理：根智能体 -> 子智能体并行 -> 展平结果"""
         root_agent = ReactAgent(
             question=self.question,
             knowledge_root=self.knowledge_root,
@@ -85,16 +107,51 @@ class AgentGraph:
             retrieval_registry=self.retrieval_registry,
             subtree_root=self.knowledge_root,
         )
-
         root_result = root_agent.run()
         self.all_results = self._flatten_results(root_result)
-
         logger.info(f"第一轮汇聚完成，共 {len(self.all_results)} 个智能体结果")
+
+    def _run_double_check(self, raw_answer: str) -> str:
+        """skill 结果注入 / 补充优化"""
+        try:
+            return asyncio.run(check_and_enhance(
+                question=self.question,
+                raw_answer=raw_answer,
+                registry=self.skill_registry,
+                runner=self.skill_runner,
+                vendor=self.vendor,
+                model=self.model,
+            ))
+        except Exception as e:
+            logger.exception(f"[Skill] double-check 阶段异常，沿用原回答: {e}")
+            return raw_answer
+
+    def run(self) -> dict:
+        if self.chunk_size > 0:
+            return self._run_chunk_mode()
+
+        mode_label = "召回模式" if self.retrieval_mode else "标准模式"
+        skill_label = "Skill开启" if self.enable_skills else "Skill关闭"
+        logger.info(
+            f"AgentGraph 启动 [{mode_label} | {skill_label}]: 问题={self.question[:50]}..."
+        )
+
+        if self.enable_skills:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                skill_future = executor.submit(self._run_skill_evaluation)
+                reasoning_future = executor.submit(self._run_root_agent_and_flatten)
+                reasoning_future.result()
+                skill_future.result()
+        else:
+            self._run_root_agent_and_flatten()
 
         if self.retrieval_mode:
             answer = self._retrieval_pipeline()
         else:
             answer = self._standard_pipeline()
+
+        if self.enable_skills:
+            answer = self._run_double_check(answer)
 
         if self.clean_answer:
             answer = self._clean_answer(answer)
@@ -139,7 +196,17 @@ class AgentGraph:
         for chunk in chunks:
             self._chunk_directories.extend(chunk.directories)
 
-        answer = self._chunk_pipeline(chunks)
+        if self.enable_skills:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                skill_future = executor.submit(self._run_skill_evaluation)
+                chunk_future = executor.submit(self._chunk_pipeline, chunks)
+                answer = chunk_future.result()
+                skill_future.result()
+        else:
+            answer = self._chunk_pipeline(chunks)
+
+        if self.enable_skills:
+            answer = self._run_double_check(answer)
 
         if self.clean_answer:
             answer = self._clean_answer(answer)

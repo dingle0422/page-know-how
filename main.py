@@ -77,19 +77,23 @@ def cmd_reason(args):
     run_single_question, run_reasoning = _import_engine(version)
     print(f"使用 reasoner {version} 版本")
 
+    enable_skills = not getattr(args, "disable_skills", False)
+    common_kwargs = dict(
+        knowledge_dir=args.knowledge_dir,
+        max_rounds=args.max_rounds,
+        vendor=args.vendor,
+        model=args.model,
+        clean_answer=args.clean_answer,
+        summary_batch_size=args.summary_batch_size,
+        retrieval_mode=args.retrieval_mode,
+        check_pitfalls=args.check_pitfalls,
+        enable_skills=enable_skills,
+    )
+    if version == "v1":
+        common_kwargs["chunk_size"] = args.chunk_size
+
     if has_single:
-        run_single_question(
-            question=args.single_question,
-            knowledge_dir=args.knowledge_dir,
-            max_rounds=args.max_rounds,
-            vendor=args.vendor,
-            model=args.model,
-            clean_answer=args.clean_answer,
-            summary_batch_size=args.summary_batch_size,
-            retrieval_mode=args.retrieval_mode,
-            check_pitfalls=args.check_pitfalls,
-            chunk_size=args.chunk_size,
-        )
+        run_single_question(question=args.single_question, **common_kwargs)
     else:
         if not args.question_column:
             print("错误：使用 --questions 时必须同时指定 --question-column")
@@ -97,17 +101,9 @@ def cmd_reason(args):
         output_path = run_reasoning(
             questions_file=args.questions,
             question_column=args.question_column,
-            knowledge_dir=args.knowledge_dir,
-            max_rounds=args.max_rounds,
-            vendor=args.vendor,
-            model=args.model,
             output_path=args.output,
             max_workers=args.max_workers,
-            clean_answer=args.clean_answer,
-            summary_batch_size=args.summary_batch_size,
-            retrieval_mode=args.retrieval_mode,
-            check_pitfalls=args.check_pitfalls,
-            chunk_size=args.chunk_size,
+            **common_kwargs,
         )
         print(f"\n推理完成！")
         print(f"结果文件: {output_path}")
@@ -206,6 +202,10 @@ def main():
     reason_parser.add_argument(
         "--version", default="v1", choices=["v0", "v1"],
         help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树，v1探索太激进建议开启召回模式, 默认 v1）"
+    )
+    reason_parser.add_argument(
+        "--disable-skills", action="store_true", default=False,
+        help="关闭 skill 功能：默认开启，会在推理前对问题做 skill 评估，并在 summary 后做 skill double-check 优化答案"
     )
 
     args = parser.parse_args()
