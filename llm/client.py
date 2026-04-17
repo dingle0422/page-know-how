@@ -8,31 +8,53 @@ logger = logging.getLogger(__name__)
 
 
 @retry(max_retries=3, sleep_seconds=5.0)
-def chat(messages: str, vendor: str = "aliyun", model: str = "qwen3.6-plus", system: str = None) -> str:
+def chat(
+    messages: str,
+    vendor: str = "aliyun",
+    model: str = "qwen3.6-plus",
+    system: str = None,
+    enable_thinking: bool = False,
+) -> str:
     """
     调用自有模型服务。
     返回 response["choices"][0]["message"]["content"]。
-    """
-    if vendor == "servyou":
-        URL = f"http://10.199.0.7:5000/api/llm/{vendor}/v1/chat/completions"
-        app_id = "sk-d75b519b704d4d348245efe435f08ff3"
-    else:
-        URL = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
-        app_id = "sk-0609aa6d08de4413a72e14b3fb8fbab1"
 
-    HEADERS = {"Content-Type": "application/json", "Authorization": app_id}
+    - vendor="servyou": 内网直连
+    - vendor="qwen3.5-27b": 直连 MLP 上的 Qwen3.5-27B 自部署服务（OpenAI 兼容协议，
+      无需鉴权，可通过 enable_thinking 控制 Qwen3 思考模式）
+    - 其他: 走 mudgate 网关
+    """
     messages_payload = []
     if system:
         messages_payload.append({"role": "system", "content": system})
     messages_payload.append({"role": "user", "content": messages})
-    PAYLOAD = {
-        "appId": app_id,
-        "model": model,
-        "messages": messages_payload,
-        "stream": False,
-        "top_p": 0.7,
-        "temperature": 0.5,
-    }
+
+    if vendor == "qwen3.5-27b":
+        URL = "http://mlp.paas.dc.servyou-it.com/qwen3.5-27b/v1/chat/completions"
+        HEADERS = {"Content-Type": "application/json"}
+        PAYLOAD = {
+            "model": "Qwen/Qwen3.5-27B",
+            "messages": messages_payload,
+            "stream": False,
+            "chat_template_kwargs": {"enable_thinking": enable_thinking},
+        }
+    else:
+        if vendor == "servyou":
+            URL = f"http://10.199.0.7:5000/api/llm/{vendor}/v1/chat/completions"
+            app_id = "sk-d75b519b704d4d348245efe435f08ff3"
+        else:
+            URL = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
+            app_id = "sk-0609aa6d08de4413a72e14b3fb8fbab1"
+
+        HEADERS = {"Content-Type": "application/json", "Authorization": app_id}
+        PAYLOAD = {
+            "appId": app_id,
+            "model": model,
+            "messages": messages_payload,
+            "stream": False,
+            "top_p": 0.7,
+            "temperature": 0.5,
+        }
 
     logger.debug(f"LLM 请求 [{vendor}/{model}]: {messages[:100]}...")
     response = requests.post(URL, data=json.dumps(PAYLOAD), headers=HEADERS, timeout=(30, 360)).json()
