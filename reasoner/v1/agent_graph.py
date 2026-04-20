@@ -143,13 +143,15 @@ class AgentGraph:
 
     @staticmethod
     def _render_skill_records(records: list[SkillRecord]) -> str:
-        """将 SkillRecord 列表渲染为可读文本（与 SkillResultRegistry.format_context 对齐，但只取指定 records）"""
+        """将 SkillRecord 列表渲染为可读文本（与 SkillResultRegistry.format_context 对齐，但只取指定 records）。
+
+        命令行不展示，避免污染面向 LLM 的事实段；只保留 skill 名与结果/失败信息。
+        """
         if not records:
             return ""
         lines: list[str] = []
         for i, rec in enumerate(records, 1):
             lines.append(f"【Skill 调用 {i}】{rec.skill_name}")
-            lines.append(f"命令: {rec.command}")
             if rec.result.success:
                 lines.append("结果:")
                 lines.append(rec.result.stdout or "（无输出）")
@@ -173,10 +175,19 @@ class AgentGraph:
 
     @staticmethod
     def _append_skill_context_to_prompt(prompt: str, skill_context: str) -> str:
-        """统一的 prompt + skill_context 拼接，避免在多个调用点散落格式化逻辑"""
+        """把 skill_context 插入到 prompt 的"---"分隔符之前（即输出要求之前），
+        让 skill 段与上下文知识/摘要并列作为输入事实，而非附加在输出指令之后。
+
+        所有最终 summary/merge 模板都遵循 "{输入}\\n\\n---\\n\\n{输出要求}" 结构，
+        以最后一个 "---" 作为切分点；若意外缺失，退化为追加到末尾。
+        """
         if not skill_context:
             return prompt
-        return prompt + skill_context
+        marker = "\n---\n"
+        idx = prompt.rfind(marker)
+        if idx < 0:
+            return prompt + skill_context
+        return prompt[:idx] + skill_context + prompt[idx:]
 
     def _judge_extra_skills(self, exclude: set[str]) -> list[str]:
         """让 LLM 基于 question 二次判定还需哪些 skill；已完成的从可选项隐去"""
