@@ -102,6 +102,12 @@ class ReasonRequest(BaseModel):
         default=True,
         description="是否启用 skill 评估与 double-check（默认开启，对应 CLI 的 --disable-skills 取反）",
     )
+    summaryCleanAnswer: bool = Field(
+        default=True,
+        description="启用 summary+clean 一体化（仅 v1 + retrievalMode=True + summaryBatchSize>0 时生效）："
+                    "在 retrieval 分批合并阶段直接产出面向用户的客服话术答案，"
+                    "跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟",
+    )
 
 
 class ReasonData(BaseModel):
@@ -248,9 +254,15 @@ def _run_reasoning(
     check_pitfalls: bool = False,
     chunk_size: int = 0,
     enable_skills: bool = True,
+    summary_clean_answer: bool = False,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
+    extra_kwargs = {}
+    if version == "v1":
+        extra_kwargs["summary_clean_answer"] = summary_clean_answer
+    elif summary_clean_answer:
+        logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
@@ -263,6 +275,7 @@ def _run_reasoning(
         check_pitfalls=check_pitfalls,
         chunk_size=chunk_size,
         enable_skills=enable_skills,
+        **extra_kwargs,
     )
     result = graph.run()
     kh_obj = _build_kh_obj(graph)
@@ -369,6 +382,7 @@ async def reason(req: ReasonRequest):
                 check_pitfalls=req.checkPitfalls,
                 chunk_size=req.chunkSize,
                 enable_skills=req.enableSkills,
+                summary_clean_answer=req.summaryCleanAnswer,
             )
             return ReasonResponse(
                 data=ReasonData(

@@ -91,6 +91,9 @@ def cmd_reason(args):
     )
     if version == "v1":
         common_kwargs["chunk_size"] = args.chunk_size
+        common_kwargs["summary_clean_answer"] = args.summary_clean_answer
+    elif args.summary_clean_answer:
+        print("警告：--summary-clean-answer 仅在 --version v1 下生效，本次将被忽略")
 
     if has_single:
         run_single_question(question=args.single_question, **common_kwargs)
@@ -206,6 +209,11 @@ def main():
     reason_parser.add_argument(
         "--disable-skills", action="store_true", default=False,
         help="关闭 skill 功能：默认开启，会在推理前对问题做 skill 评估，并在 summary 后做 skill double-check 优化答案"
+    )
+    reason_parser.add_argument(
+        "--summary-clean-answer", action="store_true", default=False,
+        help="启用 summary+clean 一体化（仅 v1 + retrieval-mode + summary-batch-size>0 时生效）："
+             "在 retrieval 分批合并阶段直接输出面向用户的客服话术答案，跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟"
     )
 
     args = parser.parse_args()

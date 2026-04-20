@@ -13,6 +13,7 @@ from reasoner.v0.prompts import (
     RETRIEVAL_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_MERGE_PROMPT,
+    RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT,
 )
 
 # ====================== 标准模式 — 统一 EXPLORE 导航 Prompt ======================

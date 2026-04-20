@@ -15,6 +15,7 @@ from reasoner.v1.prompts import (
     RETRIEVAL_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_MERGE_PROMPT,
+    RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT,
     CHUNK_REASONING_PROMPT,
     CHUNK_REASONING_WITH_PITFALLS_PROMPT,
 )
@@ -53,6 +54,7 @@ class AgentGraph:
         check_pitfalls: bool = False,
         chunk_size: int = 0,
         enable_skills: bool = True,
+        summary_clean_answer: bool = False,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -65,6 +67,7 @@ class AgentGraph:
         self.check_pitfalls = check_pitfalls
         self.chunk_size = chunk_size
         self.enable_skills = enable_skills
+        self.summary_clean_answer = summary_clean_answer
         self.registry = ExploredRegistry()
         self.pitfalls_registry = PitfallsRegistry()
         self.retrieval_registry = RetrievalKnowledgeRegistry() if retrieval_mode else None
@@ -153,7 +156,17 @@ class AgentGraph:
         if self.enable_skills:
             answer = self._run_double_check(answer)
 
-        if self.clean_answer:
+        skip_clean_due_to_merge = (
+            self.summary_clean_answer
+            and self.retrieval_mode
+            and self.summary_batch_size > 0
+        )
+        if skip_clean_due_to_merge:
+            logger.info(
+                "[CleanAnswer] summary_clean_answer 已启用，"
+                "已在 retrieval batch_merge 阶段一并完成清洗，跳过独立清洗调用"
+            )
+        elif self.clean_answer:
             answer = self._clean_answer(answer)
 
         trace_log = self._build_trace_log()
@@ -660,13 +673,19 @@ class AgentGraph:
         numbered = "\n\n".join(
             f"### 摘要 {i+1}\n{s}" for i, s in enumerate(summaries)
         )
-        merge_prompt = RETRIEVAL_BATCH_MERGE_PROMPT.format(
+        if self.summary_clean_answer:
+            template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT
+            mode_label = "合并+清洗一体"
+        else:
+            template = RETRIEVAL_BATCH_MERGE_PROMPT
+            mode_label = "纯合并"
+        merge_prompt = template.format(
             question=self.question,
             batch_summaries=numbered,
         )
 
         logger.info(
-            f"[RetrievalBatchMerge] 第 {layer} 层（最终合并）："
+            f"[RetrievalBatchMerge] 第 {layer} 层（最终合并·{mode_label}）："
             f"{len(summaries)} 条摘要，prompt 长度: {len(merge_prompt)} 字符"
         )
         logger.info(f"[RetrievalBatchMerge] prompt 内容:\n{merge_prompt}")
