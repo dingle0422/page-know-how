@@ -21,6 +21,7 @@ from reasoner.v1.prompts import (
     RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT,
     CHUNK_REASONING_PROMPT,
     CHUNK_REASONING_WITH_PITFALLS_PROMPT,
+    ALL_IN_ANSWER_PROMPT,
 )
 from reasoner.v1.chunk_builder import build_knowledge_chunks, natural_dir_sort_key
 
@@ -37,9 +38,7 @@ from skills import (
     SkillRecord,
     evaluate_and_run,
     select_extra_skills,
-    check_and_enhance,
 )
-from skills.double_check import _enhance_with_skill_results
 
 logger = logging.getLogger(__name__)
 
@@ -120,25 +119,6 @@ class AgentGraph:
         self.all_results = self._flatten_results(root_result)
         logger.info(f"第一轮汇聚完成，共 {len(self.all_results)} 个智能体结果")
 
-    def _run_double_check(self, raw_answer: str) -> str:
-        """[兼容入口] 旧版串行 double-check：summary 完成后再做 skill 注入 / 补充。
-
-        新流程已改用 _orchestrate_summary_with_double_check 实现 summary || double-check 并行；
-        本方法保留以备外部调用。
-        """
-        try:
-            return asyncio.run(check_and_enhance(
-                question=self.question,
-                raw_answer=raw_answer,
-                registry=self.skill_registry,
-                runner=self.skill_runner,
-                vendor=self.vendor,
-                model=self.model,
-            ))
-        except Exception as e:
-            logger.exception(f"[Skill] double-check 阶段异常，沿用原回答: {e}")
-            return raw_answer
-
     # ========================= Skill 上下文 & double-check 并行编排 =========================
 
     @staticmethod
@@ -189,14 +169,22 @@ class AgentGraph:
             return prompt + skill_context
         return prompt[:idx] + skill_context + prompt[idx:]
 
-    def _judge_extra_skills(self, exclude: set[str]) -> list[str]:
-        """让 LLM 基于 question 二次判定还需哪些 skill；已完成的从可选项隐去"""
+    def _judge_extra_skills(
+        self, exclude: set[str], evidence: str | None = None
+    ) -> list[str]:
+        """让 LLM 基于 question + 已完成 skill + （可选）浓缩证据二次判定还需哪些 skill。
+
+        与旧版的差异：evidence 不再为空——final summary 即将吃下去的 numbered summaries
+        / agent_parts / organized_parts 会作为浓缩中间事实喂给 LLM，让它能基于"已经被
+        提炼出来的关键事实"判定是否仍存在必须靠 skill 才能闭合的关键缺口。
+        """
         try:
             return select_extra_skills(
                 question=self.question,
                 exclude=exclude,
                 vendor=self.vendor,
                 model=self.model,
+                evidence=evidence,
             )
         except Exception as e:
             logger.exception(f"[DoubleCheck] 二次判定 extra skill 异常，视为无新需求: {e}")
@@ -221,49 +209,69 @@ class AgentGraph:
         after_records = self.skill_registry.get_all()
         return after_records[before:]
 
-    def _enhance_with_new_records(
-        self, raw_answer: str, new_records: list[SkillRecord]
+    def _all_in_answer(
+        self, final_summary: str, extra_records: list[SkillRecord]
     ) -> str:
-        """仅基于"新跑出来的 skill records"做 enhance；已被 summary 吸收的老 records 不再重复 load"""
-        skill_context = self._render_skill_records(new_records)
+        """慢速路径专用：在 final_summary（已带 phase-0 注入 + 清洗）之后，
+        把"本轮 judge 才补跑出来的 extra skill records"作为权威事实，最小修订草稿。
+
+        不再覆盖 phase-0 records（它们已经在 final_summary 里被吸收了），避免重复 load。
+        """
+        skill_context = self._render_skill_records(extra_records)
         if not skill_context:
-            return raw_answer
+            return final_summary
+        prompt = ALL_IN_ANSWER_PROMPT.format(
+            question=self.question,
+            final_summary=final_summary,
+            skill_context=skill_context,
+        )
+        logger.info(f"[AllInAnswer] prompt 长度: {len(prompt)} 字符")
+        logger.info(f"[AllInAnswer] prompt 内容:\n{prompt}")
         try:
-            return _enhance_with_skill_results(
-                question=self.question,
-                raw_answer=raw_answer,
-                skill_context=skill_context,
-                vendor=self.vendor,
-                model=self.model,
+            answer = chat(
+                prompt, vendor=self.vendor, model=self.model,
+                system=SUMMARY_SYSTEM_PROMPT,
             )
+            answer = (answer or "").strip()
+            if not answer:
+                logger.warning("[AllInAnswer] LLM 返回空，沿用 final summary 原文")
+                return final_summary
+            return answer
         except Exception as e:
-            logger.error(f"[DoubleCheck] enhance 调用失败，沿用 summary 原文: {e}")
-            return raw_answer
+            logger.error(f"[AllInAnswer] LLM 调用失败，沿用 final summary 原文: {e}")
+            return final_summary
 
-    def _orchestrate_summary_with_double_check(self, summary_callable) -> str:
-        """三路并行：summary 主线 || extra-skill 判定 || （按需）执行新 skill。
+    def _finalize_with_double_check(
+        self,
+        final_summary_callable,
+        judge_evidence: str,
+        stage_label: str = "FinalSummary",
+    ) -> str:
+        """新版 double-check 编排：在每个最终 summary / merge 步骤内部使用。
 
-        语义：
-        - summary 主线已经把 phase-0 完成的 skill 结果一并喂进了最终合并 prompt
-        - 与此同时让 LLM 仅基于 question 判定"还差哪些 skill"（已完成的从可选项隐去）
-          - 若无新需求 → summary 完成即返回，省掉一次 enhance LLM 调用
-          - 若有新需求 → 立刻并行启动这些 skill 的 step2+exec；summary 完成后等 skill，
-                       再用"新增的 records"做 enhance，避免重复 load 已经被 summary 看过的老结果
+        - final_summary_callable: 已经把 phase-0 skill_context 拼好的 final summary 调用
+          （带清洗或不带清洗，由调用方决定）
+        - judge_evidence: 喂给 judge 的浓缩证据（即将进入 final summary 的 numbered
+          summaries / agent_parts / organized_parts）
+        - 编排：summary || judge 并行；judge 无需求 → 直接返回 summary；judge 有需求 →
+          起 extra-skill 并行跑，等 summary 与 extra-skill 都完成后走 _all_in_answer 拼接
         """
         if not self.enable_skills or not self.skill_registry:
-            return summary_callable()
+            return final_summary_callable()
 
         done_records_snapshot = self.skill_registry.get_all()
         done_skill_names = {r.skill_name for r in done_records_snapshot}
 
         with ThreadPoolExecutor(max_workers=3) as executor:
-            summary_future = executor.submit(summary_callable)
-            judge_future = executor.submit(self._judge_extra_skills, done_skill_names)
+            summary_future = executor.submit(final_summary_callable)
+            judge_future = executor.submit(
+                self._judge_extra_skills, done_skill_names, judge_evidence,
+            )
 
             try:
                 extra_needed = judge_future.result()
             except Exception as e:
-                logger.error(f"[DoubleCheck] 判定异常，按无新需求处理: {e}")
+                logger.error(f"[{stage_label}] judge 异常，按无新需求处理: {e}")
                 extra_needed = []
 
             extra_future = (
@@ -271,27 +279,29 @@ class AgentGraph:
                 if extra_needed else None
             )
 
-            raw_answer = summary_future.result()
+            final_summary = summary_future.result()
 
             if extra_future is None:
                 logger.info(
-                    "[DoubleCheck] 无新 skill 需求（已完成的 %d 个 skill 已在 summary 里被 load），"
-                    "省掉 enhance 调用直接采用 summary 输出",
-                    len(done_records_snapshot),
+                    f"[{stage_label}] judge 无新 skill 需求"
+                    f"（phase-0 已完成 {len(done_records_snapshot)} 个 skill 并已注入），"
+                    f"直接采用 final summary 输出"
                 )
-                return raw_answer
+                return final_summary
 
             new_records = extra_future.result()
 
         if not new_records:
-            logger.warning("[DoubleCheck] 补跑 skill 后未产出有效 records，沿用 summary 原文")
-            return raw_answer
+            logger.warning(
+                f"[{stage_label}] 补跑 skill 后未产出有效 records，沿用 final summary 原文"
+            )
+            return final_summary
 
         logger.info(
-            "[DoubleCheck] 用 %d 条新增 skill records 做 enhance（老的 %d 条已在 summary 里）",
-            len(new_records), len(done_records_snapshot),
+            f"[{stage_label}] 用 {len(new_records)} 条新增 skill records 走 all-in-answer 拼接"
+            f"（老的 {len(done_records_snapshot)} 条已在 final summary 里被吸收）"
         )
-        return self._enhance_with_new_records(raw_answer, new_records)
+        return self._all_in_answer(final_summary, new_records)
 
     def run(self) -> dict:
         if self.chunk_size > 0:
@@ -312,21 +322,18 @@ class AgentGraph:
         else:
             self._run_root_agent_and_flatten()
 
-        # phase-0 完成的 skill 结果（快照），用于：
-        # (1) 喂给 summary 最终合并 prompt
-        # (2) 让 double-check 在 judge 阶段把这些 skill 隐去，避免重复选取
+        # phase-0 完成的 skill 结果（快照）会被前置注入到最终 summary/merge 的 prompt；
+        # judge 在 final 步骤内部触发，不在这里编排。
         if self.enable_skills and self.skill_registry:
             done_records_snapshot = self.skill_registry.get_all()
         else:
             done_records_snapshot = []
         summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
 
-        def _summary_callable():
-            if self.retrieval_mode:
-                return self._retrieval_pipeline(skill_context=summary_skill_context)
-            return self._standard_pipeline(skill_context=summary_skill_context)
-
-        answer = self._orchestrate_summary_with_double_check(_summary_callable)
+        if self.retrieval_mode:
+            answer = self._retrieval_pipeline(skill_context=summary_skill_context)
+        else:
+            answer = self._standard_pipeline(skill_context=summary_skill_context)
 
         if self.summary_clean_answer:
             logger.info(
@@ -391,10 +398,7 @@ class AgentGraph:
             done_records_snapshot = []
         summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
 
-        def _chunk_summary_callable():
-            return self._chunk_finalize_summary(summary_parts, summary_skill_context)
-
-        answer = self._orchestrate_summary_with_double_check(_chunk_summary_callable)
+        answer = self._chunk_finalize_summary(summary_parts, summary_skill_context)
 
         if self.summary_clean_answer:
             logger.info(
@@ -676,8 +680,9 @@ class AgentGraph:
         return agent_parts
 
     def _final_summary(self, skill_context: str = "") -> str:
-        """调用 LLM 做最终汇总（单次全量）"""
+        """调用 LLM 做最终汇总（单次全量），并行触发 judge → 按需 all-in-answer"""
         agent_parts = self._build_evidence_parts()
+        agent_results_text = "\n\n".join(agent_parts) if agent_parts else "（无）"
 
         if self.summary_clean_answer:
             template = SUMMARY_AND_CLEAN_PROMPT
@@ -687,7 +692,7 @@ class AgentGraph:
             mode_label = "纯汇总"
         prompt = template.format(
             question=self.question,
-            agent_results="\n\n".join(agent_parts) if agent_parts else "（无）",
+            agent_results=agent_results_text,
         )
         prompt = self._append_skill_context_to_prompt(prompt, skill_context)
 
@@ -695,15 +700,25 @@ class AgentGraph:
         logger.info(f"[Summary·{mode_label}] user prompt 长度: {len(prompt)} 字符")
         logger.info(f"[Summary·{mode_label}] user prompt 内容:\n{prompt}")
 
-        try:
-            return chat(prompt, vendor=self.vendor, model=self.model, system=SUMMARY_SYSTEM_PROMPT)
-        except Exception as e:
-            logger.error(f"最终汇总 LLM 调用失败: {e}")
-            parts = []
-            for r in self.all_results:
-                if r.conclusion:
-                    parts.append(f"- [{r.agent_id}] {r.conclusion}")
-            return "最终汇总生成失败，以下为各智能体的原始结论：\n" + "\n".join(parts)
+        def _do_summary() -> str:
+            try:
+                return chat(
+                    prompt, vendor=self.vendor, model=self.model,
+                    system=SUMMARY_SYSTEM_PROMPT,
+                )
+            except Exception as e:
+                logger.error(f"最终汇总 LLM 调用失败: {e}")
+                fallback_parts = []
+                for r in self.all_results:
+                    if r.conclusion:
+                        fallback_parts.append(f"- [{r.agent_id}] {r.conclusion}")
+                return "最终汇总生成失败，以下为各智能体的原始结论：\n" + "\n".join(fallback_parts)
+
+        return self._finalize_with_double_check(
+            final_summary_callable=_do_summary,
+            judge_evidence=agent_results_text,
+            stage_label=f"Summary·{mode_label}",
+        )
 
     def _batched_summary(self, skill_context: str = "") -> str:
         """分批并行压缩总结"""
@@ -789,12 +804,19 @@ class AgentGraph:
         )
         logger.info(f"[BatchMerge] prompt 内容:\n{merge_prompt}")
 
-        try:
-            return chat(merge_prompt, vendor=self.vendor, model=self.model,
-                        system=SUMMARY_SYSTEM_PROMPT)
-        except Exception as e:
-            logger.error(f"[BatchMerge] 最终合并失败: {e}")
-            return "分批合并失败，以下为各摘要：\n" + numbered
+        def _do_merge() -> str:
+            try:
+                return chat(merge_prompt, vendor=self.vendor, model=self.model,
+                            system=SUMMARY_SYSTEM_PROMPT)
+            except Exception as e:
+                logger.error(f"[BatchMerge] 最终合并失败: {e}")
+                return "分批合并失败，以下为各摘要：\n" + numbered
+
+        return self._finalize_with_double_check(
+            final_summary_callable=_do_merge,
+            judge_evidence=numbered,
+            stage_label=f"BatchMerge·L{layer}·{mode_label}",
+        )
 
     def _retrieval_final_summary(self, organized_parts: list[str], skill_context: str = "") -> str:
         knowledge_text = "\n\n".join(organized_parts)
@@ -813,12 +835,19 @@ class AgentGraph:
         logger.info(f"[RetrievalSummary·{mode_label}] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[RetrievalSummary·{mode_label}] prompt 内容:\n{prompt}")
 
-        try:
-            return chat(prompt, vendor=self.vendor, model=self.model,
-                        system=SUMMARY_SYSTEM_PROMPT)
-        except Exception as e:
-            logger.error(f"[RetrievalSummary] 召回总结失败: {e}")
-            return "召回总结生成失败，以下为召回的知识片段：\n" + knowledge_text
+        def _do_summary() -> str:
+            try:
+                return chat(prompt, vendor=self.vendor, model=self.model,
+                            system=SUMMARY_SYSTEM_PROMPT)
+            except Exception as e:
+                logger.error(f"[RetrievalSummary] 召回总结失败: {e}")
+                return "召回总结生成失败，以下为召回的知识片段：\n" + knowledge_text
+
+        return self._finalize_with_double_check(
+            final_summary_callable=_do_summary,
+            judge_evidence=knowledge_text,
+            stage_label=f"RetrievalSummary·{mode_label}",
+        )
 
     def _retrieval_batched_summary(self, organized_parts: list[str], skill_context: str = "") -> str:
         return self._retrieval_recursive_batch_reduce(organized_parts, layer=1, skill_context=skill_context)
@@ -900,12 +929,19 @@ class AgentGraph:
         )
         logger.info(f"[RetrievalBatchMerge] prompt 内容:\n{merge_prompt}")
 
-        try:
-            return chat(merge_prompt, vendor=self.vendor, model=self.model,
-                        system=SUMMARY_SYSTEM_PROMPT)
-        except Exception as e:
-            logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
-            return "召回分批合并失败，以下为各摘要：\n" + numbered
+        def _do_merge() -> str:
+            try:
+                return chat(merge_prompt, vendor=self.vendor, model=self.model,
+                            system=SUMMARY_SYSTEM_PROMPT)
+            except Exception as e:
+                logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
+                return "召回分批合并失败，以下为各摘要：\n" + numbered
+
+        return self._finalize_with_double_check(
+            final_summary_callable=_do_merge,
+            judge_evidence=numbered,
+            stage_label=f"RetrievalBatchMerge·L{layer}·{mode_label}",
+        )
 
     def _clean_answer(self, raw_answer: str) -> str:
         prompt = CLEAN_ANSWER_PROMPT.format(

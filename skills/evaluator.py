@@ -202,11 +202,14 @@ def select_extra_skills(
     exclude: set[str] | None,
     vendor: str = "aliyun",
     model: str = "deepseek-v3.2",
+    evidence: str | None = None,
 ) -> list[str]:
     """double-check 阶段使用：基于 question 二次评估剩余还需要的 skill。
 
     与 _select_skills 的区别：
     - 在 prompt 中明确告知"已完成的 skill"，让 LLM 不要重复选取
+    - 可选传入 evidence（被各路 agent / chunk 提炼后即将进入 final merge 的浓缩证据），
+      让 LLM 基于"已有的中间事实"判断是否还存在必须靠 skill 才能闭合的关键缺口
     - 返回结果再做一次过滤，确保不与 exclude 集合重叠
     - 这样调用方可以避免对已经被前置 summary 吸收的 skill 做无意义的二次执行
     """
@@ -223,7 +226,22 @@ def select_extra_skills(
             f"{listed}"
         )
 
-    prompt = _SELECT_PROMPT.format(index_doc=index_doc, question=question) + extra_hint
+    evidence_hint = ""
+    if evidence and evidence.strip():
+        evidence_hint = (
+            "\n\n**已知中间证据（来自前置推理 / 知识压缩，可能仍缺关键事实）**：\n"
+            "（请仅在该证据明显缺少必须由 skill 提供的权威事实时才补选 skill；"
+            "若证据已能支撑回答，请返回空数组。）\n"
+            "----\n"
+            f"{evidence.strip()}\n"
+            "----"
+        )
+
+    prompt = (
+        _SELECT_PROMPT.format(index_doc=index_doc, question=question)
+        + extra_hint
+        + evidence_hint
+    )
     try:
         resp = chat(prompt, vendor=vendor, model=model)
     except Exception as e:
