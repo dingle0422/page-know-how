@@ -69,8 +69,39 @@ def _is_valid_knowledge_dir(dir_path: str) -> bool:
 class ReasonRequest(BaseModel):
     policyId: str
     question: str
-    chunkSize: int = Field(default=5000, description="知识分块模式的字符数上限，0 表示不启用（默认 5000 启用 chunk 模式）")
-    enableSkills: bool = Field(default=True, description="是否启用 skill 评估与 double-check（默认开启）")
+    maxRounds: int = Field(default=10, description="每个子智能体的最大 ReAct 轮次（默认 5）")
+    vendor: str = Field(default="aliyun", description="LLM 供应商（默认 aliyun）")
+    model: str = Field(default="deepseek-v3.2", description="LLM 模型名称（默认 deepseek-v3.2）")
+    cleanAnswer: bool = Field(
+        default=False,
+        description="启用答案清洗：在 summary 后追加一轮 LLM 调用，以咨询客服口吻输出精简结论（默认 False）",
+    )
+    summaryBatchSize: int = Field(
+        default=3,
+        description="分批并行压缩总结：指定每批包含的证据条数（如 3），启用后自动激活分层总结模式。默认 0 表示不分批",
+    )
+    retrievalMode: bool = Field(
+        default=True,
+        description="启用召回模式：子智能体仅做相关性判定并收集原始知识，避免探索阶段信息畸变（默认 False）",
+    )
+    checkPitfalls: bool = Field(
+        default=True,
+        description="启用易错点收集：第一层推理时让 LLM 同步产出易错点，"
+                        "并在汇总前注入到证据/知识片段中，由总结阶段一并参考；"
+                        "V1 不会追加独立的二次校验 LLM 调用",
+    )
+    chunkSize: int = Field(
+        default=3000,
+        description="知识分块模式的字符数上限，0 表示不启用（web 默认 3000 启用 chunk 模式）",
+    )
+    version: str = Field(
+        default="v1",
+        description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树，默认 v1）",
+    )
+    enableSkills: bool = Field(
+        default=True,
+        description="是否启用 skill 评估与 double-check（默认开启，对应 CLI 的 --disable-skills 取反）",
+    )
 
 
 class ReasonData(BaseModel):
@@ -208,7 +239,13 @@ def _run_reasoning(
     question: str,
     knowledge_dir: str,
     version: str = "v1",
-    check_pitfalls: bool = True,
+    max_rounds: int = 5,
+    vendor: str = "aliyun",
+    model: str = "deepseek-v3.2",
+    clean_answer: bool = False,
+    summary_batch_size: int = 0,
+    retrieval_mode: bool = False,
+    check_pitfalls: bool = False,
     chunk_size: int = 0,
     enable_skills: bool = True,
 ) -> dict:
@@ -217,12 +254,12 @@ def _run_reasoning(
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
-        max_rounds=10,
-        vendor="aliyun",
-        model="deepseek-v3.2",
-        clean_answer=True,
-        summary_batch_size=3,
-        retrieval_mode=True if chunk_size == 0 else False,
+        max_rounds=max_rounds,
+        vendor=vendor,
+        model=model,
+        clean_answer=clean_answer,
+        summary_batch_size=summary_batch_size,
+        retrieval_mode=retrieval_mode,
         check_pitfalls=check_pitfalls,
         chunk_size=chunk_size,
         enable_skills=enable_skills,
@@ -322,6 +359,14 @@ async def reason(req: ReasonRequest):
             )
             result = await asyncio.to_thread(
                 _run_reasoning, req.question, knowledge_dir,
+                version=req.version,
+                max_rounds=req.maxRounds,
+                vendor=req.vendor,
+                model=req.model,
+                clean_answer=req.cleanAnswer,
+                summary_batch_size=req.summaryBatchSize,
+                retrieval_mode=req.retrievalMode,
+                check_pitfalls=req.checkPitfalls,
                 chunk_size=req.chunkSize,
                 enable_skills=req.enableSkills,
             )

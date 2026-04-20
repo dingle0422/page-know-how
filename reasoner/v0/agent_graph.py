@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from llm.client import chat
+from reasoner._sort_utils import natural_dir_sort_key
 from reasoner.v0.react_agent import ReactAgent, AgentResult, BacktrackIntent
 from reasoner.v0.prompts import (
     INTENT_RESOLVE_PROMPT,
@@ -275,7 +276,12 @@ class AgentGraph:
         if not fragments:
             return []
 
-        sorted_fragments = sorted(fragments, key=lambda f: f.heading_path)
+        sorted_fragments = sorted(
+            fragments,
+            key=lambda f: [
+                (natural_dir_sort_key(seg), seg) for seg in f.heading_path
+            ],
+        )
 
         organized = []
         for frag in sorted_fragments:
@@ -317,17 +323,7 @@ class AgentGraph:
                 chapter_num = leaf.split("_")[0]
                 chapters.add(chapter_num)
 
-        def _chapter_sort_key(ch: str) -> list:
-            segments = ch.split(".")
-            result = []
-            for s in segments:
-                try:
-                    result.append(int(s))
-                except ValueError:
-                    result.append(float("inf"))
-            return result
-
-        return sorted(chapters, key=_chapter_sort_key)
+        return sorted(chapters, key=natural_dir_sort_key)
 
     def _flatten_results(self, result: AgentResult) -> list[AgentResult]:
         """递归展平所有子智能体的结果"""

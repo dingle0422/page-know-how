@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from llm.client import chat
+from reasoner._sort_utils import natural_dir_sort_key
 from reasoner.v0.prompts import (
     DISCLOSURE_PROMPT,
     CONTENT_ASSESS_PROMPT,
@@ -411,12 +412,13 @@ class ReactAgent:
     def _list_subdirs(self, directory: str) -> list[str]:
         if not os.path.isdir(directory):
             return []
-        return [
-            d for d in sorted(os.listdir(directory))
+        candidates = [
+            d for d in os.listdir(directory)
             if os.path.isdir(os.path.join(directory, d))
             and not d.startswith(".")
             and d not in self._IGNORED_DIRS
         ]
+        return sorted(candidates, key=lambda d: (natural_dir_sort_key(d), d))
 
     @staticmethod
     def _strip_section(content: str, heading: str) -> str:

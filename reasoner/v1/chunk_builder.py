@@ -3,7 +3,11 @@ import re
 import logging
 from dataclasses import dataclass, field
 
+from reasoner._sort_utils import natural_dir_sort_key
+
 logger = logging.getLogger(__name__)
+
+__all__ = ["KnowledgeChunk", "build_knowledge_chunks", "natural_dir_sort_key"]
 
 _IGNORED_DIRS = frozenset({
     "__pycache__", ".ipynb_checkpoints", ".git", ".svn",
@@ -36,12 +40,13 @@ class _KnowledgeNode:
 def _list_subdirs(directory: str) -> list[str]:
     if not os.path.isdir(directory):
         return []
-    return [
-        d for d in sorted(os.listdir(directory))
+    candidates = [
+        d for d in os.listdir(directory)
         if os.path.isdir(os.path.join(directory, d))
         and not d.startswith(".")
         and d not in _IGNORED_DIRS
     ]
+    return sorted(candidates, key=lambda d: (natural_dir_sort_key(d), d))
 
 
 def _read_knowledge_md(directory: str) -> str:
