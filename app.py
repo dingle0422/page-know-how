@@ -104,7 +104,7 @@ class ReasonRequest(BaseModel):
     )
     summaryCleanAnswer: bool = Field(
         default=True,
-        description="启用 summary+clean 一体化（仅 v1 + retrievalMode=True + summaryBatchSize>0 时生效）："
+        description="启用 summary+clean 一体化："
                     "在 retrieval 分批合并阶段直接产出面向用户的客服话术答案，"
                     "跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟",
     )

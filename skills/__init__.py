@@ -7,7 +7,7 @@
 
 from .runner import SkillRunner, SkillExecutionResult
 from .registry import SkillResultRegistry, SkillRecord
-from .evaluator import evaluate_and_run
+from .evaluator import evaluate_and_run, select_extra_skills
 from .double_check import check_and_enhance
 
 __all__ = [
@@ -16,5 +16,6 @@ __all__ = [
     "SkillResultRegistry",
     "SkillRecord",
     "evaluate_and_run",
+    "select_extra_skills",
     "check_and_enhance",
 ]

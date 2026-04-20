@@ -197,6 +197,52 @@ async def _run_one_skill(
     registry.add(skill_name, cmd, result)
 
 
+def select_extra_skills(
+    question: str,
+    exclude: set[str] | None,
+    vendor: str = "aliyun",
+    model: str = "deepseek-v3.2",
+) -> list[str]:
+    """double-check 阶段使用：基于 question 二次评估剩余还需要的 skill。
+
+    与 _select_skills 的区别：
+    - 在 prompt 中明确告知"已完成的 skill"，让 LLM 不要重复选取
+    - 返回结果再做一次过滤，确保不与 exclude 集合重叠
+    - 这样调用方可以避免对已经被前置 summary 吸收的 skill 做无意义的二次执行
+    """
+    index_doc = _load_index_doc()
+    if not index_doc:
+        return []
+
+    exclude = set(exclude or [])
+    extra_hint = ""
+    if exclude:
+        listed = "\n".join(f"- {s}" for s in sorted(exclude))
+        extra_hint = (
+            "\n\n**已执行 skill（结果已经在前置阶段被回答采纳，请勿再次选取）**：\n"
+            f"{listed}"
+        )
+
+    prompt = _SELECT_PROMPT.format(index_doc=index_doc, question=question) + extra_hint
+    try:
+        resp = chat(prompt, vendor=vendor, model=model)
+    except Exception as e:
+        logger.error("[Evaluator] select_extra_skills LLM 调用失败: %s", e)
+        return []
+
+    selected = _extract_json_array(resp)
+    available = _list_available_skills()
+    valid = [s for s in selected if s in available and s not in exclude]
+    invalid = [s for s in selected if s not in available]
+    duplicate = [s for s in selected if s in exclude]
+    if invalid:
+        logger.warning("[Evaluator] 二次选 skill 中含不存在项，已忽略: %s", invalid)
+    if duplicate:
+        logger.info("[Evaluator] 二次选 skill 命中已完成 skill，已剔除: %s", duplicate)
+    logger.info("[Evaluator] select_extra_skills 命中: %s", valid)
+    return valid
+
+
 async def evaluate_and_run(
     question: str,
     registry: SkillResultRegistry,

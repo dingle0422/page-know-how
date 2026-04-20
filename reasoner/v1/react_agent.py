@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from llm.client import chat
 from reasoner._sort_utils import natural_dir_sort_key
+from reasoner._registries import KnowledgeFragment
 from reasoner.v1.prompts import (
     DISCLOSURE_PROMPT,
     CONTENT_ASSESS_PROMPT,
@@ -176,7 +177,6 @@ class ReactAgent:
                         self.relevant_dirs.append(current_dir)
                         if self.retrieval_registry:
                             heading_path = self._compute_heading_path(current_dir)
-                            from reasoner.v1.agent_graph import KnowledgeFragment
                             fragment = KnowledgeFragment(
                                 content=knowledge_content,
                                 heading_path=heading_path,
@@ -788,7 +788,6 @@ class ReactAgent:
                 self.relevant_dirs.append(current_dir)
                 if self.retrieval_registry:
                     heading_path = self._compute_heading_path(current_dir)
-                    from reasoner.v1.agent_graph import KnowledgeFragment
                     fragment = KnowledgeFragment(
                         content=knowledge_content,
                         heading_path=heading_path,

@@ -212,8 +212,10 @@ def main():
     )
     reason_parser.add_argument(
         "--summary-clean-answer", action="store_true", default=False,
-        help="启用 summary+clean 一体化（仅 v1 + retrieval-mode + summary-batch-size>0 时生效）："
-             "在 retrieval 分批合并阶段直接输出面向用户的客服话术答案，跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟"
+        help="启用 summary+clean 一体化（仅 v1 生效，与所有 summary 模式兼容："
+             "标准/召回 × 单次/分批 × chunk）。在最终 summary 或 batch_merge 阶段"
+             "直接输出面向用户的客服话术答案，跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟。"
+             "开启后即覆盖原 --clean-answer 的清洗效果，无需再额外开 --clean-answer"
     )
 
     args = parser.parse_args()
