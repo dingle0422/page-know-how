@@ -441,7 +441,7 @@ class AgentGraph:
         logger.info(f"[Chunk] 开始并行推理 {total_chunks} 个知识块")
 
         raw_results = [None] * total_chunks
-        with ThreadPoolExecutor(max_workers=min(total_chunks, 10)) as executor:
+        with ThreadPoolExecutor(max_workers=min(total_chunks, 100)) as executor:
             futures = {
                 executor.submit(
                     self._reason_on_chunk, chunk, total_chunks

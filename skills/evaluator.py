@@ -152,11 +152,15 @@ def _select_skills(question: str, vendor: str, model: str) -> list[str]:
     selected = _extract_json_array(resp)
     available = _list_available_skills()
     valid = [s for s in selected if s in available]
-    invalid = set(selected) - available
+    invalid = sorted(set(selected) - available)
     if invalid:
         logger.warning("[Evaluator] LLM 选中了不存在的 skill，已忽略: %s", invalid)
 
-    logger.info("[Evaluator] Step1 选中 skill: %s", valid)
+    logger.info(
+        "[Evaluator] Step1 选中 skill: %s | LLM原始返回: %s | "
+        "可用skill池: %s | 不存在已忽略: %s",
+        valid, selected, sorted(available), invalid,
+    )
     return valid
 
 
@@ -257,7 +261,11 @@ def select_extra_skills(
         logger.warning("[Evaluator] 二次选 skill 中含不存在项，已忽略: %s", invalid)
     if duplicate:
         logger.info("[Evaluator] 二次选 skill 命中已完成 skill，已剔除: %s", duplicate)
-    logger.info("[Evaluator] select_extra_skills 命中: %s", valid)
+    logger.info(
+        "[Evaluator] select_extra_skills 命中: %s | LLM原始返回: %s | "
+        "可用skill池: %s | 已完成(exclude): %s | 不存在已忽略: %s | 已完成已剔除: %s",
+        valid, selected, sorted(available), sorted(exclude), invalid, duplicate,
+    )
     return valid
 
 
