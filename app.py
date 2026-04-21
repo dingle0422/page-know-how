@@ -108,6 +108,13 @@ class ReasonRequest(BaseModel):
                     "在 retrieval 分批合并阶段直接产出面向用户的客服话术答案，"
                     "跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟",
     )
+    answerSystemPrompt: str | None = Field(
+        default=None,
+        description="最终作答阶段的 system prompt 自定义内容："
+                    "若不传或传空字符串，则使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT 默认版本；"
+                    "中间提炼层仍固定使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。"
+                    "仅在 version=v1 下生效",
+    )
 
 
 class ReasonData(BaseModel):
@@ -255,14 +262,19 @@ def _run_reasoning(
     chunk_size: int = 0,
     enable_skills: bool = True,
     summary_clean_answer: bool = False,
+    answer_system_prompt: str | None = None,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
     extra_kwargs = {}
     if version == "v1":
         extra_kwargs["summary_clean_answer"] = summary_clean_answer
-    elif summary_clean_answer:
-        logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
+        extra_kwargs["answer_system_prompt"] = answer_system_prompt
+    else:
+        if summary_clean_answer:
+            logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
+        if answer_system_prompt:
+            logger.warning("answerSystemPrompt 仅在 version=v1 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
@@ -383,6 +395,7 @@ async def reason(req: ReasonRequest):
                 chunk_size=req.chunkSize,
                 enable_skills=req.enableSkills,
                 summary_clean_answer=req.summaryCleanAnswer,
+                answer_system_prompt=req.answerSystemPrompt,
             )
             return ReasonResponse(
                 data=ReasonData(

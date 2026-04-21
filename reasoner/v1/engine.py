@@ -99,6 +99,7 @@ def _process_single_question(
     chunk_size: int = 0,
     enable_skills: bool = True,
     summary_clean_answer: bool = False,
+    answer_system_prompt: str | None = None,
 ) -> dict:
     """处理单个问题并返回结果字典，供串行和并行模式共用。
     original_index: 问题在原始输入文件中的数据行索引（0-based）。
@@ -123,6 +124,7 @@ def _process_single_question(
             chunk_size=chunk_size,
             enable_skills=enable_skills,
             summary_clean_answer=summary_clean_answer,
+            answer_system_prompt=answer_system_prompt,
         )
         result = graph.run()
         answer = result["answer"]
@@ -168,6 +170,7 @@ def run_single_question(
     chunk_size: int = 0,
     enable_skills: bool = True,
     summary_clean_answer: bool = False,
+    answer_system_prompt: str | None = None,
 ) -> dict:
     """
     对单个问题执行推理，直接返回结果字典，同时打印答案到终端。
@@ -193,6 +196,7 @@ def run_single_question(
         chunk_size=chunk_size,
         enable_skills=enable_skills,
         summary_clean_answer=summary_clean_answer,
+        answer_system_prompt=answer_system_prompt,
     )
     result = graph.run()
     answer = result["answer"]
@@ -232,6 +236,7 @@ def _run_sequential(
     chunk_size: int = 0,
     enable_skills: bool = True,
     summary_clean_answer: bool = False,
+    answer_system_prompt: str | None = None,
 ) -> None:
     """串行逐个处理待推理问题。"""
     for original_index, display_pos, question in pending:
@@ -240,6 +245,7 @@ def _run_sequential(
             knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
             retrieval_mode, check_pitfalls, chunk_size, enable_skills,
             summary_clean_answer,
+            answer_system_prompt=answer_system_prompt,
         )
         results.append(result_dict)
         _flush_results(results, output_path)
@@ -263,6 +269,7 @@ def _run_parallel(
     chunk_size: int = 0,
     enable_skills: bool = True,
     summary_clean_answer: bool = False,
+    answer_system_prompt: str | None = None,
 ) -> None:
     """并行处理待推理问题，线程安全地收集结果并实时落盘。"""
     lock = threading.Lock()
@@ -277,6 +284,7 @@ def _run_parallel(
                 knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
                 retrieval_mode, check_pitfalls, chunk_size, enable_skills,
                 summary_clean_answer,
+                answer_system_prompt=answer_system_prompt,
             ): (original_index, question)
             for original_index, display_pos, question in pending
         }
@@ -324,6 +332,7 @@ def run_reasoning(
     chunk_size: int = 0,
     enable_skills: bool = True,
     summary_clean_answer: bool = False,
+    answer_system_prompt: str | None = None,
 ) -> str:
     """
     推理引擎主入口。
@@ -377,6 +386,7 @@ def run_reasoning(
             knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
             retrieval_mode, check_pitfalls, chunk_size, enable_skills,
             summary_clean_answer,
+            answer_system_prompt=answer_system_prompt,
         )
     else:
         _run_parallel(
@@ -384,6 +394,7 @@ def run_reasoning(
             knowledge_dir, max_rounds, vendor, model, max_workers, clean_answer, summary_batch_size,
             retrieval_mode, check_pitfalls, chunk_size, enable_skills,
             summary_clean_answer,
+            answer_system_prompt=answer_system_prompt,
         )
 
     total_elapsed = round(time.time() - total_start, 1)

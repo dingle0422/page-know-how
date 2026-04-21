@@ -9,7 +9,8 @@ from reasoner.v1.react_agent import ReactAgent, AgentResult
 from reasoner.v1.prompts import (
     SUMMARY_PROMPT,
     SUMMARY_AND_CLEAN_PROMPT,
-    SUMMARY_SYSTEM_PROMPT,
+    SUMMARY_EXTRACT_SYSTEM_PROMPT,
+    SUMMARY_ANSWER_SYSTEM_PROMPT,
     CLEAN_ANSWER_PROMPT,
     BATCH_SUMMARY_PROMPT,
     BATCH_MERGE_PROMPT,
@@ -60,6 +61,7 @@ class AgentGraph:
         chunk_size: int = 0,
         enable_skills: bool = True,
         summary_clean_answer: bool = False,
+        answer_system_prompt: str | None = None,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -73,6 +75,19 @@ class AgentGraph:
         self.chunk_size = chunk_size
         self.enable_skills = enable_skills
         self.summary_clean_answer = summary_clean_answer
+        # 最终作答阶段的 system prompt：调用方（CLI/HTTP）可自定义；
+        # 未传入或传入空字符串时回退到默认的 SUMMARY_ANSWER_SYSTEM_PROMPT。
+        # 中间提炼层始终使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。
+        custom = (answer_system_prompt or "").strip() if answer_system_prompt is not None else ""
+        self.answer_system_prompt = custom if custom else SUMMARY_ANSWER_SYSTEM_PROMPT
+        if custom:
+            logger.info(
+                f"[AnswerSystemPrompt] 使用调用方自定义版本，长度: {len(self.answer_system_prompt)} 字符"
+            )
+        else:
+            logger.info(
+                f"[AnswerSystemPrompt] 使用默认 SUMMARY_ANSWER_SYSTEM_PROMPT，长度: {len(self.answer_system_prompt)} 字符"
+            )
         self.registry = ExploredRegistry()
         self.pitfalls_registry = PitfallsRegistry()
         self.retrieval_registry = RetrievalKnowledgeRegistry() if retrieval_mode else None
@@ -230,7 +245,7 @@ class AgentGraph:
         try:
             answer = chat(
                 prompt, vendor=self.vendor, model=self.model,
-                system=SUMMARY_SYSTEM_PROMPT,
+                system=self.answer_system_prompt,
             )
             answer = (answer or "").strip()
             if not answer:
@@ -501,7 +516,7 @@ class AgentGraph:
         )
         try:
             response = chat(prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_SYSTEM_PROMPT)
+                            system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
             return self._parse_chunk_json(response, chunk.index)
         except Exception as e:
             logger.error(f"[Chunk] 第 {chunk.index} 块 LLM 调用失败: {e}")
@@ -696,7 +711,7 @@ class AgentGraph:
         )
         prompt = self._append_skill_context_to_prompt(prompt, skill_context)
 
-        logger.info(f"[Summary·{mode_label}] system prompt 长度: {len(SUMMARY_SYSTEM_PROMPT)} 字符")
+        logger.info(f"[Summary·{mode_label}] system prompt 长度: {len(self.answer_system_prompt)} 字符")
         logger.info(f"[Summary·{mode_label}] user prompt 长度: {len(prompt)} 字符")
         logger.info(f"[Summary·{mode_label}] user prompt 内容:\n{prompt}")
 
@@ -704,7 +719,7 @@ class AgentGraph:
             try:
                 return chat(
                     prompt, vendor=self.vendor, model=self.model,
-                    system=SUMMARY_SYSTEM_PROMPT,
+                    system=self.answer_system_prompt,
                 )
             except Exception as e:
                 logger.error(f"最终汇总 LLM 调用失败: {e}")
@@ -756,7 +771,7 @@ class AgentGraph:
             )
             try:
                 return chat(prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_SYSTEM_PROMPT)
+                            system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
             except Exception as e:
                 logger.error(f"[BatchSummary] 第 {layer} 层 第 {batch_index} 批失败: {e}")
                 return f"（第 {batch_index} 批压缩失败）\n原始内容:\n{batch_content}"
@@ -807,7 +822,7 @@ class AgentGraph:
         def _do_merge() -> str:
             try:
                 return chat(merge_prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_SYSTEM_PROMPT)
+                            system=self.answer_system_prompt)
             except Exception as e:
                 logger.error(f"[BatchMerge] 最终合并失败: {e}")
                 return "分批合并失败，以下为各摘要：\n" + numbered
@@ -838,7 +853,7 @@ class AgentGraph:
         def _do_summary() -> str:
             try:
                 return chat(prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_SYSTEM_PROMPT)
+                            system=self.answer_system_prompt)
             except Exception as e:
                 logger.error(f"[RetrievalSummary] 召回总结失败: {e}")
                 return "召回总结生成失败，以下为召回的知识片段：\n" + knowledge_text
@@ -883,7 +898,7 @@ class AgentGraph:
             )
             try:
                 return chat(prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_SYSTEM_PROMPT)
+                            system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
             except Exception as e:
                 logger.error(f"[RetrievalBatch] 第 {layer} 层 第 {batch_index} 批失败: {e}")
                 return f"（第 {batch_index} 批压缩失败）\n原始内容:\n{batch_content}"
@@ -932,7 +947,7 @@ class AgentGraph:
         def _do_merge() -> str:
             try:
                 return chat(merge_prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_SYSTEM_PROMPT)
+                            system=self.answer_system_prompt)
             except Exception as e:
                 logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
                 return "召回分批合并失败，以下为各摘要：\n" + numbered
