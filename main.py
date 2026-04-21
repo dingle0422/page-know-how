@@ -169,13 +169,13 @@ def main():
         help="每个子智能体的最大 ReAct 轮次（默认 5）"
     )
     reason_parser.add_argument(
-        "--vendor", default="aliyun",
-        # choices=["aliyun", "servyou"],
-        help="LLM 供应商（默认 aliyun）"
+        "--vendor", default="qwen3.5-122b-a10b",
+        # choices=["aliyun", "servyou", "qwen3.5-122b-a10b", "qwen3.5-27b"],
+        help="LLM 供应商（默认 qwen3.5-122b-a10b 直连）"
     )
     reason_parser.add_argument(
-        "--model", default="deepseek-v3.2",
-        help="LLM 模型名称（默认 deepseek-v3.2）"
+        "--model", default="Qwen3.5-122B-A10B",
+        help="LLM 模型名称（默认 Qwen3.5-122B-A10B）"
     )
     reason_parser.add_argument(
         "--max-workers", "-w", type=int, default=1,

@@ -130,8 +130,8 @@ async def check_and_enhance(
     raw_answer: str,
     registry: SkillResultRegistry,
     runner: SkillRunner,
-    vendor: str = "aliyun",
-    model: str = "deepseek-v3.2",
+    vendor: str = "qwen3.5-122b-a10b",
+    model: str = "Qwen3.5-122B-A10B",
 ) -> str:
     """double-check 入口：返回（可能已增强的）最终 answer"""
     if registry.has_any():

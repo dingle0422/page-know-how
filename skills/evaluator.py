@@ -200,8 +200,8 @@ async def _run_one_skill(
 def select_extra_skills(
     question: str,
     exclude: set[str] | None,
-    vendor: str = "aliyun",
-    model: str = "deepseek-v3.2",
+    vendor: str = "qwen3.5-122b-a10b",
+    model: str = "Qwen3.5-122B-A10B",
     evidence: str | None = None,
 ) -> list[str]:
     """double-check 阶段使用：基于 question 二次评估剩余还需要的 skill。
@@ -265,8 +265,8 @@ async def evaluate_and_run(
     question: str,
     registry: SkillResultRegistry,
     runner: SkillRunner,
-    vendor: str = "aliyun",
-    model: str = "deepseek-v3.2",
+    vendor: str = "qwen3.5-122b-a10b",
+    model: str = "Qwen3.5-122B-A10B",
     skill_names: list[str] | None = None,
 ) -> list[str]:
     """对单个用户问题做 skill 评估与执行。

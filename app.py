@@ -70,8 +70,8 @@ class ReasonRequest(BaseModel):
     policyId: str
     question: str
     maxRounds: int = Field(default=10, description="每个子智能体的最大 ReAct 轮次（默认 5）")
-    vendor: str = Field(default="aliyun", description="LLM 供应商（默认 aliyun）")
-    model: str = Field(default="deepseek-v3.2", description="LLM 模型名称（默认 deepseek-v3.2）")
+    vendor: str = Field(default="qwen3.5-122b-a10b", description="LLM 供应商（默认 qwen3.5-122b-a10b 直连）")
+    model: str = Field(default="Qwen3.5-122B-A10B", description="LLM 模型名称（默认 Qwen3.5-122B-A10B）")
     cleanAnswer: bool = Field(
         default=False,
         description="启用答案清洗：在 summary 后追加一轮 LLM 调用，以咨询客服口吻输出精简结论（默认 False）",
@@ -246,8 +246,8 @@ def _run_reasoning(
     knowledge_dir: str,
     version: str = "v1",
     max_rounds: int = 5,
-    vendor: str = "aliyun",
-    model: str = "deepseek-v3.2",
+    vendor: str = "qwen3.5-122b-a10b",
+    model: str = "Qwen3.5-122B-A10B",
     clean_answer: bool = False,
     summary_batch_size: int = 0,
     retrieval_mode: bool = False,
