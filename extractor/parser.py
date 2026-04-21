@@ -269,6 +269,50 @@ def _html_table_to_narrative(table_tag) -> str:
     return '\n'.join(lines)
 
 
+def extract_clause_references(html: str) -> list[dict]:
+    """从 clauseContent HTML 中抽取 <span class="ql-reference"> 引用。
+
+    返回结构示例（每条 ref 含 5 个字段，resolvedClauses/cycle 由后续 resolve_references 填充）::
+
+        [
+            {
+                "policyId": "KH...",
+                "clauseId": "id1,id2"  # 保留原串，可能是单 id / 逗号多 id / 空串
+                "highlightedContent": "...",
+                "resolvedClauses": [],
+                "cycle": False,
+            },
+            ...
+        ]
+
+    - 缺少 data-policy-id 的 span 会跳过并 warning。
+    - 同一 span 多次出现保留多次，按文档出现顺序。
+    """
+    if not html or '<span' not in html:
+        return []
+
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, 'html.parser')
+    spans = soup.find_all('span', class_='ql-reference')
+    refs: list[dict] = []
+    for span in spans:
+        policy_id = (span.get('data-policy-id') or '').strip()
+        if not policy_id:
+            logger.warning("ql-reference span 缺少 data-policy-id，已跳过")
+            continue
+        clause_id = (span.get('data-clause-id') or '').strip()
+        highlighted = span.get_text()
+        refs.append({
+            'policyId': policy_id,
+            'clauseId': clause_id,
+            'highlightedContent': highlighted,
+            'resolvedClauses': [],
+            'cycle': False,
+        })
+    return refs
+
+
 def _convert_html_to_markdown(text: str, narrativize: bool = True) -> str:
     """将文本中的 HTML 片段转为 Markdown，纯文本原样返回。
 
@@ -398,6 +442,220 @@ def parse_document(filepath: str) -> list[ParsedLine]:
 
 
 DEFAULT_API_URL = "http://10.199.0.40:8080/kg-platform/api/clauses/list"
+DEFAULT_CLAUSE_API_URL = "http://10.199.0.40:8080/kg-platform/api/clauses/get"
+
+
+def _fetch_single_clause(policy_id: str, clause_id: str, api_url: str) -> dict | None:
+    """按 (policyId, clauseId) 调用细粒度接口拉取单条 clause raw dict。
+
+    返回结构与 fetch_api_clauses 中 raw 同形（包含 clauseId/clauseNumber/clauseName/clauseContent 等）。
+    失败、网络异常、查无均返回 None（调用方据此标记 missing/error）。
+    """
+    import requests
+    try:
+        response = requests.post(api_url, json={"policyId": policy_id, "clauseId": clause_id})
+        response.raise_for_status()
+        result = response.json()
+    except Exception as e:
+        logger.warning(f"_fetch_single_clause 网络/解析异常 policyId={policy_id} clauseId={clause_id}: {e}")
+        return None
+
+    if not result.get('success'):
+        logger.warning(f"_fetch_single_clause 接口返回失败 policyId={policy_id} clauseId={clause_id}: {result.get('message')}")
+        return None
+
+    data = result.get('data')
+    if data is None:
+        return None
+    if isinstance(data, list):
+        if not data:
+            return None
+        for item in data:
+            if isinstance(item, dict) and item.get('clauseId') == clause_id:
+                return item
+        first = data[0]
+        return first if isinstance(first, dict) else None
+    if isinstance(data, dict):
+        if 'clause' in data and isinstance(data['clause'], dict):
+            return data['clause']
+        if 'clauses' in data and isinstance(data['clauses'], list) and data['clauses']:
+            for item in data['clauses']:
+                if isinstance(item, dict) and item.get('clauseId') == clause_id:
+                    return item
+            return data['clauses'][0] if isinstance(data['clauses'][0], dict) else None
+        return data
+    return None
+
+
+def _fetch_policy_clauses_raw(policy_id: str, api_url: str) -> list[dict]:
+    """按 policyId 调用全文接口拉取整篇 policy 的 raw clause 列表。
+
+    与 fetch_api_clauses 内部使用的接口同源，但仅返回原始 clause 列表，不做 number / path 加工。
+    异常或为空时返回 []，调用方据此降级处理。
+    """
+    import requests
+    try:
+        response = requests.post(api_url, json={"policyId": policy_id})
+        response.raise_for_status()
+        result = response.json()
+    except Exception as e:
+        logger.warning(f"_fetch_policy_clauses_raw 网络/解析异常 policyId={policy_id}: {e}")
+        return []
+
+    if not result.get('success'):
+        logger.warning(f"_fetch_policy_clauses_raw 接口返回失败 policyId={policy_id}: {result.get('message')}")
+        return []
+
+    return result.get('data', {}).get('clauses', []) or []
+
+
+def resolve_references(
+    refs: list[dict],
+    clause_cache: dict[tuple[str, str], dict | None],
+    policy_cache: dict[str, list[str]],
+    visited: set[tuple[str, str]],
+    single_url: str,
+    bulk_url: str,
+) -> None:
+    """就地填充 refs[i]['resolvedClauses']，递归展开嵌套引用，遇循环 / 查无 / 异常停止该分支。
+
+    节点统一字段: policyId / clauseId / highlightedContent / resolvedClauses / cycle
+    可选标记: missing(bool) / error(str)
+
+    顶层 ref 保留原始 clauseId 串（含逗号或空串）与 highlightedContent；
+    其 resolvedClauses 内为"扁平"的 clause 节点（每项 clauseId 都是单 id，highlightedContent 恒空），
+    深层节点的 resolvedClauses 同样是扁平 clause 节点（不再嵌套 reference 对象）。
+
+    见 plan 文档说明：
+      - clauseId 空串 → 走 bulk 接口拉整篇，展开为 N 个单 id 子节点
+      - 含逗号 → 拆分逐个走单条
+      - 单 id → 走单条
+      - 循环（在 visited 中）→ 节点 cycle:true，停止下钻
+      - 缓存命中（不在 visited）→ 复用 raw 数据但仍递归
+      - 接口失败/查无 → 节点 missing/error 并停止
+    """
+    for ref in refs:
+        policy_id = ref.get('policyId', '')
+        raw_clause_id = ref.get('clauseId', '')
+        ref['resolvedClauses'] = _expand_to_clause_nodes(
+            policy_id, raw_clause_id,
+            clause_cache, policy_cache, visited, single_url, bulk_url,
+        )
+
+
+def _expand_to_clause_nodes(
+    policy_id: str,
+    raw_clause_id: str,
+    clause_cache: dict[tuple[str, str], dict | None],
+    policy_cache: dict[str, list[str]],
+    visited: set[tuple[str, str]],
+    single_url: str,
+    bulk_url: str,
+) -> list[dict]:
+    """把 (policyId, raw_clauseId) 展开成扁平的 clause 节点列表，每个节点本身可再含 resolvedClauses。
+
+    raw_clauseId:
+      - "" 整篇 → 该 policy 全部 clauseId
+      - "id1,id2" → 拆分
+      - 单 id → 单元素列表
+    """
+    if not policy_id:
+        return []
+
+    if raw_clause_id == '':
+        child_ids = _expand_whole_policy(policy_id, clause_cache, policy_cache, bulk_url)
+    elif ',' in raw_clause_id:
+        child_ids = [cid.strip() for cid in raw_clause_id.split(',') if cid.strip()]
+    else:
+        child_ids = [raw_clause_id]
+
+    return [
+        _resolve_single_clause(
+            policy_id, cid, clause_cache, policy_cache, visited, single_url, bulk_url,
+        )
+        for cid in child_ids
+    ]
+
+
+def _expand_whole_policy(
+    policy_id: str,
+    clause_cache: dict[tuple[str, str], dict | None],
+    policy_cache: dict[str, list[str]],
+    bulk_url: str,
+) -> list[str]:
+    """整篇引用：返回该 policy 的全部 clauseId 列表（按 API 原顺序），首次访问时拉 bulk 并回填两个 cache。"""
+    if policy_id in policy_cache:
+        return policy_cache[policy_id]
+
+    raw_list = _fetch_policy_clauses_raw(policy_id, bulk_url)
+    ids: list[str] = []
+    for raw in raw_list:
+        cid = raw.get('clauseId', '')
+        if not cid:
+            continue
+        ids.append(cid)
+        clause_cache.setdefault((policy_id, cid), raw)
+    policy_cache[policy_id] = ids
+    if not ids:
+        logger.warning(f"_expand_whole_policy 未能拉到 policyId={policy_id} 的任何 clause")
+    return ids
+
+
+def _resolve_single_clause(
+    policy_id: str,
+    clause_id: str,
+    clause_cache: dict[tuple[str, str], dict | None],
+    policy_cache: dict[str, list[str]],
+    visited: set[tuple[str, str]],
+    single_url: str,
+    bulk_url: str,
+) -> dict:
+    """对单个 (policyId, clauseId) 解析为一个轻量 clause 节点。
+
+    决策顺序: visited(循环检测) → clause_cache(请求级 memo) → 网络。
+    返回节点的 resolvedClauses 是"扁平 clause 节点"列表（不嵌套 reference 对象）。
+    """
+    node: dict = {
+        'policyId': policy_id,
+        'clauseId': clause_id,
+        'highlightedContent': '',
+        'resolvedClauses': [],
+        'cycle': False,
+    }
+    key = (policy_id, clause_id)
+
+    if key in visited:
+        node['cycle'] = True
+        return node
+
+    if key in clause_cache:
+        raw = clause_cache[key]
+    else:
+        raw = _fetch_single_clause(policy_id, clause_id, single_url)
+        clause_cache[key] = raw
+
+    if raw is None:
+        node['missing'] = True
+        return node
+
+    inner_html = raw.get('clauseContent', '') or ''
+    inner_refs = extract_clause_references(inner_html)
+    if not inner_refs:
+        return node
+
+    visited.add(key)
+    try:
+        flat_children: list[dict] = []
+        for ref in inner_refs:
+            children = _expand_to_clause_nodes(
+                ref.get('policyId', ''), ref.get('clauseId', ''),
+                clause_cache, policy_cache, visited, single_url, bulk_url,
+            )
+            flat_children.extend(children)
+        node['resolvedClauses'] = flat_children
+    finally:
+        visited.discard(key)
+    return node
 
 
 def _extract_version_from_clause_name(clause_name: str) -> str:
@@ -416,20 +674,23 @@ def _extract_policy_name(clause_name: str) -> str:
 def fetch_api_clauses(
     policy_id: str,
     api_url: str = DEFAULT_API_URL,
+    single_clause_api_url: str = DEFAULT_CLAUSE_API_URL,
 ) -> tuple[list[Clause], str, str, dict[str, dict]]:
     """
     从 API 接口获取条款数据并转换为 Clause 列表。
 
     参数:
         policy_id: 策略 ID
-        api_url: API 接口地址
+        api_url: 全文（按 policyId 拉整篇）接口地址
+        single_clause_api_url: 细粒度（按 policyId+clauseId 拉单条）接口地址，用于 references 递归展开
 
     返回:
         (clauses, policy_name, version, raw_clause_map)
         - clauses: 转换后的 Clause 列表（与 parse_clause_json 格式一致）
         - policy_name: 从 clauseName 提取的策略名称
         - version: 从 clauseName 提取的版本号（用作目录时间戳后缀）
-        - raw_clause_map: number → 原始 API 条款数据的映射（用于保存 clause.json）
+        - raw_clause_map: number → 原始 API 条款数据的映射（用于保存 clause.json，
+          每个 raw 已被注入 references 字段：clauseContent 中 ql-reference 解析 + 递归展开结果）
     """
     import requests
 
@@ -471,6 +732,8 @@ def fetch_api_clauses(
         number_set[number] = raw
         raw_clause_map[number] = raw
 
+        raw['references'] = extract_clause_references(raw.get('clauseContent', ''))
+
         search_labels = raw.get('searchLabels', [])
         full_name = search_labels[0] if search_labels else ''
 
@@ -491,6 +754,26 @@ def fetch_api_clauses(
         parent_num = _derive_parent_number(number)
         if parent_num and parent_num in number_set:
             clause['path'] = _build_full_path(number, number_set)
+
+    # 递归展开 references 关系图（轻量节点，仅含 policyId/clauseId/highlightedContent/resolvedClauses/cycle）。
+    # cache 仅在本次抽取生命周期内有效，不持久化、不跨任务复用。
+    clause_cache: dict[tuple[str, str], dict | None] = {}
+    policy_cache: dict[str, list[str]] = {}
+    self_ids: list[str] = []
+    for raw in api_clauses:
+        cid = raw.get('clauseId', '')
+        if cid:
+            clause_cache[(policy_id, cid)] = raw
+            self_ids.append(cid)
+    policy_cache[policy_id] = self_ids
+
+    for raw in api_clauses:
+        cid = raw.get('clauseId', '')
+        visited: set[tuple[str, str]] = {(policy_id, cid)} if cid else {(policy_id, '')}
+        resolve_references(
+            raw['references'], clause_cache, policy_cache, visited,
+            single_clause_api_url, api_url,
+        )
 
     logger.info(f"从 API 获取到 {len(clauses)} 个条款（policyId: {policy_id}，版本: {version}）")
     return clauses, policy_name, version, raw_clause_map

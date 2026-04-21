@@ -130,25 +130,39 @@ def extract(filepath: str) -> str:
     return knowledge_root
 
 
-def extract_from_api(policy_id: str, api_url: str | None = None) -> str:
+def extract_from_api(
+    policy_id: str,
+    api_url: str | None = None,
+    single_clause_api_url: str | None = None,
+) -> str:
     """
     从 API 接口获取条款数据并构建知识目录。
 
     流程与 extract() 一致，区别在于：
     1. 数据源为 HTTP API（通过 policyId 获取）
     2. 目录命名使用 clauseName 中的版本号替代毫秒时间戳
-    3. 每个章节目录下额外保存 clause.json（原始 API 条款数据）
+    3. 每个章节目录下额外保存 clause.json（原始 API 条款数据 + references 关系图）
+
+    参数:
+        policy_id: 策略 ID
+        api_url: 全文（按 policyId 拉整篇）接口地址，默认 DEFAULT_API_URL
+        single_clause_api_url: 细粒度（按 policyId+clauseId 拉单条）接口地址，
+            用于 ql-reference 引用关系图的递归展开，默认 DEFAULT_CLAUSE_API_URL
     """
-    from extractor.parser import DEFAULT_API_URL
+    from extractor.parser import DEFAULT_API_URL, DEFAULT_CLAUSE_API_URL
 
     if api_url is None:
         api_url = DEFAULT_API_URL
+    if single_clause_api_url is None:
+        single_clause_api_url = DEFAULT_CLAUSE_API_URL
 
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     page_knowledge_dir = os.path.join(project_root, "page_knowledge")
     os.makedirs(page_knowledge_dir, exist_ok=True)
 
-    clauses, policy_name, version, raw_clause_map = fetch_api_clauses(policy_id, api_url)
+    clauses, policy_name, version, raw_clause_map = fetch_api_clauses(
+        policy_id, api_url, single_clause_api_url,
+    )
 
     suffix = version if version else str(int(time.time() * 1000))
     knowledge_root = os.path.join(
