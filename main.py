@@ -225,7 +225,9 @@ def main():
         "--think-mode", action="store_true", default=False,
         help="启用 think 模式（仅 v1 生效，需配合 --summary-clean-answer 使用）："
              "在【所有最终节点】的 summary+clean 阶段，改用 *_AND_CLEAN_THINK 版 prompt，"
-             "要求模型严格按 <think>...</think><answer>...</answer> 双标签输出。"
+             "要求模型严格按 JSON {\"analysis\": \"...\", \"concise_answer\": \"...\"} 输出。"
+             "字段语义：analysis=完整客服回答（≤500 字等所有硬约束），"
+             "concise_answer=核心结论一句话；解析后映射到响应体 think<-analysis、answer<-concise_answer。"
              "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
              "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
              "中间提炼 prompt 始终保持原样不动"

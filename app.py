@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import json
 import logging
 import asyncio
@@ -119,7 +120,10 @@ class ReasonRequest(BaseModel):
         default=False,
         description="启用 think 模式：在【所有最终节点】的 summary+clean 阶段，"
                     "改用 *_AND_CLEAN_THINK 版 prompt，要求模型严格按 "
-                    "<think>...</think><answer>...</answer> 双标签输出。"
+                    "JSON 对象 {\"analysis\": \"...\", \"concise_answer\": \"...\"} 输出。"
+                    "字段语义：analysis = 完整客服回答（受 ≤500 字等所有硬约束），"
+                    "concise_answer = 在 analysis 之上提炼出的核心结论（一句话/极简短句）。"
+                    "解析后映射到响应体：think <- analysis，answer <- concise_answer。"
                     "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
                     "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
                     "中间提炼 prompt 始终保持原样不动。"
@@ -130,7 +134,18 @@ class ReasonRequest(BaseModel):
 class ReasonData(BaseModel):
     khObj: str = Field(description="知识点名称到章节编号的 JSON 字符串映射")
     policyId: str
-    answer: str
+    answer: str = Field(
+        description="最终面向用户的客服回答。"
+                    "thinkMode=False 时：模型 *_AND_CLEAN_PROMPT 输出的完整客服回答（≤500 字）；"
+                    "thinkMode=True 时：取自 LLM JSON 输出中的 concise_answer 字段（一句话核心结论）。"
+                    "如 thinkMode=True 但模型未严格按 JSON 输出，则兜底为模型原始输出全文",
+    )
+    think: str = Field(
+        default="",
+        description="模型在 thinkMode 开启时 LLM JSON 输出中的 analysis 字段，"
+                    "即完整面向用户的客服回答（受 ≤500 字、客服口吻、知识原文引用等所有硬约束）。"
+                    "未开启 thinkMode、或开启后模型未严格按 JSON 输出/缺少 analysis 字段时为空字符串",
+    )
     skillsResult: dict[str, str] = Field(
         default_factory=dict,
         description="本次推理实际调用的 skill 结果：{skill_name: stdout}；未启用 skill 或未触发任何 skill 时为空 {}",
@@ -250,6 +265,103 @@ def _build_kh_obj_from_headings(headings: list[str]) -> dict[str, str]:
     return kh_map
 
 
+# think_mode 下模型应输出形如 {"analysis": "...", "concise_answer": "..."} 的合法 JSON，
+# 字段映射到响应体：think <- analysis, answer <- concise_answer。
+# markdown 代码块（```json ... ```）剥离用：捕获中间净 JSON 主体。
+_JSON_CODEBLOCK_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+# 在原文里搜首个 { ... } 主体（贪婪到最末一个 }），用于模型在前后混入了说明文字时兜底。
+_JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+
+def _try_parse_json_obj(text: str) -> dict | None:
+    """优先 json.loads 严格解析；失败再退化到 json5（容忍尾随逗号、单引号、注释等）。
+    解析结果不是 dict 时一律视为失败。
+    """
+    if not text:
+        return None
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except (json.JSONDecodeError, ValueError):
+        pass
+    try:
+        import json5  # 已在 requirements 中
+        obj = json5.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except Exception:
+        return None
+
+
+def _split_analysis_concise_answer(raw: str, think_mode: bool) -> tuple[str, str]:
+    """解析模型在 think_mode 下输出的 JSON({analysis, concise_answer})。
+
+    返回 (think_text, answer_text)，分别对应 ReasonData.think / ReasonData.answer：
+        think  <- analysis
+        answer <- concise_answer
+
+    解析策略（按顺序尝试，命中即停）：
+      1. think_mode=False 或 raw 为空：直接 ("", raw or "")
+      2. raw 原样 json.loads → 失败再 json5.loads（容忍非严格 JSON）
+      3. 剥离 ```json ... ``` 代码块外壳后再尝试 step 2
+      4. 用正则截取 raw 中首个 {...} 主体后再尝试 step 2
+      5. 仍失败：视为不遵循 JSON 格式 → ("", raw)，并打 WARNING
+
+    解析成功（拿到 dict）后字段缺失兜底：
+      - 同时有 analysis 和 concise_answer → (analysis, concise_answer)
+      - 只有 analysis → (analysis, "")
+      - 只有 concise_answer → ("", concise_answer)
+      - 都没有 → ("", raw) 并打 WARNING
+    """
+    if not think_mode or not raw:
+        return "", raw or ""
+
+    raw_stripped = raw.strip()
+
+    parsed = _try_parse_json_obj(raw_stripped)
+
+    if parsed is None:
+        cb_match = _JSON_CODEBLOCK_RE.search(raw_stripped)
+        if cb_match:
+            parsed = _try_parse_json_obj(cb_match.group(1).strip())
+
+    if parsed is None:
+        obj_match = _JSON_OBJECT_RE.search(raw_stripped)
+        if obj_match:
+            parsed = _try_parse_json_obj(obj_match.group(0))
+
+    if parsed is None:
+        logger.warning(
+            "[ThinkMode] 模型输出无法解析为 JSON({analysis, concise_answer}) "
+            "(json/json5/codeblock/regex 全部失败)，"
+            "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
+        )
+        return "", raw
+
+    analysis_val = parsed.get("analysis", "")
+    concise_val = parsed.get("concise_answer", "")
+    analysis_text = analysis_val.strip() if isinstance(analysis_val, str) else ""
+    concise_text = concise_val.strip() if isinstance(concise_val, str) else ""
+
+    if not analysis_text and not concise_text:
+        logger.warning(
+            "[ThinkMode] 模型 JSON 中未提取到任何有效字段 "
+            f"(实际字段={list(parsed.keys())})，"
+            "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
+        )
+        return "", raw
+
+    if not analysis_text:
+        logger.warning(
+            "[ThinkMode] 模型 JSON 缺少 analysis 字段，think 字段将返回空字符串"
+        )
+    if not concise_text:
+        logger.warning(
+            "[ThinkMode] 模型 JSON 缺少 concise_answer 字段，answer 字段将返回空字符串"
+        )
+
+    return analysis_text, concise_text
+
+
 def _import_agent_graph(version: str):
     if version == "v0":
         from reasoner.v0.agent_graph import AgentGraph
@@ -306,8 +418,10 @@ def _run_reasoning(
     result = graph.run()
     kh_obj = _build_kh_obj(graph)
     skills_result = _build_skills_result(graph)
+    think_text, answer_text = _split_analysis_concise_answer(result["answer"], think_mode)
     return {
-        "answer": result["answer"],
+        "answer": answer_text,
+        "think": think_text,
         "kh_obj": kh_obj,
         "skills_result": skills_result,
     }
@@ -416,6 +530,7 @@ async def reason(req: ReasonRequest):
                 data=ReasonData(
                     khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
                     answer=result["answer"],
+                    think=result.get("think", ""),
                     skillsResult=result.get("skills_result", {}),
                     policyId=req.policyId,
                 ),
