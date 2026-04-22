@@ -9,17 +9,21 @@ from reasoner.v1.react_agent import ReactAgent, AgentResult
 from reasoner.v1.prompts import (
     SUMMARY_PROMPT,
     SUMMARY_AND_CLEAN_PROMPT,
+    SUMMARY_AND_CLEAN_THINK_PROMPT,
     SUMMARY_EXTRACT_SYSTEM_PROMPT,
     SUMMARY_ANSWER_SYSTEM_PROMPT,
     CLEAN_ANSWER_PROMPT,
     BATCH_SUMMARY_PROMPT,
     BATCH_MERGE_PROMPT,
     BATCH_MERGE_AND_CLEAN_PROMPT,
+    BATCH_MERGE_AND_CLEAN_THINK_PROMPT,
     RETRIEVAL_SUMMARY_PROMPT,
     RETRIEVAL_SUMMARY_AND_CLEAN_PROMPT,
+    RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT,
     RETRIEVAL_BATCH_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_MERGE_PROMPT,
     RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT,
+    RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT,
     CHUNK_REASONING_PROMPT,
     CHUNK_REASONING_WITH_PITFALLS_PROMPT,
     ALL_IN_ANSWER_PROMPT,
@@ -62,6 +66,7 @@ class AgentGraph:
         enable_skills: bool = True,
         summary_clean_answer: bool = False,
         answer_system_prompt: str | None = None,
+        think_mode: bool = False,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -75,6 +80,20 @@ class AgentGraph:
         self.chunk_size = chunk_size
         self.enable_skills = enable_skills
         self.summary_clean_answer = summary_clean_answer
+        # think_mode：作用于【所有最终节点】的 *_AND_CLEAN_PROMPT，统一切换为
+        # *_AND_CLEAN_THINK_PROMPT，要求模型按 <think>/<answer> 双标签输出。
+        # 覆盖范围（不受分批/召回/chunk 影响）：
+        #   - 非分批：SUMMARY_AND_CLEAN / RETRIEVAL_SUMMARY_AND_CLEAN
+        #   - 分批  ：BATCH_MERGE_AND_CLEAN / RETRIEVAL_BATCH_MERGE_AND_CLEAN
+        #             （chunk 模式最终也落到 batch_final_merge）
+        # 中间提炼 prompt（BATCH_SUMMARY / RETRIEVAL_BATCH_SUMMARY / CHUNK_REASONING_*）
+        # 始终保持原样，不受 think_mode 影响。
+        self.think_mode = think_mode
+        if self.think_mode and not self.summary_clean_answer:
+            logger.warning(
+                "[ThinkMode] think_mode=True 但 summary_clean_answer=False，"
+                "本次将不会生效（think 版 prompt 仅作用于 *_AND_CLEAN 体系的最终总结）"
+            )
         # 最终作答阶段的 system prompt：调用方（CLI/HTTP）可自定义；
         # 未传入或传入空字符串时回退到默认的 SUMMARY_ANSWER_SYSTEM_PROMPT。
         # 中间提炼层始终使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。
@@ -700,8 +719,12 @@ class AgentGraph:
         agent_results_text = "\n\n".join(agent_parts) if agent_parts else "（无）"
 
         if self.summary_clean_answer:
-            template = SUMMARY_AND_CLEAN_PROMPT
-            mode_label = "汇总+清洗一体"
+            if self.think_mode:
+                template = SUMMARY_AND_CLEAN_THINK_PROMPT
+                mode_label = "汇总+清洗一体·Think"
+            else:
+                template = SUMMARY_AND_CLEAN_PROMPT
+                mode_label = "汇总+清洗一体"
         else:
             template = SUMMARY_PROMPT
             mode_label = "纯汇总"
@@ -802,8 +825,12 @@ class AgentGraph:
             f"### 摘要 {i+1}\n{s}" for i, s in enumerate(summaries)
         )
         if self.summary_clean_answer:
-            template = BATCH_MERGE_AND_CLEAN_PROMPT
-            mode_label = "合并+清洗一体"
+            if self.think_mode:
+                template = BATCH_MERGE_AND_CLEAN_THINK_PROMPT
+                mode_label = "合并+清洗一体·Think"
+            else:
+                template = BATCH_MERGE_AND_CLEAN_PROMPT
+                mode_label = "合并+清洗一体"
         else:
             template = BATCH_MERGE_PROMPT
             mode_label = "纯合并"
@@ -836,8 +863,12 @@ class AgentGraph:
     def _retrieval_final_summary(self, organized_parts: list[str], skill_context: str = "") -> str:
         knowledge_text = "\n\n".join(organized_parts)
         if self.summary_clean_answer:
-            template = RETRIEVAL_SUMMARY_AND_CLEAN_PROMPT
-            mode_label = "汇总+清洗一体"
+            if self.think_mode:
+                template = RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT
+                mode_label = "汇总+清洗一体·Think"
+            else:
+                template = RETRIEVAL_SUMMARY_AND_CLEAN_PROMPT
+                mode_label = "汇总+清洗一体"
         else:
             template = RETRIEVAL_SUMMARY_PROMPT
             mode_label = "纯汇总"
@@ -927,8 +958,12 @@ class AgentGraph:
             f"### 摘要 {i+1}\n{s}" for i, s in enumerate(summaries)
         )
         if self.summary_clean_answer:
-            template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT
-            mode_label = "合并+清洗一体"
+            if self.think_mode:
+                template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT
+                mode_label = "合并+清洗一体·Think"
+            else:
+                template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT
+                mode_label = "合并+清洗一体"
         else:
             template = RETRIEVAL_BATCH_MERGE_PROMPT
             mode_label = "纯合并"

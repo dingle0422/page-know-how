@@ -115,6 +115,16 @@ class ReasonRequest(BaseModel):
                     "中间提炼层仍固定使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。"
                     "仅在 version=v1 下生效",
     )
+    thinkMode: bool = Field(
+        default=False,
+        description="启用 think 模式：在【所有最终节点】的 summary+clean 阶段，"
+                    "改用 *_AND_CLEAN_THINK 版 prompt，要求模型严格按 "
+                    "<think>...</think><answer>...</answer> 双标签输出。"
+                    "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
+                    "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
+                    "中间提炼 prompt 始终保持原样不动。"
+                    "需配合 summaryCleanAnswer=True 使用；仅在 version=v1 下生效",
+    )
 
 
 class ReasonData(BaseModel):
@@ -263,6 +273,7 @@ def _run_reasoning(
     enable_skills: bool = True,
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
+    think_mode: bool = False,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
@@ -270,11 +281,14 @@ def _run_reasoning(
     if version == "v1":
         extra_kwargs["summary_clean_answer"] = summary_clean_answer
         extra_kwargs["answer_system_prompt"] = answer_system_prompt
+        extra_kwargs["think_mode"] = think_mode
     else:
         if summary_clean_answer:
             logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
         if answer_system_prompt:
             logger.warning("answerSystemPrompt 仅在 version=v1 下生效，本次将被忽略")
+        if think_mode:
+            logger.warning("thinkMode 仅在 version=v1 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
@@ -396,6 +410,7 @@ async def reason(req: ReasonRequest):
                 enable_skills=req.enableSkills,
                 summary_clean_answer=req.summaryCleanAnswer,
                 answer_system_prompt=req.answerSystemPrompt,
+                think_mode=req.thinkMode,
             )
             return ReasonResponse(
                 data=ReasonData(

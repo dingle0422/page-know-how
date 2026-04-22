@@ -92,8 +92,12 @@ def cmd_reason(args):
     if version == "v1":
         common_kwargs["chunk_size"] = args.chunk_size
         common_kwargs["summary_clean_answer"] = args.summary_clean_answer
-    elif args.summary_clean_answer:
-        print("警告：--summary-clean-answer 仅在 --version v1 下生效，本次将被忽略")
+        common_kwargs["think_mode"] = args.think_mode
+    else:
+        if args.summary_clean_answer:
+            print("警告：--summary-clean-answer 仅在 --version v1 下生效，本次将被忽略")
+        if args.think_mode:
+            print("警告：--think-mode 仅在 --version v1 下生效，本次将被忽略")
 
     if has_single:
         run_single_question(question=args.single_question, **common_kwargs)
@@ -216,6 +220,15 @@ def main():
              "标准/召回 × 单次/分批 × chunk）。在最终 summary 或 batch_merge 阶段"
              "直接输出面向用户的客服话术答案，跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟。"
              "开启后即覆盖原 --clean-answer 的清洗效果，无需再额外开 --clean-answer"
+    )
+    reason_parser.add_argument(
+        "--think-mode", action="store_true", default=False,
+        help="启用 think 模式（仅 v1 生效，需配合 --summary-clean-answer 使用）："
+             "在【所有最终节点】的 summary+clean 阶段，改用 *_AND_CLEAN_THINK 版 prompt，"
+             "要求模型严格按 <think>...</think><answer>...</answer> 双标签输出。"
+             "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
+             "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
+             "中间提炼 prompt 始终保持原样不动"
     )
 
     args = parser.parse_args()
