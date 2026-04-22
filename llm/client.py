@@ -40,6 +40,17 @@ def chat(
             "chat_template_kwargs": {"enable_thinking": enable_thinking},
             "temperature": 0.5,
         }
+    elif vendor == "qwen3.6-35b-a3b":
+        URL = "http://mlp.paas.dc.servyou-it.com/qwen3.6-35b-a3b/v1/chat/completions"
+        HEADERS = {"Content-Type": "application/json"}
+        PAYLOAD = {
+            "model": "Qwen/Qwen3.6-35B-A3B",
+            "messages": messages_payload,
+            "stream": False,
+            "chat_template_kwargs": {"enable_thinking": enable_thinking},
+            "temperature": 0.5,
+        }
+       
     elif vendor == "qwen3.5-27b":
         URL = "http://mlp.paas.dc.servyou-it.com/qwen3.5-27b/v1/chat/completions"
         HEADERS = {"Content-Type": "application/json"}

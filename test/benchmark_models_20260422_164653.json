@@ -1,0 +1,565 @@
+{
+  "started_at": "2026-04-22T16:40:10",
+  "total_wall_sec": 402.25,
+  "config": {
+    "llm_rounds": 5,
+    "cli_rounds": 3,
+    "sizes": [
+      [
+        "short",
+        100
+      ],
+      [
+        "medium",
+        1000
+      ],
+      [
+        "long",
+        3000
+      ]
+    ],
+    "enable_thinking": false,
+    "knowledge_dir": "C:\\Users\\dle\\Desktop\\page-know-how\\page_knowledge\\农产品精简版V3.0-new_20260414165344",
+    "question": "批发要售圣女果是否免征增值税",
+    "cli_extra": [
+      "--retrieval-mode",
+      "--check-pitfalls",
+      "--summary-batch-size",
+      "3",
+      "--chunk-size",
+      "3000",
+      "--summary-clean-answer",
+      "--think-mode"
+    ],
+    "vendors": [
+      {
+        "vendor": "qwen3.5-122b-a10b",
+        "model": "Qwen3.5-122B-A10B"
+      },
+      {
+        "vendor": "qwen3.6-35b-a3b",
+        "model": "Qwen/Qwen3.6-35B-A3B"
+      }
+    ]
+  },
+  "llm_summary": {
+    "short": {
+      "qwen3.5-122b-a10b": {
+        "n": 5,
+        "success": 5,
+        "fail": 0,
+        "min": 4.196,
+        "avg": 5.5274,
+        "p50": 5.286,
+        "p95": 7.311599999999999,
+        "max": 7.599,
+        "avg_answer_chars": 1045.8
+      },
+      "qwen3.6-35b-a3b": {
+        "n": 5,
+        "success": 5,
+        "fail": 0,
+        "min": 3.975,
+        "avg": 5.8100000000000005,
+        "p50": 6.256,
+        "p95": 6.5146,
+        "max": 6.533,
+        "avg_answer_chars": 1126.8
+      }
+    },
+    "medium": {
+      "qwen3.5-122b-a10b": {
+        "n": 5,
+        "success": 5,
+        "fail": 0,
+        "min": 2.81,
+        "avg": 3.595,
+        "p50": 3.79,
+        "p95": 4.1848,
+        "max": 4.272,
+        "avg_answer_chars": 690.8
+      },
+      "qwen3.6-35b-a3b": {
+        "n": 5,
+        "success": 5,
+        "fail": 0,
+        "min": 2.472,
+        "avg": 3.7706,
+        "p50": 3.188,
+        "p95": 5.7322,
+        "max": 6.193,
+        "avg_answer_chars": 750.8
+      }
+    },
+    "long": {
+      "qwen3.5-122b-a10b": {
+        "n": 5,
+        "success": 5,
+        "fail": 0,
+        "min": 2.781,
+        "avg": 3.4406000000000003,
+        "p50": 3.317,
+        "p95": 4.263,
+        "max": 4.357,
+        "avg_answer_chars": 623.4
+      },
+      "qwen3.6-35b-a3b": {
+        "n": 5,
+        "success": 5,
+        "fail": 0,
+        "min": 3.341,
+        "avg": 3.8634,
+        "p50": 3.804,
+        "p95": 4.333,
+        "max": 4.362,
+        "avg_answer_chars": 744.4
+      }
+    }
+  },
+  "cli_summary": {
+    "qwen3.5-122b-a10b": {
+      "n": 3,
+      "success": 3,
+      "fail": 0,
+      "min": 31.662,
+      "avg": 35.641999999999996,
+      "p50": 32.763,
+      "p95": 41.52719999999999,
+      "max": 42.501
+    },
+    "qwen3.6-35b-a3b": {
+      "n": 3,
+      "success": 3,
+      "fail": 0,
+      "min": 45.911,
+      "avg": 55.094,
+      "p50": 55.503,
+      "p95": 63.0315,
+      "max": 63.868
+    }
+  },
+  "llm_trials": [
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 1,
+      "elapsed_sec": 4.394,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及现行增值税相关规定，**批发环节销售自产圣女果不可以免征增值税**（在仅依据您提供的片段前提下，甚至无法适用低税率，需按一般税率征税；若结",
+      "answer_chars": 831
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 2,
+      "elapsed_sec": 7.599,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及现行增值税相关规定，**批发环节销售自产圣女果不可以免征增值税**（注：此处需区分“低税率”与“免税”两个概念，且圣女果的归类存在特殊争议",
+      "answer_chars": 1439
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 3,
+      "elapsed_sec": 6.162,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及现行增值税相关规定，**批发环节销售自产圣女果不能依据该片段免征增值税**，但根据其他相关法规，其**可能享受免征政策**，不过依据并非您",
+      "answer_chars": 1193
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 4,
+      "elapsed_sec": 4.196,
+      "ok": true,
+      "error": "",
+      "answer_preview": "**结论：批发环节销售自产圣女果可以免征增值税，但依据并非您提供的“低税率”政策片段，而是基于“农业生产者销售自产农产品”的免税政策。**  您提供的政策片段列",
+      "answer_chars": 761
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 5,
+      "elapsed_sec": 5.286,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及现行增值税相关规定，**批发环节销售自产圣女果不能依据该片段享受免征增值税优惠**。  以下是具体的条款依据与理由说明：  ### 1. ",
+      "answer_chars": 1005
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 1,
+      "elapsed_sec": 5.845,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段，**批发环节销售自产圣女果不可以免征增值税**，且该政策片段本身并未涉及“免税”规定，而是关于“低税率”的规定。  以下是详细分析：  #",
+      "answer_chars": 967
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 2,
+      "elapsed_sec": 3.975,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段，**批发环节销售自产圣女果不可以依据该片段免征增值税**。  以下是详细的法律适用分析与理由：  ### 1. 适用条款依据 您提供的政策",
+      "answer_chars": 802
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 3,
+      "elapsed_sec": 6.256,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段以及中国现行增值税法规，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，回答如下：  ### 结论 **可以免征增值税**，但**并",
+      "answer_chars": 1280
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 4,
+      "elapsed_sec": 6.441,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段，**无法得出“批发环节销售自产圣女果可以免征增值税”的结论**。事实上，根据该片段及现行增值税一般规定，该行为通常**不免征增值税**，而",
+      "answer_chars": 1241
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "short",
+      "prompt_chars": 150,
+      "round_idx": 5,
+      "elapsed_sec": 6.533,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及中国现行增值税法律法规，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，回答如下：  ### 结论 **可以免征增值税**，但该免",
+      "answer_chars": 1344
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 1,
+      "elapsed_sec": 2.81,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，基于您提供的政策片段，我的分析如下：  ### 结论 **可以免征增值税。** ",
+      "answer_chars": 531
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 2,
+      "elapsed_sec": 3.836,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，我的专业回答如下：  ### 结论 **可以免征增值税。**  ### 适用条款",
+      "answer_chars": 752
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 3,
+      "elapsed_sec": 4.272,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，基于您提供的政策片段及现行增值税原理，分析如下：  ### 结论 **可以免征增",
+      "answer_chars": 825
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 4,
+      "elapsed_sec": 3.79,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，结合您提供的政策片段及现行增值税法规逻辑，分析如下：  ### 结论 **可以免",
+      "answer_chars": 740
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 5,
+      "elapsed_sec": 3.267,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为您的增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，我的专业解答如下：  ### 结论 **可以免征增值税。**  ### 适用",
+      "answer_chars": 606
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 1,
+      "elapsed_sec": 6.193,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及增值税相关法规逻辑，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税**，但需满足特",
+      "answer_chars": 1199
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 2,
+      "elapsed_sec": 3.188,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及增值税相关法规逻辑，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税。**  ###",
+      "answer_chars": 647
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 3,
+      "elapsed_sec": 3.889,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及增值税相关法规逻辑，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税**，但需严格满",
+      "answer_chars": 787
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 4,
+      "elapsed_sec": 2.472,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税。**  ### 适用条款依据 根据",
+      "answer_chars": 482
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "medium",
+      "prompt_chars": 1050,
+      "round_idx": 5,
+      "elapsed_sec": 3.111,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税。**  ### 适用条款依据 根据",
+      "answer_chars": 639
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 1,
+      "elapsed_sec": 3.887,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，基于您提供的政策片段及现行增值税法规逻辑，分析如下：  ### 结论 **可以免",
+      "answer_chars": 727
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 2,
+      "elapsed_sec": 3.317,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，我的专业解答如下：  ### 结论 **可以免征增值税。**  ### 适用条款",
+      "answer_chars": 585
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 3,
+      "elapsed_sec": 4.357,
+      "ok": true,
+      "error": "",
+      "answer_preview": "您好，我是您的增值税顾问。针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，基于您提供的政策片段及现行增值税相关规定，我的专业解答如下：  ###",
+      "answer_chars": 802
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 4,
+      "elapsed_sec": 2.861,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，我的专业解答如下：  ### 结论 **可以免征增值税。**  ### 适用条款",
+      "answer_chars": 506
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 5,
+      "elapsed_sec": 2.781,
+      "ok": true,
+      "error": "",
+      "answer_preview": "作为您的增值税顾问，针对您提出的“批发环节销售自产圣女果是否可以免征增值税”的问题，我的专业解答如下：  ### 结论 **可以免征增值税。**  ### 适用",
+      "answer_chars": 497
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 1,
+      "elapsed_sec": 4.217,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及增值税相关法规，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税。**  ### 适",
+      "answer_chars": 667
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 2,
+      "elapsed_sec": 4.362,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段，针对“批发环节销售自产圣女果”是否可以免征增值税的问题，解答如下：  ### 结论 **可以免征增值税。**  ### 适用条款依据 根据",
+      "answer_chars": 896
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 3,
+      "elapsed_sec": 3.804,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及增值税相关法规，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税。**  ### 适",
+      "answer_chars": 784
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 4,
+      "elapsed_sec": 3.593,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及增值税相关法规逻辑，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税。**  ###",
+      "answer_chars": 695
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "size_label": "long",
+      "prompt_chars": 3050,
+      "round_idx": 5,
+      "elapsed_sec": 3.341,
+      "ok": true,
+      "error": "",
+      "answer_preview": "基于您提供的政策片段及增值税相关法规逻辑，针对“批发环节销售自产圣女果是否可以免征增值税”的问题，解答如下：  ### 结论 **可以免征增值税。**  ###",
+      "answer_chars": 680
+    }
+  ],
+  "cli_trials": [
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "round_idx": 1,
+      "elapsed_sec": 42.501,
+      "ok": true,
+      "return_code": 0,
+      "stdout_tail": "否属于免税范围”。\\n\\n2. 归类风险提示：圣女果在农产品定义中属于“水果”范畴（园艺植物），而外购农产品（如水果）直接批发零售通常需缴纳增值税。仅当属于“批发零售环节可以免税的鲜活肉蛋、蔬菜”时才可免税。若圣女果未被列入《蔬菜主要品种目录》，则不能享受免税。\\n\\n3. 操作建议：请您核对圣女果是否在《蔬菜主要品种目录》中。若属于目录内蔬菜，可开具免税普通发票并填写《增值税减免税申报明细表》选择“蔬菜免征”代码；若不在目录内，则需按规定缴纳增值税。切勿将列举的“免税蔬菜”直接等同于所有农产品，以免产生税务风险。\",\n  \"concise_answer\": \"圣女果是否免税取决于其是否列入《蔬菜主要品种目录》，若未列入则需缴纳增值税。\"\n}\n\n【相关章节】0, 1, 1.3, 1.3.12, 2, 2.1, 2.1.1, 2.1.1.1, 2.1.1.4, 2.1.2, 2.1.2.1, 3, 3.1, 3.1.1, 3.1.1.3, 5, 5.1, 5.1.5\n============================================================\n",
+      "stderr_tail": "22 16:43:00 [INFO] skills.evaluator: [Evaluator] select_extra_skills 命中: [] | LLM原始返回: [] | 可用skill池: ['standard_product_name_verification'] | 已完成(exclude): ['standard_product_name_verification'] | 不存在已忽略: [] | 已完成已剔除: []\n2026-04-22 16:43:03 [INFO] reasoner.v1.agent_graph: [BatchMerge·L3·合并+清洗一体·Think] judge 无新 skill 需求（phase-0 已完成 1 个 skill 并已注入），直接采用 final summary 输出\n2026-04-22 16:43:03 [INFO] reasoner.v1.agent_graph: [CleanAnswer] summary_clean_answer 已启用，已在最终 summary/merge 阶段一并完成清洗，跳过独立清洗调用\n"
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "round_idx": 2,
+      "elapsed_sec": 31.662,
+      "ok": true,
+      "return_code": 0,
+      "stdout_tail": "分情况判断：\\n1. 若您是农业生产者销售自产圣女果：圣女果属于“园艺植物（比如干果、水果等）”，是初级农产品，销售自产产品享受免税。\\n2. 若您是批发商销售外购圣女果：流通环节免税严格参照《蔬菜主要品种目录》。圣女果在知识中未明确列入该目录，且知识指出“蔬菜的范围参照...目录，目录外品种不享受免税”。\\n3. 特别注意：若圣女果经过冷冻、冷藏、包装等工序加工，或属于水果罐头、果脯等深加工产品，则不属于免税范围。\\n建议核实圣女果是否在《蔬菜主要品种目录》内，若不在，批发环节通常需按规定缴纳增值税。\",\n  \"concise_answer\": \"自产圣女果批发免税；外购圣女果若不在《蔬菜主要品种目录》内或经加工，则不免税。\"\n}\n\n【相关章节】0, 1, 1.3, 1.3.12, 2, 2.1, 2.1.2, 2.1.2.1, 3, 3.1, 3.1.1, 3.1.1.3, 3.2, 3.2.2, 3.2.2.1, 3.2.2.3, 5, 5.1, 5.1.5\n============================================================\n",
+      "stderr_tail": "22 16:43:32 [INFO] skills.evaluator: [Evaluator] select_extra_skills 命中: [] | LLM原始返回: [] | 可用skill池: ['standard_product_name_verification'] | 已完成(exclude): ['standard_product_name_verification'] | 不存在已忽略: [] | 已完成已剔除: []\n2026-04-22 16:43:34 [INFO] reasoner.v1.agent_graph: [BatchMerge·L3·合并+清洗一体·Think] judge 无新 skill 需求（phase-0 已完成 1 个 skill 并已注入），直接采用 final summary 输出\n2026-04-22 16:43:34 [INFO] reasoner.v1.agent_graph: [CleanAnswer] summary_clean_answer 已启用，已在最终 summary/merge 阶段一并完成清洗，跳过独立清洗调用\n"
+    },
+    {
+      "vendor": "qwen3.5-122b-a10b",
+      "model": "Qwen3.5-122B-A10B",
+      "round_idx": 3,
+      "elapsed_sec": 32.763,
+      "ok": true,
+      "return_code": 0,
+      "stdout_tail": "策或税率规定”，且仅明确提及“批发零售免税蔬菜、鲜活肉蛋”。\\n3. 特别提醒：若圣女果制成“水果罐头”或经碾磨等深加工，则“不属于本货物的征税范围”（指免税范围），需按规定征税。此外，若您是批发商而非农业生产者，不能开具“自产农产品销售”发票。\\n综上，圣女果免税的关键在于其是否被列入《蔬菜主要品种目录》且保持初级农产品形态。建议您核实该目录或咨询主管税务机关确认具体归类。\",\n  \"concise_answer\": \"圣女果批发是否免税取决于其是否被列入《蔬菜主要品种目录》且为初级农产品；若属目录内蔬菜可免税，若属水果或深加工产品则需核实具体政策，目前知识未明确其直接免税。\"\n}\n\n【相关章节】0, 1, 1.3, 1.3.12, 2, 2.1, 2.1.1, 2.1.1.4, 2.1.2, 2.1.2.1, 2.1.2.2, 3, 3.1, 3.1.1, 3.1.1.3, 3.2, 3.2.2, 3.2.2.1, 3.2.2.3, 5, 5.1, 5.1.5\n============================================================\n",
+      "stderr_tail": "22 16:44:04 [INFO] skills.evaluator: [Evaluator] select_extra_skills 命中: [] | LLM原始返回: [] | 可用skill池: ['standard_product_name_verification'] | 已完成(exclude): ['standard_product_name_verification'] | 不存在已忽略: [] | 已完成已剔除: []\n2026-04-22 16:44:07 [INFO] reasoner.v1.agent_graph: [BatchMerge·L3·合并+清洗一体·Think] judge 无新 skill 需求（phase-0 已完成 1 个 skill 并已注入），直接采用 final summary 输出\n2026-04-22 16:44:07 [INFO] reasoner.v1.agent_graph: [CleanAnswer] summary_clean_answer 已启用，已在最终 summary/merge 阶段一并完成清洗，跳过独立清洗调用\n"
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "round_idx": 1,
+      "elapsed_sec": 55.503,
+      "ok": true,
+      "return_code": 0,
+      "stdout_tail": "供的资料中未直接列出圣女果是否在目录内，因此无法直接断定其必然免税。\\n\\n此外，需注意以下两点：\\n1. 免税对象仅限初级蔬菜，各种蔬菜罐头不享受免税优惠。\\n2. 若纳税人放弃免税优惠，需书面声明，且36个月内不得再申请（小规模纳税人除外）。\\n\\n建议您对照上述《蔬菜主要品种目录》核实圣女果的归类。若属于目录内的蔬菜品种，则批发环节免征增值税；否则需按规定缴纳增值税。\",\n  \"concise_answer\": \"需参照《蔬菜主要品种目录》确认圣女果是否属于免税蔬菜范围\"\n}\n\n【相关章节】0, 1, 1.3, 1.3.12, 2, 2.1, 2.1.1, 2.1.1.1, 2.1.1.4, 2.1.2, 2.1.2.1, 2.3, 3, 3.1, 3.1.1, 3.1.1.3, 3.1.2, 3.1.2.2, 3.1.3, 3.2, 3.2.1, 3.2.2, 3.2.2.1, 3.2.2.3, 3.2.2.4, 4, 4.2, 5, 5.1, 5.1.5\n============================================================\n",
+      "stderr_tail": "22 16:45:00 [INFO] skills.evaluator: [Evaluator] select_extra_skills 命中: [] | LLM原始返回: [] | 可用skill池: ['standard_product_name_verification'] | 已完成(exclude): ['standard_product_name_verification'] | 不存在已忽略: [] | 已完成已剔除: []\n2026-04-22 16:45:03 [INFO] reasoner.v1.agent_graph: [BatchMerge·L3·合并+清洗一体·Think] judge 无新 skill 需求（phase-0 已完成 1 个 skill 并已注入），直接采用 final summary 输出\n2026-04-22 16:45:03 [INFO] reasoner.v1.agent_graph: [CleanAnswer] summary_clean_answer 已启用，已在最终 summary/merge 阶段一并完成清洗，跳过独立清洗调用\n"
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "round_idx": 2,
+      "elapsed_sec": 63.868,
+      "ok": true,
+      "return_code": 0,
+      "stdout_tail": "节可享受免税优惠，需开具免税普通发票，并在申报时填写《增值税减免税申报明细表》选择“蔬菜免征”代码。需注意，流通环节免税发票属于“死票”，购买方不得抵扣进项税额。建议您在开票前核对圣女果是否在免税目录内，以确保合规享受优惠。\",\n  \"concise_answer\": \"需参照《蔬菜主要品种目录》确认圣女果是否属于免税蔬菜，若不在目录内或经过加工则不免征。\"\n}\n\n【相关章节】0, 1, 1.2, 1.2.1, 1.2.1.1, 1.2.1.3, 1.3, 1.3.12, 1.3.12.1, 2, 2.1, 2.1.1, 2.1.1.1, 2.1.1.4, 2.1.2, 2.1.2.1, 2.1.2.2, 2.2, 2.2.3, 2.3, 3, 3.1, 3.1.1, 3.1.1.3, 3.2, 3.2.2, 3.2.2.1, 3.2.2.3, 3.2.2.4, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 5, 5.1, 5.1.5\n============================================================\n",
+      "stderr_tail": "22 16:46:05 [INFO] skills.evaluator: [Evaluator] select_extra_skills 命中: [] | LLM原始返回: [] | 可用skill池: ['standard_product_name_verification'] | 已完成(exclude): ['standard_product_name_verification'] | 不存在已忽略: [] | 已完成已剔除: []\n2026-04-22 16:46:07 [INFO] reasoner.v1.agent_graph: [BatchMerge·L3·合并+清洗一体·Think] judge 无新 skill 需求（phase-0 已完成 1 个 skill 并已注入），直接采用 final summary 输出\n2026-04-22 16:46:07 [INFO] reasoner.v1.agent_graph: [CleanAnswer] summary_clean_answer 已启用，已在最终 summary/merge 阶段一并完成清洗，跳过独立清洗调用\n"
+    },
+    {
+      "vendor": "qwen3.6-35b-a3b",
+      "model": "Qwen/Qwen3.6-35B-A3B",
+      "round_idx": 3,
+      "elapsed_sec": 45.911,
+      "ok": true,
+      "return_code": 0,
+      "stdout_tail": "事种植业的农业生产者，销售自产的圣女果，可以享受免税优惠。但如果是外购再销售，则不享受此优惠（除非符合上述流通环节蔬菜免税规定）。\\n\\n3. 申报提示：享受免税优惠的，需要在《增值税减免税申报明细表》中，选择“蔬菜免征（01010504）”的减免代码进行申报。\\n\\n总结：只要圣女果是未经深度加工的初级农产品，无论是自产自销还是批发零售，通常均可享受免征增值税优惠。\",\n  \"concise_answer\": \"批发销售未经加工的初级农产品圣女果免征增值税，需按“蔬菜免征”申报。\"\n}\n\n【相关章节】0, 1, 1.3, 1.3.12, 2, 2.1, 2.1.1, 2.1.1.1, 2.1.1.4, 2.1.2, 2.1.2.1, 2.2, 2.2.3, 2.3, 3, 3.1, 3.1.1, 3.1.1.3, 3.1.2, 3.1.2.2, 3.1.3, 3.2, 3.2.2, 3.2.2.1, 3.2.2.3, 3.2.2.4, 5, 5.1, 5.1.5\n============================================================\n",
+      "stderr_tail": "22 16:46:48 [INFO] skills.evaluator: [Evaluator] select_extra_skills 命中: [] | LLM原始返回: [] | 可用skill池: ['standard_product_name_verification'] | 已完成(exclude): ['standard_product_name_verification'] | 不存在已忽略: [] | 已完成已剔除: []\n2026-04-22 16:46:52 [INFO] reasoner.v1.agent_graph: [BatchMerge·L3·合并+清洗一体·Think] judge 无新 skill 需求（phase-0 已完成 1 个 skill 并已注入），直接采用 final summary 输出\n2026-04-22 16:46:52 [INFO] reasoner.v1.agent_graph: [CleanAnswer] summary_clean_answer 已启用，已在最终 summary/merge 阶段一并完成清洗，跳过独立清洗调用\n"
+    }
+  ]
+}
