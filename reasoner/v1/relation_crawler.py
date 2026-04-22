@@ -158,16 +158,19 @@ class RelationCrawler:
         current_layer = queue
         while current_layer and node_budget[0] > 0:
             # 同层内按 (policy_id, clause_id) 去重 + visited 去重 + budget 截断
+            # 风险2修复：先查 RelationRegistry 是否已有该 key，有则跳过（避免重复 LLM 调用）
             dedup: list[_CandidateRef] = []
             for cand in current_layer:
                 if node_budget[0] <= 0:
                     break
                 key = (cand.policy_id, cand.clause_id)
+                # 跨 chunk 去重：registry 已有的 key 直接跳过，不浪费 LLM 调用
+                if self.registry.has(cand.policy_id, cand.clause_id):
+                    continue
                 with self._lock:
                     if key in visited:
                         continue
                     visited.add(key)
-                    node_budget[0] -= 1
                 dedup.append(cand)
 
             if not dedup:
@@ -190,9 +193,10 @@ class RelationCrawler:
                     continue
                 if fragment is None:
                     continue
-                # 注册（全局去重）
+                # 注册（全局去重）；风险1修复：仅当真正注册成功时才扣 node_budget
                 added = self.registry.add(fragment)
                 if added:
+                    node_budget[0] -= 1
                     new_fragments.append(fragment)
                 # 是否扩展下一跳
                 if descend_children and fragment.hop_depth < self.max_depth:
