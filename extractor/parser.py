@@ -695,16 +695,28 @@ def fetch_api_clauses(
     import requests
 
     logger.info(f"从 API 获取条款数据: policyId={policy_id}, url={api_url}")
-    response = requests.post(api_url, json={"policyId": policy_id})
+    response = requests.post(api_url, json={"policyId": policy_id}, timeout=60)
     response.raise_for_status()
 
     result = response.json()
+    data_obj = result.get('data') or {}
+    data_keys = list(data_obj.keys()) if isinstance(data_obj, dict) else type(data_obj).__name__
+    api_clauses: list[dict] = data_obj.get('clauses', []) if isinstance(data_obj, dict) else []
+    logger.info(
+        f"上游响应概要: policyId={policy_id}, http={response.status_code}, "
+        f"success={result.get('success')}, code={result.get('code')}, "
+        f"message={result.get('message')!r}, data.keys={data_keys}, "
+        f"clauses_count={len(api_clauses)}"
+    )
+
     if not result.get('success'):
         raise ValueError(f"API 返回失败: {result.get('message', '未知错误')}")
 
-    api_clauses: list[dict] = result.get('data', {}).get('clauses', [])
     if not api_clauses:
-        raise ValueError(f"API 未返回有效条款数据，policyId: {policy_id}")
+        preview = json.dumps(result, ensure_ascii=False)[:500]
+        raise ValueError(
+            f"API 未返回有效条款数据，policyId: {policy_id}（上游响应预览: {preview}）"
+        )
 
     policy_name = ''
     version = ''
