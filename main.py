@@ -222,7 +222,7 @@ def main():
              "开启后即覆盖原 --clean-answer 的清洗效果，无需再额外开 --clean-answer"
     )
     reason_parser.add_argument(
-        "--think-mode", action="store_true", default=False,
+        "--think-mode", action="store_true", default=True,
         help="启用 think 模式（仅 v1 生效，需配合 --summary-clean-answer 使用）："
              "在【所有最终节点】的 summary+clean 阶段，改用 *_AND_CLEAN_THINK 版 prompt，"
              "要求模型严格按 JSON {\"analysis\": \"...\", \"concise_answer\": \"...\"} 输出。"

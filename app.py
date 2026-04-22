@@ -117,7 +117,7 @@ class ReasonRequest(BaseModel):
                     "仅在 version=v1 下生效",
     )
     thinkMode: bool = Field(
-        default=False,
+        default=True,
         description="启用 think 模式：在【所有最终节点】的 summary+clean 阶段，"
                     "改用 *_AND_CLEAN_THINK 版 prompt，要求模型严格按 "
                     "JSON 对象 {\"analysis\": \"...\", \"concise_answer\": \"...\"} 输出。"
