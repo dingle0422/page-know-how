@@ -101,6 +101,10 @@ def _process_single_question(
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
+    enable_relations: bool = False,
+    relation_max_depth: int = 3,
+    relation_max_nodes: int = 50,
+    relation_workers: int = 8,
 ) -> dict:
     """处理单个问题并返回结果字典，供串行和并行模式共用。
     original_index: 问题在原始输入文件中的数据行索引（0-based）。
@@ -127,6 +131,10 @@ def _process_single_question(
             summary_clean_answer=summary_clean_answer,
             answer_system_prompt=answer_system_prompt,
             think_mode=think_mode,
+            enable_relations=enable_relations,
+            relation_max_depth=relation_max_depth,
+            relation_max_nodes=relation_max_nodes,
+            relation_workers=relation_workers,
         )
         result = graph.run()
         answer = result["answer"]
@@ -174,6 +182,10 @@ def run_single_question(
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
+    enable_relations: bool = False,
+    relation_max_depth: int = 3,
+    relation_max_nodes: int = 50,
+    relation_workers: int = 8,
 ) -> dict:
     """
     对单个问题执行推理，直接返回结果字典，同时打印答案到终端。
@@ -201,6 +213,10 @@ def run_single_question(
         summary_clean_answer=summary_clean_answer,
         answer_system_prompt=answer_system_prompt,
         think_mode=think_mode,
+        enable_relations=enable_relations,
+        relation_max_depth=relation_max_depth,
+        relation_max_nodes=relation_max_nodes,
+        relation_workers=relation_workers,
     )
     result = graph.run()
     answer = result["answer"]
@@ -242,6 +258,10 @@ def _run_sequential(
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
+    enable_relations: bool = False,
+    relation_max_depth: int = 3,
+    relation_max_nodes: int = 50,
+    relation_workers: int = 8,
 ) -> None:
     """串行逐个处理待推理问题。"""
     for original_index, display_pos, question in pending:
@@ -252,6 +272,10 @@ def _run_sequential(
             summary_clean_answer,
             answer_system_prompt=answer_system_prompt,
             think_mode=think_mode,
+            enable_relations=enable_relations,
+            relation_max_depth=relation_max_depth,
+            relation_max_nodes=relation_max_nodes,
+            relation_workers=relation_workers,
         )
         results.append(result_dict)
         _flush_results(results, output_path)
@@ -277,6 +301,10 @@ def _run_parallel(
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
+    enable_relations: bool = False,
+    relation_max_depth: int = 3,
+    relation_max_nodes: int = 50,
+    relation_workers: int = 8,
 ) -> None:
     """并行处理待推理问题，线程安全地收集结果并实时落盘。"""
     lock = threading.Lock()
@@ -293,6 +321,10 @@ def _run_parallel(
                 summary_clean_answer,
                 answer_system_prompt=answer_system_prompt,
                 think_mode=think_mode,
+                enable_relations=enable_relations,
+                relation_max_depth=relation_max_depth,
+                relation_max_nodes=relation_max_nodes,
+                relation_workers=relation_workers,
             ): (original_index, question)
             for original_index, display_pos, question in pending
         }
@@ -342,6 +374,10 @@ def run_reasoning(
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
+    enable_relations: bool = False,
+    relation_max_depth: int = 3,
+    relation_max_nodes: int = 50,
+    relation_workers: int = 8,
 ) -> str:
     """
     推理引擎主入口。
@@ -397,6 +433,10 @@ def run_reasoning(
             summary_clean_answer,
             answer_system_prompt=answer_system_prompt,
             think_mode=think_mode,
+            enable_relations=enable_relations,
+            relation_max_depth=relation_max_depth,
+            relation_max_nodes=relation_max_nodes,
+            relation_workers=relation_workers,
         )
     else:
         _run_parallel(
@@ -406,6 +446,10 @@ def run_reasoning(
             summary_clean_answer,
             answer_system_prompt=answer_system_prompt,
             think_mode=think_mode,
+            enable_relations=enable_relations,
+            relation_max_depth=relation_max_depth,
+            relation_max_nodes=relation_max_nodes,
+            relation_workers=relation_workers,
         )
 
     total_elapsed = round(time.time() - total_start, 1)

@@ -2,12 +2,21 @@ import os
 import re
 import logging
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from reasoner._sort_utils import natural_dir_sort_key
 
+if TYPE_CHECKING:
+    from reasoner._registries import RelationFragment
+
 logger = logging.getLogger(__name__)
 
-__all__ = ["KnowledgeChunk", "build_knowledge_chunks", "natural_dir_sort_key"]
+__all__ = [
+    "KnowledgeChunk",
+    "build_knowledge_chunks",
+    "split_relations_into_chunks",
+    "natural_dir_sort_key",
+]
 
 _IGNORED_DIRS = frozenset({
     "__pycache__", ".ipynb_checkpoints", ".git", ".svn",
@@ -25,6 +34,11 @@ class KnowledgeChunk:
     content: str
     heading_paths: list[list[str]] = field(default_factory=list)
     directories: list[str] = field(default_factory=list)
+    # 派生 chunk 标记：来自原 chunk 的关联展开（多跳条款）。default None 不影响原始 chunk。
+    parent_chunk_index: int | None = None
+    derived_seq: int = 0
+    # 该 chunk 命中的关联条款 (policy_id, clause_id) 列表，用于 trace。原始 chunk 为空。
+    relation_keys: list[tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -216,4 +230,111 @@ def build_knowledge_chunks(
             f"{len(chunk.directories)} 个目录节点"
         )
 
+    return chunks
+
+
+def _format_relation_fragment_text(fragment: "RelationFragment") -> str:
+    """把单个 RelationFragment 渲染为用于派生 chunk 的字符串块。
+
+    保持与原始 chunk 类似的【层级】+ 正文结构，并在头部以注释行携带：
+      - 关联跳深 / 来源 policyId+clauseId
+      - 上一层 LLM 的关联性结论（parent_assessment 摘要）
+      - 上一层引用本节点时的高亮文本
+
+    这样 LLM 在 chunk 推理阶段就能拿到完整的"来由"上下文，避免脱离语境。
+    """
+    heading_parts = list(fragment.heading_path) or [fragment.clause_full_name or fragment.clause_id]
+    if fragment.clause_number:
+        heading_parts = [f"{fragment.clause_number}_{heading_parts[-1]}"] if len(heading_parts) == 1 else heading_parts
+    heading_label = "【关联条款 · " + " > ".join(heading_parts) + "】"
+
+    meta_lines = [
+        f"> 关联跳深: hop={fragment.hop_depth} · 来源={fragment.source} · "
+        f"policyId={fragment.policy_id} · clauseId={fragment.clause_id}",
+    ]
+    if fragment.parent_assessment:
+        meta_lines.append(f"> 上层关联性判定: {_one_line(fragment.parent_assessment, 200)}")
+    if fragment.highlighted:
+        meta_lines.append(f"> 上层引用高亮: {_one_line(fragment.highlighted, 120)}")
+
+    body = (fragment.content or "").strip() or "（条款内容为空）"
+    return "\n".join([heading_label, *meta_lines, "", body])
+
+
+def _one_line(text: str, limit: int) -> str:
+    text = re.sub(r"\s+", " ", text or "").strip()
+    return text if len(text) <= limit else text[:limit] + "…"
+
+
+def split_relations_into_chunks(
+    fragments: list["RelationFragment"],
+    chunk_size: int,
+    parent_chunk: KnowledgeChunk,
+    start_derived_seq: int = 1,
+) -> list[KnowledgeChunk]:
+    """把一批关联条款片段按 chunk_size 切分为派生 KnowledgeChunk 列表。
+
+    切分规则（与原始 chunk 思路对齐）：
+      - 不切碎单个 fragment：哪怕单个 fragment 自身超过 chunk_size 也独立成一个 chunk，
+        避免 markdown 表格/段落被截断破坏语义；
+      - 多个小 fragment 在不超 chunk_size 的前提下合并到同一 chunk；
+      - 派生 chunk 共享 parent_chunk_index = parent_chunk.index；
+      - 派生 chunk 的 directories / heading_paths 仅记录 parent_chunk 的归属（用于 trace），
+        关联条款本身的 heading 信息已经写入 content 内的【关联条款 · ...】标签，不再重复进入
+        parent dirs，避免污染 khObj 的章节回填；
+      - index 暂用 0 占位，由调用方（AgentGraph）扁平拼接到原始 chunks 后统一重排。
+
+    返回的 list 顺序即派生 chunk 在原始 chunk 之后的逻辑顺序。
+    """
+    if not fragments:
+        return []
+
+    chunks: list[KnowledgeChunk] = []
+    current_parts: list[str] = []
+    current_len = 0
+    current_keys: list[tuple[str, str]] = []
+    seq = start_derived_seq
+
+    def _finalize():
+        nonlocal current_parts, current_len, current_keys, seq
+        if not current_parts:
+            return
+        chunks.append(KnowledgeChunk(
+            index=0,  # 占位，调用方重排
+            content="\n\n".join(current_parts),
+            heading_paths=list(parent_chunk.heading_paths),
+            directories=list(parent_chunk.directories),
+            parent_chunk_index=parent_chunk.index,
+            derived_seq=seq,
+            relation_keys=list(current_keys),
+        ))
+        current_parts = []
+        current_len = 0
+        current_keys = []
+        seq += 1
+
+    for frag in fragments:
+        text = _format_relation_fragment_text(frag)
+        text_len = len(text)
+        # 单 fragment 超 chunk_size：先 flush 当前累积，再让该 fragment 独立成一个 chunk
+        if text_len >= chunk_size:
+            _finalize()
+            chunks.append(KnowledgeChunk(
+                index=0,
+                content=text,
+                heading_paths=list(parent_chunk.heading_paths),
+                directories=list(parent_chunk.directories),
+                parent_chunk_index=parent_chunk.index,
+                derived_seq=seq,
+                relation_keys=[(frag.policy_id, frag.clause_id)],
+            ))
+            seq += 1
+            continue
+        if current_parts and (current_len + text_len + 2) > chunk_size:
+            _finalize()
+        current_parts.append(text)
+        current_len += text_len + 2
+        current_keys.append((frag.policy_id, frag.clause_id))
+
+    _finalize()
     return chunks

@@ -4,6 +4,7 @@ import uuid
 import logging
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable
 
 from llm.client import chat
 from reasoner._sort_utils import natural_dir_sort_key
@@ -58,6 +59,7 @@ class ReactAgent:
         retrieval_mode: bool = False,
         retrieval_registry=None,
         subtree_root: str = "",
+        on_hit: Callable[[str, dict], None] | None = None,
     ):
         self.agent_id = f"Agent-{uuid.uuid4().hex[:6]}"
         self.question = question
@@ -73,6 +75,10 @@ class ReactAgent:
         self.retrieval_mode = retrieval_mode
         self.retrieval_registry = retrieval_registry
         self.subtree_root = subtree_root or knowledge_root
+        # 命中回调：在 _assess_relevance（is_relevant=True）或 _assess_content
+        # （has_relevant_content=True）触发。回调由 AgentGraph 注入用于关联展开 crawl，
+        # 必须非阻塞、线程安全；ReactAgent 不等待回调返回值。
+        self.on_hit = on_hit
 
         self.evidence: list[str] = []
         self.relevant_dirs: list[str] = []
@@ -187,6 +193,7 @@ class ReactAgent:
                             f"[{self.agent_id}] 相关性评估: 相关 "
                             f"(层级={'> '.join(heading_path)}, 新增={added})"
                         )
+                        self._fire_on_hit(current_dir, assessment)
                     else:
                         logger.info(f"[{self.agent_id}] 相关性评估: 无关 - {assess_reason}")
 
@@ -217,6 +224,7 @@ class ReactAgent:
                             action="CONTENT_ASSESS",
                             observation=f"发现相关内容，结论: {conclusion}"
                         ))
+                        self._fire_on_hit(current_dir, assessment)
                     else:
                         self.reasoning_parts.append("[CONTENT_ASSESS] 当前层级未发现直接相关内容")
                         self.trace.append(TraceStep(
@@ -836,6 +844,7 @@ class ReactAgent:
                 retrieval_mode=self.retrieval_mode,
                 retrieval_registry=self.retrieval_registry,
                 subtree_root=self.subtree_root,
+                on_hit=self.on_hit,
             )
             return child.run()
 
@@ -858,6 +867,15 @@ class ReactAgent:
                     ))
 
         return results
+
+    def _fire_on_hit(self, directory: str, assessment: dict) -> None:
+        """命中后触发外部 on_hit 回调；任何异常都吞掉，绝不阻断 ReAct 主流程。"""
+        if self.on_hit is None:
+            return
+        try:
+            self.on_hit(directory, assessment)
+        except Exception as e:
+            logger.warning(f"[{self.agent_id}] on_hit 回调异常已忽略: {e}")
 
     def _compute_heading_path(self, directory: str) -> list[str]:
         """从目录路径计算层级标题路径（相对于 knowledge_root）"""

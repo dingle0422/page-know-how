@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from extractor.builder import extract_from_api
+from extractor.policy_index import get_root_map as _policy_index_root_map
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,24 +44,13 @@ def _get_reasoning_semaphore() -> asyncio.Semaphore:
 
 
 def _load_policy_index() -> dict[str, str]:
-    """从磁盘加载 policyId -> 目录名 的持久化索引"""
-    if os.path.exists(_POLICY_INDEX_FILE):
-        try:
-            with open(_POLICY_INDEX_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning(f"加载 policy 索引文件失败，将重建: {e}")
-    return {}
+    """从磁盘加载 policyId -> 目录名 的扁平视图。
 
-
-def _save_policy_index(index: dict[str, str]) -> None:
-    """将 policyId -> 目录名 的索引持久化到磁盘"""
-    os.makedirs(_PAGE_KNOWLEDGE_DIR, exist_ok=True)
-    try:
-        with open(_POLICY_INDEX_FILE, "w", encoding="utf-8") as f:
-            json.dump(index, f, ensure_ascii=False, indent=2)
-    except OSError as e:
-        logger.error(f"保存 policy 索引文件失败: {e}")
+    底层文件已升级为嵌套 schema（含 clauses 二级索引，供关联展开使用），
+    本函数仅暴露 root 字段，保留原签名以减少调用点改动。写入由
+    `extractor.policy_index.upsert_policy`（在 extract_from_api 内部）统一负责。
+    """
+    return _policy_index_root_map(_POLICY_INDEX_FILE)
 
 
 def _is_valid_knowledge_dir(dir_path: str) -> bool:
@@ -128,6 +118,26 @@ class ReasonRequest(BaseModel):
                     "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
                     "中间提炼 prompt 始终保持原样不动。"
                     "需配合 summaryCleanAnswer=True 使用；仅在 version=v1 下生效",
+    )
+    enableRelations: bool = Field(
+        default=False,
+        description="启用关联条款展开：当某个 chunk / 子智能体命中相关知识且其目录包含 "
+                    "clause.json 中的预展开 references 时，按 LLM 多跳并发拉取外部条款，"
+                    "在 chunk 模式下切分为派生 chunk 后续与原 chunk 一并进入流式 batch summary；"
+                    "在 standard / retrieval 模式下 inline 追加到对应 fragment 末尾。"
+                    "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取。仅在 version=v1 下生效。",
+    )
+    relationMaxDepth: int = Field(
+        default=3,
+        description="关联展开最大跳深（含首跳）。enableRelations=False 时忽略。",
+    )
+    relationMaxNodes: int = Field(
+        default=50,
+        description="单次 chunk / 子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展。",
+    )
+    relationWorkers: int = Field(
+        default=8,
+        description="关联展开的调度线程数；候选评估池容量为本值的 2 倍。",
     )
 
 
@@ -201,19 +211,10 @@ def _get_or_extract_knowledge(policy_id: str) -> str:
         else:
             logger.warning(f"磁盘索引中记录的目录无效，将重新抽取: {candidate}")
 
-    # 3) 调用 API 抽取
+    # 3) 调用 API 抽取（extract_from_api 内部已回填 _policy_index.json）
     logger.info(f"[新建抽取] policyId={policy_id}")
     knowledge_dir = extract_from_api(policy_id)
-
-    # 更新内存缓存
     _knowledge_cache[policy_id] = knowledge_dir
-
-    # 更新磁盘索引
-    disk_index = _load_policy_index()
-    dir_name = os.path.basename(knowledge_dir)
-    disk_index[policy_id] = dir_name
-    _save_policy_index(disk_index)
-
     logger.info(f"知识目录抽取完成并已索引: {knowledge_dir}")
     return knowledge_dir
 
@@ -386,6 +387,10 @@ def _run_reasoning(
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
+    enable_relations: bool = False,
+    relation_max_depth: int = 3,
+    relation_max_nodes: int = 50,
+    relation_workers: int = 8,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
@@ -394,6 +399,10 @@ def _run_reasoning(
         extra_kwargs["summary_clean_answer"] = summary_clean_answer
         extra_kwargs["answer_system_prompt"] = answer_system_prompt
         extra_kwargs["think_mode"] = think_mode
+        extra_kwargs["enable_relations"] = enable_relations
+        extra_kwargs["relation_max_depth"] = relation_max_depth
+        extra_kwargs["relation_max_nodes"] = relation_max_nodes
+        extra_kwargs["relation_workers"] = relation_workers
     else:
         if summary_clean_answer:
             logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
@@ -401,6 +410,8 @@ def _run_reasoning(
             logger.warning("answerSystemPrompt 仅在 version=v1 下生效，本次将被忽略")
         if think_mode:
             logger.warning("thinkMode 仅在 version=v1 下生效，本次将被忽略")
+        if enable_relations:
+            logger.warning("enableRelations 仅在 version=v1 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
@@ -452,18 +463,12 @@ def _build_skills_result(graph) -> dict[str, str]:
 
 def _create_knowledge(policy_id: str) -> str:
     """
-    新建知识目录。调用 API 抽取条款并生成目录树，更新缓存与索引。
+    新建知识目录。调用 API 抽取条款并生成目录树，由 extract_from_api 内部回填磁盘索引。
     不会删除已有目录——每个 policyId 对应唯一版本，旧版本知识仍可被推理任务使用。
     """
     logger.info(f"[新增知识] policyId={policy_id}")
     knowledge_dir = extract_from_api(policy_id)
-
     _knowledge_cache[policy_id] = knowledge_dir
-
-    disk_index = _load_policy_index()
-    disk_index[policy_id] = os.path.basename(knowledge_dir)
-    _save_policy_index(disk_index)
-
     logger.info(f"知识目录新增完成并已索引: {knowledge_dir}")
     return knowledge_dir
 
@@ -525,6 +530,10 @@ async def reason(req: ReasonRequest):
                 summary_clean_answer=req.summaryCleanAnswer,
                 answer_system_prompt=req.answerSystemPrompt,
                 think_mode=req.thinkMode,
+                enable_relations=req.enableRelations,
+                relation_max_depth=req.relationMaxDepth,
+                relation_max_nodes=req.relationMaxNodes,
+                relation_workers=req.relationWorkers,
             )
             return ReasonResponse(
                 data=ReasonData(

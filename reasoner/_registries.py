@@ -100,3 +100,71 @@ class RetrievalKnowledgeRegistry:
     def get_all(self) -> list[KnowledgeFragment]:
         with self._lock:
             return list(self._fragments)
+
+
+@dataclass
+class RelationFragment:
+    """关联展开命中的外部条款片段。
+
+    数据来源：clause.json.references → resolvedClauses 引用图中被 LLM 判定相关的节点。
+    chunk 模式下被切分为派生 KnowledgeChunk；retrieval/standard 模式下 inline 追加到对应 fragment。
+    """
+    policy_id: str
+    clause_id: str
+    clause_number: str             # 用于排序/章节展示，如 "2.1.3"；远程兜底时可能为空
+    clause_full_name: str          # searchLabels[0] 或拼接的可读名
+    heading_path: list[str]        # 完整层级路径，本地解析时按目录拼出，远程时退化为 [full_name]
+    content: str                   # markdownified clauseContent
+    highlighted: str               # 上一跳引用本节点时的 highlightedContent
+    parent_assessment: str         # 上一层 LLM 判定的 reason 摘要（用于 trace + 下一跳上下文）
+    hop_depth: int                 # 1=直接关联, 2=二跳, ...
+    source: str                    # "local" | "remote" | "missing"
+    parent_chunk_index: int        # chunk 模式：触发本次展开的原始 chunk index；副路径为 -1
+    parent_dir: str                # 触发本次展开的原始 dir 绝对路径
+
+
+class RelationRegistry:
+    """线程安全的关联展开命中池。
+
+    全局按 (policy_id, clause_id) 去重，避免跨 chunk / 跨 dir 重复 LLM 推理；
+    同时按 parent_chunk_index 与 parent_dir 维护二级索引，便于：
+      - chunk 主路径：派生 chunk 切分时回溯归属父 chunk；
+      - retrieval/standard 副路径：把命中条款 inline 追加到对应 fragment.content 末尾。
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._fragments: list[RelationFragment] = []
+        self._seen_keys: set[tuple[str, str]] = set()
+        self._by_chunk: dict[int, list[RelationFragment]] = {}
+        self._by_dir: dict[str, list[RelationFragment]] = {}
+
+    def add(self, fragment: RelationFragment) -> bool:
+        key = (fragment.policy_id, fragment.clause_id)
+        with self._lock:
+            if key in self._seen_keys:
+                return False
+            self._seen_keys.add(key)
+            self._fragments.append(fragment)
+            self._by_chunk.setdefault(fragment.parent_chunk_index, []).append(fragment)
+            if fragment.parent_dir:
+                self._by_dir.setdefault(
+                    os.path.normpath(fragment.parent_dir), []
+                ).append(fragment)
+            return True
+
+    def get_by_chunk(self, chunk_index: int) -> list[RelationFragment]:
+        with self._lock:
+            return list(self._by_chunk.get(chunk_index, []))
+
+    def get_by_dir(self, dir_path: str) -> list[RelationFragment]:
+        with self._lock:
+            return list(self._by_dir.get(os.path.normpath(dir_path), []))
+
+    def get_all(self) -> list[RelationFragment]:
+        with self._lock:
+            return list(self._fragments)
+
+    def has_any(self) -> bool:
+        with self._lock:
+            return bool(self._fragments)

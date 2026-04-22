@@ -5,6 +5,7 @@ import logging
 
 from extractor.parser import parse_document, parse_clause_json, fetch_api_clauses
 from extractor.heading_tree import build_heading_tree, build_tree_from_clauses, HeadingNode
+from extractor.policy_index import upsert_policy
 from utils.helpers import truncate_text, sanitize_filename
 
 logger = logging.getLogger(__name__)
@@ -63,8 +64,13 @@ def _build_dirs_recursive(
     base_dir: str,
     knowledge_root: str,
     raw_clause_map: dict[str, dict] | None = None,
+    clause_id_index: dict[str, str] | None = None,
 ):
-    """递归构建目录结构和 knowledge.md，可选保存 clause.json"""
+    """递归构建目录结构和 knowledge.md，可选保存 clause.json。
+
+    clause_id_index 非 None 时，沿路收集 (clauseId → 相对 knowledge_root 的 dir relpath)，
+    供 extract_from_api 末尾回填 _policy_index.json 的 clauses 二级索引使用。
+    """
     for node in nodes:
         folder_name = node.folder_name
         node_dir = os.path.join(base_dir, folder_name)
@@ -77,12 +83,20 @@ def _build_dirs_recursive(
             f.write(knowledge_content)
 
         if raw_clause_map and node.number in raw_clause_map:
+            raw_clause = raw_clause_map[node.number]
             clause_json_path = os.path.join(node_dir, "clause.json")
             with open(clause_json_path, "w", encoding="utf-8") as f:
-                json.dump(raw_clause_map[node.number], f, ensure_ascii=False, indent=2)
+                json.dump(raw_clause, f, ensure_ascii=False, indent=2)
+            if clause_id_index is not None:
+                clause_id = raw_clause.get("clauseId") or ""
+                if clause_id:
+                    rel = os.path.relpath(node_dir, knowledge_root).replace("\\", "/")
+                    clause_id_index[clause_id] = rel
 
         if node.children:
-            _build_dirs_recursive(node.children, node_dir, knowledge_root, raw_clause_map)
+            _build_dirs_recursive(
+                node.children, node_dir, knowledge_root, raw_clause_map, clause_id_index,
+            )
 
 
 def extract(filepath: str) -> str:
@@ -180,11 +194,26 @@ def extract_from_api(
 
     logger.info(f"识别到 {len(tree)} 个一级标题，开始构建目录结构...")
     abs_knowledge_root = os.path.abspath(knowledge_root)
-    _build_dirs_recursive(tree, knowledge_root, abs_knowledge_root, raw_clause_map)
+    clause_id_index: dict[str, str] = {}
+    _build_dirs_recursive(
+        tree, knowledge_root, abs_knowledge_root, raw_clause_map, clause_id_index,
+    )
 
     root_knowledge = _build_root_knowledge_md(tree, abs_knowledge_root)
     with open(os.path.join(knowledge_root, "knowledge.md"), "w", encoding="utf-8") as f:
         f.write(root_knowledge)
 
-    logger.info(f"知识抽取完成（API 模式），输出目录: {knowledge_root}")
+    policy_index_path = os.path.join(page_knowledge_dir, "_policy_index.json")
+    upsert_policy(
+        policy_index_path,
+        policy_id=policy_id,
+        root_dirname=os.path.basename(knowledge_root),
+        name=policy_name,
+        version=version,
+        clauses=clause_id_index,
+    )
+    logger.info(
+        f"知识抽取完成（API 模式），输出目录: {knowledge_root}，"
+        f"已回填 policy index ({len(clause_id_index)} 条 clauseId 反查)"
+    )
     return knowledge_root

@@ -270,7 +270,13 @@ def _html_table_to_narrative(table_tag) -> str:
 
 
 def extract_clause_references(html: str) -> list[dict]:
-    """从 clauseContent HTML 中抽取 <span class="ql-reference"> 引用。
+    """从 clauseContent HTML 中抽取带有 data-policy-id 的 <span> 作为引用。
+
+    识别规则（与 class 无关，仅看 data-* 属性）：
+      - 标签必须是 <span>
+      - 必须有 data-policy-id 且 strip 后非空
+      - data-clause-id 可缺失或为空串；空串语义保留为"引用整篇 policy"
+        （由 resolve_references → _expand_to_clause_nodes 处理）
 
     返回结构示例（每条 ref 含 5 个字段，resolvedClauses/cycle 由后续 resolve_references 填充）::
 
@@ -285,7 +291,7 @@ def extract_clause_references(html: str) -> list[dict]:
             ...
         ]
 
-    - 缺少 data-policy-id 的 span 会跳过并 warning。
+    - 没有 data-policy-id（或为空）的 span 直接跳过，不打 warning（普通 span 太常见，避免噪音）。
     - 同一 span 多次出现保留多次，按文档出现顺序。
     """
     if not html or '<span' not in html:
@@ -294,12 +300,11 @@ def extract_clause_references(html: str) -> list[dict]:
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, 'html.parser')
-    spans = soup.find_all('span', class_='ql-reference')
+    spans = soup.find_all('span', attrs={'data-policy-id': True})
     refs: list[dict] = []
     for span in spans:
         policy_id = (span.get('data-policy-id') or '').strip()
         if not policy_id:
-            logger.warning("ql-reference span 缺少 data-policy-id，已跳过")
             continue
         clause_id = (span.get('data-clause-id') or '').strip()
         highlighted = span.get_text()
