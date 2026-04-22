@@ -15,8 +15,7 @@
          - 上一层 assessment（首跳为 source 的 parent_assessment，深跳为父节点的 reason）
          - 上一层引用本节点时的 highlightedContent
          - 当前条款完整 markdown 内容
-    4. is_relevant=True → 入 RelationFragment 注册到全局 RelationRegistry，并按需向下展开
-       （should_descend=True 才递归；否则以本节点为终点）。
+    4. is_relevant=True → 入 RelationFragment 注册到全局 RelationRegistry，并按 hop_depth < max_depth 向下递归展开。
     5. 子节点用线程池并发评估。
     6. 护栏：max_depth、max_nodes、(policy_id, clause_id) 全局去重、cycle 检测、
        missing/error 短路。
@@ -153,8 +152,8 @@ class RelationCrawler:
         node_budget: list[int],
         new_fragments: list[RelationFragment],
     ):
-        """逐层 BFS：每一层并发评估当前批，把判定为 relevant 且 should_descend 的节点的
-        子引用收集到下一层 queue。
+        """逐层 BFS：每一层并发评估当前批，把判定为 relevant 的节点按 hop_depth < max_depth
+        条件扩展其子引用到下一层 queue。
         """
         current_layer = queue
         while current_layer and node_budget[0] > 0:
@@ -238,7 +237,6 @@ class RelationCrawler:
             return None, []
         is_relevant = bool(decision.get("is_relevant"))
         reason = (decision.get("reason") or "").strip()
-        should_descend = bool(decision.get("should_descend"))
 
         if not is_relevant:
             logger.debug(
@@ -263,7 +261,8 @@ class RelationCrawler:
         )
 
         next_layer: list[_CandidateRef] = []
-        if should_descend:
+        # 只要 is_relevant=True，就按 hop_depth < max_depth 决定是否下钻
+        if is_relevant:
             next_assessment = reason if reason else cand.parent_assessment
             for ref in clause_dict.get("references", []) or []:
                 highlighted = ref.get("highlightedContent", "") or ""
