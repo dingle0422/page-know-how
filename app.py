@@ -5,6 +5,7 @@ import json
 import logging
 import asyncio
 import time
+from tkinter.constants import TRUE
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -120,7 +121,7 @@ class ReasonRequest(BaseModel):
                     "需配合 summaryCleanAnswer=True 使用；仅在 version=v1 下生效",
     )
     enableRelations: bool = Field(
-        default=False,
+        default=True,
         description="启用关联条款展开：当某个 chunk / 子智能体命中相关知识且其目录包含 "
                     "clause.json 中的预展开 references 时，按 LLM 多跳并发拉取外部条款，"
                     "在 chunk 模式下切分为派生 chunk 后续与原 chunk 一并进入流式 batch summary；"
@@ -150,7 +151,7 @@ class ReasonRequest(BaseModel):
                     "  采样波动影响（同一问题多次跑可能命中数不一致）。",
     )
     summaryPipelineMode: str = Field(
-        default="layered",
+        default="reduce_queue",
         description="batch summary 流水线模式（summaryBatchSize > 0 时生效）：\n"
                     "- 'layered'（默认）：当前实现。chunk + 关联展开走 _chunk_streaming_pipeline\n"
                     "  的'按 slot 顺序流式 batch + 后续递归压缩按层同步'；其他入口走\n"
