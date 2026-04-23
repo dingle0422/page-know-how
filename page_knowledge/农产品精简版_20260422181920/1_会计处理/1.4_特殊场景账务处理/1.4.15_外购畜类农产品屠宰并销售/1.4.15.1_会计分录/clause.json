@@ -1,0 +1,24 @@
+{
+  "clauseId": "d2979355a6964aa6b704ff5e664253ad",
+  "clauseName": "1.4.15.1_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.15.1",
+  "clauseContent": "1.4.15.1.  <span style=\"color: rgb(0, 0, 0);\">会计分录</span>\n<span style=\"color: rgb(51, 51, 51);\">（1））购入时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：原材料 </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款等</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）检验过程发生相关支出：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：生产成本 </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）分割鲜肉：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：库存商品 </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：生产成本 </span>\n<span style=\"color: rgb(51, 51, 51);\">       原材料</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）销售确认收入：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应收账款等 </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：主营业务收入等</span>\n<span style=\"color: rgb(51, 51, 51);\">（5）结转成本 ：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：主营业务成本 </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：库存商品</span>\n<span style=\"color: rgb(51, 51, 51);\">注：如果是委托外部屠宰场进行宰杀，支付给屠宰场的宰杀加工费用，应向其索取合规的增值税发票（通常为加工服务发票），作为该项成本的入账凭证。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十五项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

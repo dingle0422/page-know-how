@@ -168,3 +168,13 @@ class RelationRegistry:
     def has_any(self) -> bool:
         with self._lock:
             return bool(self._fragments)
+
+    def has(self, policy_id: str, clause_id: str) -> bool:
+        """快速判断 (policy_id, clause_id) 是否已注册。
+
+        供 RelationCrawler BFS 跨 chunk 去重使用：当某个候选条款已经被其他
+        chunk 的展开评估并注册过，再次出现在新 chunk 的 BFS 队列中时直接跳过，
+        避免重复 LLM 评估调用。线程安全，只读。
+        """
+        with self._lock:
+            return (policy_id, clause_id) in self._seen_keys

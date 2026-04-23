@@ -1,0 +1,24 @@
+{
+  "clauseId": "63449b261bc04277aa8f6ee5356a28a4",
+  "clauseName": "2.1.1.1.9_农产品精简版（20260422181920）",
+  "clauseNumber": "2.1.1.1.9",
+  "clauseContent": "2.1.1.1.9.  <span style=\"color: rgb(26, 26, 26);\">带税率的普通发票 </span>\n<span style=\"color: rgb(51, 51, 51);\">销售方身份：任何纳税人（如小规模纳税人开具1%/3%普票）。 </span>\n<span style=\"color: rgb(51, 51, 51);\">购买方进项税额抵扣规则：不得抵扣。</span>\n<span style=\"color: rgb(51, 51, 51);\">关键条件与风险提示：普通发票无论税率多少，均不能作为进项抵扣凭证。必须取得专用发票、农产品销售发票（自产自销）、农产品收购发票、海关进口增值税专用缴款书才可以抵扣进项税额。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第一款|第一项|第一目|第九点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

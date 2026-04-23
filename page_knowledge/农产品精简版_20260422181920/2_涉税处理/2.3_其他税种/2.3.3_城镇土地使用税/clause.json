@@ -1,0 +1,24 @@
+{
+  "clauseId": "8edfe11aa37d43969466c9f3fe976d6d",
+  "clauseName": "2.3.3_农产品精简版（20260422181920）",
+  "clauseNumber": "2.3.3",
+  "clauseContent": "2.3.3.  <span style=\"color: rgb(26, 26, 26);\">城镇土地使用税 </span>\n<span style=\"color: rgb(51, 51, 51);\">免征城镇土地使用税：直接用于农、林、牧、渔业的生产用地（包括经营采摘、观光农业的种植、养殖、饲养土地）。具体包括：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）将国有农用地出租给农业生产者用于农业生产；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）将土地使用权转让给农业生产者用于农业生产；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）采取转包、出租、互换、转让、入股等方式将承包地流转给农业生产者用于农业生产。注：在城市、县城、建制镇和工矿区范围内使用土地应当缴纳土地使用税。农业生产者的办公用地、加工厂用地、仓库用地等不属于生产用地，不能免征，需缴纳土地使用税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第三款|第三项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

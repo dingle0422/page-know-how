@@ -1,0 +1,40 @@
+{
+  "clauseId": "2197a7d8ca77471e8c52c80c88693892",
+  "clauseName": "2.1.2.1.2_农产品精简版（20260422181920）",
+  "clauseNumber": "2.1.2.1.2",
+  "clauseContent": "2.1.2.1.2.  <span style=\"color: rgb(26, 26, 26);\">流通环节销售蔬菜（批发零售环节） </span>\n<span style=\"color: rgb(51, 51, 51);\">免税条件：从事蔬菜批发、零售的纳税人。 </span>\n<span style=\"color: rgb(51, 51, 51);\">开票规定：开具免税普通发票，非自然人可以放弃优惠开具专票（小规模纳税人1%/3%，一般纳税人9%），自然人不得开具增值税专用发票。 </span>\n<span style=\"color: rgb(51, 51, 51);\">风险提示：蔬菜的范围参照《财政部 国家税务总局关于免征蔬菜流通环节增值税有关问题的通知》（财税[2011]137号）的附件<span class=\"ql-reference\" data-policy-id=\"KH1494363304054435840_20260422154653\" data-clause-id=\"cd6dca442d1d4b5e939aaba091431f4d\" style=\"background-color: rgb(255, 241, 184);\">《蔬菜主要品种目录》</span>，各种蔬菜罐头不享受；若放弃免税，需书面声明，36个月内不得再申请（小规模纳税人除外）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第一款|第二项|第一目|第二点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": [
+    {
+      "policyId": "KH1494363304054435840_20260422154653",
+      "clauseId": "cd6dca442d1d4b5e939aaba091431f4d",
+      "highlightedContent": "《蔬菜主要品种目录》",
+      "resolvedClauses": [
+        {
+          "policyId": "KH1494363304054435840_20260422154653",
+          "clauseId": "cd6dca442d1d4b5e939aaba091431f4d",
+          "highlightedContent": "",
+          "resolvedClauses": [],
+          "cycle": false
+        }
+      ],
+      "cycle": false
+    }
+  ]
+}

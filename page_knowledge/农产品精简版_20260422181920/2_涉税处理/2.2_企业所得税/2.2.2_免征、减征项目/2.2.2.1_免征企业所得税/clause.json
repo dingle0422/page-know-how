@@ -1,0 +1,24 @@
+{
+  "clauseId": "75d3a90e5e6a4b4287defe203b27c7b0",
+  "clauseName": "2.2.2.1_农产品精简版（20260422181920）",
+  "clauseNumber": "2.2.2.1",
+  "clauseContent": "2.2.2.1.  <span style=\"color: rgb(26, 26, 26);\">免征企业所得税</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）蔬菜、谷物、薯类、油料、豆类、棉花、麻类、糖料、水果、坚果的种植。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）农作物新品种的选育。（企业从事农作物新品种选育的免税所得，是指企业对农作物进行品种和育种材料选育形成的成果，以及由这些成果形成的种子(苗)等繁殖材料的生产、初加工、销售一体化取得的所得。）</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）中药材的种植。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）林木的培育和种植。（企业从事林木的培育和种植的免税所得，是指企业对树木、竹子的育种和育苗、抚育和管理以及规模造林活动取得的所得，包括企业通过拍卖或收购方式取得林木所有权并经过一定的生长周期，对林木进行再培育取得的所得。）</span>\n<span style=\"color: rgb(51, 51, 51);\">（5）牲畜、家禽的饲养。（猪、兔的饲养，饲养牲畜、家禽产生的分泌物、排泄物均按“牲畜、家禽的饲养”处理。）</span>\n<span style=\"color: rgb(51, 51, 51);\">（6）林产品的采集。</span>\n<span style=\"color: rgb(51, 51, 51);\">（7）灌溉、农产品初加工、兽医、农技推广、农机作业和维修等农、林、牧、渔服务业项目。</span>\n<span style=\"color: rgb(51, 51, 51);\">（8）远洋捕捞。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第二款|第二项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

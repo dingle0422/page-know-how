@@ -1,0 +1,24 @@
+{
+  "clauseId": "6d473d6b146541ffa9fa0d10cf0c269f",
+  "clauseName": "1.4.4.1_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.4.1",
+  "clauseContent": "1.4.4.1.  <span style=\"color: rgb(0, 0, 0);\">会计分录</span>\n<span style=\"color: rgb(51, 51, 51);\">借：银行存款 </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：其他业务收入 </span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—应交增值税(销项税额)</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第四项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

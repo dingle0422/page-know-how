@@ -1,0 +1,24 @@
+{
+  "clauseId": "ad376bea879f42e78de6824da2960ea5",
+  "clauseName": "1.4.18_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.18",
+  "clauseContent": "1.4.18.  <span style=\"color: rgb(26, 26, 26);\">开票额度不够无法开具农产品收购发票</span>\n<span style=\"color: rgb(51, 51, 51);\">从农户处购买自产农产品，由于开票额度不够无法开具农产品收购发票，账务处理上可以按照实际发生的业务进行入账。具体分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）购买农产品时</span>\n<span style=\"color: rgb(51, 51, 51);\">借：原材料等</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款等</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）开具农产品收购发票</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费—应交增值税（进项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：原材料等</span>\n<span style=\"color: rgb(51, 51, 51);\">注：但需要注意的是，未取得合规发票的部分，在企业所得税汇算清缴时不能税前扣除，需要通过A105000表第30行“其他”进行纳税调整。建议尽快补开农产品收购发票或让农户去税局代开发票，以便实现税前扣除。如果对方是从事小额零星经营业务的个人（销售额未达到增值税起征点），可以凭收款凭证及内部凭证税前扣除。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十八项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

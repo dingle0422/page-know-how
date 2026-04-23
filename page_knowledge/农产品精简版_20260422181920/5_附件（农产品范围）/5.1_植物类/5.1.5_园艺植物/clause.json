@@ -1,0 +1,24 @@
+{
+  "clauseId": "7c3ccf34141b4942be459f7a147178cd",
+  "clauseName": "5.1.5_农产品精简版（20260422181920）",
+  "clauseNumber": "5.1.5",
+  "clauseContent": "5.1.5.  <span style=\"color: rgb(26, 26, 26);\">园艺植物</span>\n<span style=\"color: rgb(51, 51, 51);\"> 园艺植物，是指可供食用的果实，如水果、果干(如荔枝干、桂圆干、葡萄干等)、干果、果仁、果用瓜(如甜瓜、西瓜、哈密瓜等)，以及胡椒、花椒、大料、咖啡豆等。</span>\n<span style=\"color: rgb(51, 51, 51);\"> 经冷冻、冷藏、包装等工序加工的园艺植物，属于本货物的征税范围。</span>\n<span style=\"color: rgb(51, 51, 51);\"> 各种水果罐头，果脯，蜜饯，炒制的果仁、坚果，碾磨后的园艺植物(如胡椒粉、花椒粉等)，不属于本货物的征税范围。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第五条|第一款|第五项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

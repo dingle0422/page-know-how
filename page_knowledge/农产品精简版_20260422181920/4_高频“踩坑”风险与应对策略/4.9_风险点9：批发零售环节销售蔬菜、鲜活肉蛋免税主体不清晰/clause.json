@@ -1,0 +1,24 @@
+{
+  "clauseId": "2abf12018658441aaed1ef6de35c1db0",
+  "clauseName": "4.9_农产品精简版（20260422181920）",
+  "clauseNumber": "4.9",
+  "clauseContent": "4.9.  <span style=\"color: rgb(26, 26, 26);\">风险点9：批发零售环节销售蔬菜、鲜活肉蛋免税主体不清晰</span>\n<span style=\"color: rgb(0, 0, 0);\">（1）场景：工商局委托检测公司到学校食堂抽检食材，检测公司向学校购买了抽检的食材，其中有鸡、蔬菜、大米。</span>\n<span style=\"color: rgb(0, 0, 0);\">（2）风险：学校需要就销售的鸡、蔬菜和大米申报增值税，否则可能面临漏报的风险。</span>\n<span style=\"color: rgb(0, 0, 0);\">（3）应对：大米应按照9%（一般纳税人）/1%（小规模纳税人）缴纳增值税。学校销售鸡、蔬菜，能否享受批发零售环节，存在争议，部分地区认为只要是批发零售环节销售蔬菜、鲜活肉蛋就可以免增值税；部分地区认为需要主体是从事农产品批发零售的，一部分需要与主管税局确认，若主管税局认为学校也属于从事蔬菜、农产品批发零售的纳税人，则可以免税，否则也应按照9%或者1%缴纳增值税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第四条|第九款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

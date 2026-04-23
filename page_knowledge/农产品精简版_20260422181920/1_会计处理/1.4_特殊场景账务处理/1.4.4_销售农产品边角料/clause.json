@@ -1,0 +1,24 @@
+{
+  "clauseId": "9850bd30d0c64cd498d8703c1f42033b",
+  "clauseName": "1.4.4_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.4",
+  "clauseContent": "1.4.4.  <span style=\"color: rgb(26, 26, 26);\">销售农产品边角料</span>\n<span style=\"color: rgb(51, 51, 51);\">销售生产过程中的边角料、下脚料，相关的成本已经隐含在正品的成本中，由于下脚料相对于正品来说金额较低，按照会计核算的重要性原则，一般不需要追溯调减正品的生产成本。实务中，若企业担心无匹配的成本，计入营业外收入也是可以的。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第四项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

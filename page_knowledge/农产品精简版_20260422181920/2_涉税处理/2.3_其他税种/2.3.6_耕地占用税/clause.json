@@ -1,0 +1,24 @@
+{
+  "clauseId": "46d471ba41d74bc0bf22957bd3dea12b",
+  "clauseName": "2.3.6_农产品精简版（20260422181920）",
+  "clauseNumber": "2.3.6",
+  "clauseContent": "2.3.6.  <span style=\"color: rgb(26, 26, 26);\">耕地占用税 </span>\n<span style=\"color: rgb(51, 51, 51);\">耕地占用税以纳税人实际占用的属于耕地占用税征税范围的土地面积为计税依据，按应税土地当地适用税额计税，实行一次性征收。</span>\n<span style=\"color: rgb(51, 51, 51);\">耕地占用税计算公式为：应纳税额=应税土地面积×适用税额。 </span>\n<span style=\"color: rgb(51, 51, 51);\">注：占用园地、林地、草地、农田水利用地等农用地建设建筑物、构筑物或者从事非农业建设的，需要依法缴纳耕地占用税；如果是建设直接为农业生产服务的生产设施，则不需要缴纳耕地占用税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第三款|第六项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "56e104c33ec64c25abe691ceb80fe37e",
+  "clauseName": "2.1.1.1.5_农产品精简版（20260422181920）",
+  "clauseNumber": "2.1.1.1.5",
+  "clauseContent": "2.1.1.1.5.  <span style=\"color: rgb(26, 26, 26);\">1% 增值税专用发票 </span>\n<span style=\"color: rgb(51, 51, 51);\">销售方身份/业务性质：小规模纳税人（不区分是否自产）。</span>\n<span style=\"color: rgb(51, 51, 51);\">购买方进项税额抵扣规则：只能按票面注明的1%税额抵扣，不能按9%计算抵扣。 </span>\n<span style=\"color: rgb(51, 51, 51);\">关键条件与风险提示：很多企业误以为1%专票也能按9%抵扣，这是错误的。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第一款|第一项|第一目|第五点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "8392b09b49834d3ab59520d83d6f040b",
+  "clauseName": "1.4.11.2_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.11.2",
+  "clauseContent": "1.4.11.2.  <span style=\"color: rgb(0, 0, 0);\">风险</span>\n<span style=\"color: rgb(51, 51, 51);\">需要注意的是用于简易计税、集体福利、个人消费、免税等不可抵扣项目，是不能抵扣进项税额。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十一项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

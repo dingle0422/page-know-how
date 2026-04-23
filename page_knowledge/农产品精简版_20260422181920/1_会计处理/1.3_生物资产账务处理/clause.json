@@ -1,0 +1,24 @@
+{
+  "clauseId": "3ae15184f326437c90b48b1d8106abaf",
+  "clauseName": "1.3_农产品精简版（20260422181920）",
+  "clauseNumber": "1.3",
+  "clauseContent": "1.3.  <span style=\"color: rgb(26, 26, 26);\">生物资产账务处理</span>\n<span style=\"color: rgb(51, 51, 51);\">生物资产属于资产类科目，分为三大类，消耗性生物资产（为出售而持有，如育肥猪、蔬菜）、生产性生物资产（为产出农产品而持有，如果树、产畜）和公益性生物资产（以环保为目的）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第三款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:21",
+  "updatedAt": "2026-04-22T18:19:21",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

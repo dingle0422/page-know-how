@@ -112,12 +112,50 @@ def verify_product_names(
     return results
 
 
-def format_result(result: VerificationResult) -> str:
-    """将验证结果格式化为可直接嵌入回答的自然语言文本"""
+# top-1 同时满足"高置信"且"显著领先次优"时，视为可直接采纳的单一权威结论；
+# 注入到 LLM prompt 时不再列出剩余低分候选，避免给 LLM "分情况讨论"的把手。
+_TOP1_CONFIDENT_THRESHOLD = 0.9
+_TOP1_LEADING_GAP = 0.3
+
+
+def format_result(
+    result: VerificationResult,
+    top1_threshold: float = _TOP1_CONFIDENT_THRESHOLD,
+    leading_gap: float = _TOP1_LEADING_GAP,
+) -> str:
+    """将验证结果格式化为可直接嵌入 LLM 回答的自然语言文本。
+
+    输出策略：
+    - 无候选 → 失败/空结果提示
+    - top-1 置信度 ≥ top1_threshold 且 (top1 - top2) ≥ leading_gap（或仅有 1 个候选）
+      → 只输出 top-1，并明确告知 LLM "应直接采纳，无需再分情况猜测其他归类"
+    - 其余情况 → 列出全部候选（保留旧行为，由调用方/LLM 自行权衡）
+
+    设计动机：当 skill 给出单一确定性结论时，prompt 里再附带低分候选会诱导 LLM
+    把"匹配度 0.4 的水果"也当成需要讨论的合法分支，最终输出"若属于X / 若属于Y"
+    的摇摆答案；而高置信 + 显著领先 在分类问题中实际等价于"已识别"，应避免
+    把工程上的多候选缓冲传递成业务上的歧义。
+    """
     if not result.candidates:
         if result.message:
             return f"「{result.query}」的标准名称验证失败: {result.message}"
         return f"「{result.query}」未返回任何候选结果。"
+
+    best = result.candidates[0]
+    second_conf = result.candidates[1].confidence if len(result.candidates) > 1 else 0.0
+    is_confident_top1 = (
+        best.confidence >= top1_threshold
+        and (best.confidence - second_conf) >= leading_gap
+    )
+
+    if is_confident_top1:
+        return (
+            f"「{result.query}」标准商品名称已识别为：{best.standard_name}"
+            f"（简称：{best.abbreviation or '无'}），适用税率 {best.tax_rate}，"
+            f"匹配置信度 {best.confidence}（显著高于其余候选）。\n"
+            f"该归类为权威识别结果，应直接据此进行后续涉税判断，"
+            f"不要再使用「若属于X / 若属于Y」等句式对该商品的归类做二次猜测。"
+        )
 
     lines = [f"「{result.query}」在税收分类编码体系中的候选匹配："]
     for c in result.candidates:

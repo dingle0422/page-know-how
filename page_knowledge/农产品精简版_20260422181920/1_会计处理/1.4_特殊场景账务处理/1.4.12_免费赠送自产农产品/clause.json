@@ -1,0 +1,24 @@
+{
+  "clauseId": "0a4e7c356f5d4a90b3eee41202abf0b4",
+  "clauseName": "1.4.12_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.12",
+  "clauseContent": "1.4.12.  <span style=\"color: rgb(26, 26, 26);\">免费赠送自产农产品</span>\n<span style=\"color: rgb(51, 51, 51);\">纳税人免费赠送或捐赠自产农产品，例如将自产水果赠送给其他单位，既构成视同销售，又可以享受自产农产品免征增值税优惠，最终不需要缴纳增值税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十二项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

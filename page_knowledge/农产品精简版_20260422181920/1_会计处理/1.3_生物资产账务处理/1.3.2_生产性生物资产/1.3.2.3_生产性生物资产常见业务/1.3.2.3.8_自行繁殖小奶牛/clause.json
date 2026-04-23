@@ -1,0 +1,24 @@
+{
+  "clauseId": "fd46e191b6b947c9924f0c03c7ae98f6",
+  "clauseName": "1.3.2.3.8_农产品精简版（20260422181920）",
+  "clauseNumber": "1.3.2.3.8",
+  "clauseContent": "1.3.2.3.8.  <span style=\"color: rgb(26, 26, 26);\">自行繁殖小奶牛 </span>\n<span style=\"color: rgb(51, 51, 51);\">归集母牛孕期及接产成本：</span>\n<span style=\"color: rgb(51, 51, 51);\"> 借：农业生产成本—繁育成本</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：原材料/应付职工薪酬等</span>\n<span style=\"color: rgb(51, 51, 51);\">小牛出生时：</span>\n<span style=\"color: rgb(51, 51, 51);\"> - 作为消耗性（育肥出售）：</span>\n<span style=\"color: rgb(51, 51, 51);\"> 借：消耗性生物资产—犊牛</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：农业生产成本—繁育成本</span>\n<span style=\"color: rgb(51, 51, 51);\"> - 作为生产性（留种产奶）：</span>\n<span style=\"color: rgb(51, 51, 51);\"> 借：生产性生物资产—未成熟(犊牛)</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：农业生产成本—繁育成本</span>\n<span style=\"color: rgb(51, 51, 51);\">后续饲养小牛时：</span>\n<span style=\"color: rgb(51, 51, 51);\"> - 作为消耗性（育肥出售）：</span>\n<span style=\"color: rgb(51, 51, 51);\"> 借：消耗性生物资产—犊牛</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：原材料—饲料</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应付职工薪酬/银行存款等</span>\n<span style=\"color: rgb(51, 51, 51);\"> - 作为生产性（留种产奶）：</span>\n<span style=\"color: rgb(51, 51, 51);\"> 借：生产性生物资产—未成熟(犊牛)</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：原材料—饲料</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应付职工薪酬</span>\n<span style=\"color: rgb(51, 51, 51);\"> 银行存款 小牛成本为分娩过程中发生的必要支出</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第三款|第二项|第三目|第八点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

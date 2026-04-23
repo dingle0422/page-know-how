@@ -1,0 +1,24 @@
+{
+  "clauseId": "8a9740a608df49c388d584f95965b676",
+  "clauseName": "1.4.11_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.11",
+  "clauseContent": "1.4.11.  <span style=\"color: rgb(26, 26, 26);\">购买农产品计算抵扣进项税额</span>\n<span style=\"color: rgb(51, 51, 51);\">收到自产自销的农产品免税普通发票并计算抵扣进项税额。免税情形下，买价就是票面金额，</span>\n<span style=\"color: rgb(51, 51, 51);\">票面金额=含税金额=不含税金额，进项税额是基于票面金额（买价）×9%计算得出的。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十一项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

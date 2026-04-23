@@ -42,17 +42,62 @@ _DEFAULT_ENV_PASSTHROUGH = (
 )
 
 
+def _is_wsl_bash(path: str) -> bool:
+    """判断给定 bash 路径是否是 Windows 自带的 WSL bash。
+
+    WSL 的 bash.exe 位于 %SystemRoot%\\System32\\bash.exe，运行的是 WSL 子系统，
+    无法处理纯 Windows 的临时目录路径（mkdtemp 创建的 C:\\Users\\...\\Temp 等会触发
+    `WSL ERROR: CreateProcessParseCommon: Failed to translate ...`）。
+    Skill 沙箱必须用真正的 Win32 bash（git-bash / msys2 / cygwin），所以这里把它过滤掉。
+    """
+    if not path or os.name != "nt":
+        return False
+    norm = os.path.normcase(os.path.normpath(path))
+    system_root = os.environ.get("SystemRoot") or os.environ.get("windir") or r"C:\Windows"
+    wsl_path = os.path.normcase(os.path.normpath(os.path.join(system_root, "System32", "bash.exe")))
+    return norm == wsl_path
+
+
+# Windows 上 git-bash / msys2 / cygwin 的常见安装位置，按优先级探测
+_WINDOWS_BASH_FALLBACKS = (
+    r"C:\Program Files\Git\bin\bash.exe",
+    r"C:\Program Files\Git\usr\bin\bash.exe",
+    r"C:\Program Files (x86)\Git\bin\bash.exe",
+    r"C:\msys64\usr\bin\bash.exe",
+    r"C:\cygwin64\bin\bash.exe",
+)
+
+
 def _resolve_shell() -> str:
-    """解析可用的 shell：SKILL_BASH_PATH > bash > sh"""
+    """解析可用的 shell。
+
+    优先级：
+      1. SKILL_BASH_PATH 环境变量显式指定
+      2. PATH 上的 bash / sh，但跳过 Windows 自带的 WSL bash
+      3. Windows 常见 git-bash / msys2 / cygwin 安装位置兜底
+    """
     explicit = os.environ.get("SKILL_BASH_PATH")
     if explicit and os.path.exists(explicit):
         return explicit
+
     for candidate in ("bash", "sh"):
         found = shutil.which(candidate)
-        if found:
+        if found and not _is_wsl_bash(found):
             return found
+        if found and _is_wsl_bash(found):
+            logger.warning(
+                "PATH 上的 %s 指向 WSL bash (%s)，无法处理 Windows 临时目录，将继续探测 git-bash 等替代方案",
+                candidate, found,
+            )
+
+    if os.name == "nt":
+        for candidate in _WINDOWS_BASH_FALLBACKS:
+            if os.path.exists(candidate):
+                return candidate
+
     raise RuntimeError(
-        "未找到 bash/sh 可执行文件。请安装 bash 或通过 SKILL_BASH_PATH 环境变量指定路径。"
+        "未找到可用的 bash/sh。请安装 git-bash（推荐）或通过 SKILL_BASH_PATH 环境变量"
+        "指向真正的 Win32 bash 可执行文件（注意：Windows 自带的 WSL bash 不可用）。"
     )
 
 

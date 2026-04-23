@@ -1,0 +1,24 @@
+{
+  "clauseId": "4be7656f562a466385f56766487597a7",
+  "clauseName": "5.2.3_农产品精简版（20260422181920）",
+  "clauseNumber": "5.2.3",
+  "clauseContent": "5.2.3.  <span style=\"color: rgb(26, 26, 26);\">动物皮张</span>\n<span style=\"color: rgb(51, 51, 51);\"> 动物皮张，是指从各种动物身上直接剥取的，未经鞣制的生皮、生皮张。</span>\n<span style=\"color: rgb(51, 51, 51);\"> 将生皮、生皮张用清水、盐水或者防腐药水浸泡、刮里、脱毛、晒干或者熏干，未经鞣制的，属于本货物的征税范围。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第五条|第二款|第三项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

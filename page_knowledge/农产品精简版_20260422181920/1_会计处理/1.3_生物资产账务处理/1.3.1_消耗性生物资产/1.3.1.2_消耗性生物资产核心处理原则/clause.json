@@ -1,0 +1,24 @@
+{
+  "clauseId": "501a59e631f441ac8182f643b12d9991",
+  "clauseName": "1.3.1.2_农产品精简版（20260422181920）",
+  "clauseNumber": "1.3.1.2",
+  "clauseContent": "1.3.1.2.  <span style=\"color: rgb(26, 26, 26);\">消耗性生物资产核心处理原则</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）初始计量：按实际成本入账（包括购买价款、相关税费、运输费、保险费、直接归属的其他支出）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）后续支出：在达到可出售状态前发生的饲料、人工、防疫等直接费用，予以资本化，增加资产成本。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）收获/出售时：将账面价值结转至“农产品”或“主营业务成本”</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第三款|第一项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:21",
+  "updatedAt": "2026-04-22T18:19:21",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

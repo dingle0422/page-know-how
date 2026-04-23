@@ -1,0 +1,24 @@
+{
+  "clauseId": "c877c42d87fc4fed9ca331f6debfda46",
+  "clauseName": "2.3.5_农产品精简版（20260422181920）",
+  "clauseNumber": "2.3.5",
+  "clauseContent": "2.3.5.  <span style=\"color: rgb(26, 26, 26);\">烟叶税（烟叶特指烤烟叶和晾晒烟叶） </span>\n<span style=\"color: rgb(51, 51, 51);\">纳税人：在我国境内收购烟叶的单位。</span>\n<span style=\"color: rgb(51, 51, 51);\">计税依据：收购价款 × (1+10%)。价外补贴统一按10%计算。</span>\n<span style=\"color: rgb(51, 51, 51);\">税率：20%。</span>\n<span style=\"color: rgb(51, 51, 51);\">纳税地点：烟叶收购地。 </span>\n<span style=\"color: rgb(51, 51, 51);\">注：烟叶税计入农产品买价，作为计算增值税进项抵扣的基础。另外，烟叶不属于消费税范围，不需要缴纳消费税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第三款|第五项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

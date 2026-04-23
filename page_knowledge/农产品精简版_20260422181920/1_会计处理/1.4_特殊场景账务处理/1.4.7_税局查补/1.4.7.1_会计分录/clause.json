@@ -1,0 +1,24 @@
+{
+  "clauseId": "eb82307af3914390bbdab109db85c412",
+  "clauseName": "1.4.7.1_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.7.1",
+  "clauseContent": "1.4.7.1.  <span style=\"color: rgb(0, 0, 0);\">会计分录</span>\n<span style=\"color: rgb(51, 51, 51);\">①进项税额转出：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：以前年度损益调整</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应交税费-增值税检查调整</span>\n<span style=\"color: rgb(51, 51, 51);\">②进项税额转出补缴增值税：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费-增值税检查调整</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应交税费-未交增值税</span>\n<span style=\"color: rgb(51, 51, 51);\">③按照实际补缴的增值税计算需要补缴的附加税费：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：以前年度损益调整</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应交税费-应交城建税</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费-应交教育费附加</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费-应交地方教育费附加等</span>\n<span style=\"color: rgb(51, 51, 51);\">④进项税额转出部分依法可追补扣除：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费-应交企业所得税</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：以前年度损益调整</span>\n<span style=\"color: rgb(51, 51, 51);\">⑤调整留存收益：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：利润分配-未分配利润</span>\n<span style=\"color: rgb(51, 51, 51);\"> 盈余公积-法定公积金</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：以前年度损益调整</span>\n<span style=\"color: rgb(51, 51, 51);\">⑥实际补缴增值税：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费-未交增值税</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费-应交城建税等</span>\n<span style=\"color: rgb(51, 51, 51);\"> 营业外支出（滞纳金+罚款）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第七项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

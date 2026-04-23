@@ -1,0 +1,24 @@
+{
+  "clauseId": "358127c13b3b4ae0b518420944d7d940",
+  "clauseName": "1.4.1.2_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.1.2",
+  "clauseContent": "1.4.1.2.  <span style=\"color: rgb(0, 0, 0);\">风险及策略</span>\n<span style=\"color: rgb(51, 51, 51);\">风险：分摊比例不合理，导致成本不实。</span>\n<span style=\"color: rgb(51, 51, 51);\">策略：以供应商发票或市场价为基准，采用公允价值比例法分摊。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第一项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

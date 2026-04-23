@@ -1,0 +1,24 @@
+{
+  "clauseId": "56ac7305bb4e4402bdee8834acb3d80c",
+  "clauseName": "1.4.16_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.16",
+  "clauseContent": "1.4.16.  <span style=\"color: rgb(26, 26, 26);\">农产品核定扣除</span>\n<span style=\"color: rgb(51, 51, 51);\">购进时全额计入成本；销售后，按核定金额确认进项税，并冲减“主营业务成本”。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十六项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

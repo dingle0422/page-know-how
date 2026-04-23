@@ -1,0 +1,24 @@
+{
+  "clauseId": "d7e58ccf5cc8434886e96332f06c617e",
+  "clauseName": "3.2.2.3_农产品精简版（20260422181920）",
+  "clauseNumber": "3.2.2.3",
+  "clauseContent": "3.2.2.3.  <span style=\"color: rgb(26, 26, 26);\">开票规范</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）免税发票：税率栏显示“免税”，不得显示“0%”。开具免税发票意味着放弃开具专用发票的权利。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）应税发票：根据纳税人类别和货物类型，选择1%、3%、9%、13% 等适用税率。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）农产品销售发票（数电票）：必须通过特定业务模块开具，并选择“自产农产品销售”标签，否则购买方无法抵扣。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）农产品收购发票：由收购方自行开具，需通过特定业务模块选择“农产品收购”，并填写销售方（自然人）的证件类型和号码。税率栏选择“免税”。</span>\n<span style=\"color: rgb(51, 51, 51);\">（5）增值税专用发票（放弃免税）：纳税人可以书面声明放弃免税权，按适用税率缴税并开具增值税专用发票。一经放弃，36个月内不得再申请免税（小规模纳税人除外）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（6）虽然政策上农产品发票未强制要求备注特定内容，但建议在以下情况主动备注，以降低税务风险：</span>\n<span style=\"color: rgb(51, 51, 51);\">①农产品收购发票：备注栏要清楚填写农户养殖或种植场所详细地址、农户真实有效的联系方式以及货款支付方式,如银行转账、支付宝、微信支付等；</span>\n<span style=\"color: rgb(51, 51, 51);\">②苗木用于绿化工程：备注项目名称、地点，以便与简易计税项目区分（涉及建筑服务则必须填写）；</span>\n<span style=\"color: rgb(51, 51, 51);\">③农产品附带包装：备注可注明“礼品盒包装”，确保与实际货物一致。</span>\n<span style=\"color: rgb(51, 51, 51);\">（7）发票盖章：如果是纸质发票，必须加盖发票专用章；如果是电子发票，以版式文件上的标识为准，若标注“销售方（章）”字样，需加盖电子发票专用章，否则无需盖章。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第三条|第二款|第二项|第三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

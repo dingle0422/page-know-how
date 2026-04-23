@@ -1,0 +1,24 @@
+{
+  "clauseId": "8b1af8049f784ddab16e79364beb0c09",
+  "clauseName": "1.4.10.1_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.10.1",
+  "clauseContent": "1.4.10.1.  <span style=\"color: rgb(0, 0, 0);\">会计分录</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）购入时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：库存商品（价税合计金额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款等</span>\n<span style=\"color: rgb(51, 51, 51);\">注：此处入账金额为价税合计金额，如果取得的是专票，需要在勾选系统选择“不抵扣”或者勾选“抵扣”后再进项税额转出。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）确认职工福利：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：管理费用—福利费等</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应付职工薪酬—职工福利</span>\n<span style=\"color: rgb(51, 51, 51);\">(3）发放或使用时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应付职工薪酬—职工福利、销售费用、营业外支出等</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：库存商品 </span>\n<span style=\"color: rgb(51, 51, 51);\">注：用于免税项目和用于集体福利相同，哪怕取得了可以抵扣进项的发票或海关进口增值税专用缴款书，进项税额也都不能抵扣。如果已抵扣则需要做进项税额转出处理。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

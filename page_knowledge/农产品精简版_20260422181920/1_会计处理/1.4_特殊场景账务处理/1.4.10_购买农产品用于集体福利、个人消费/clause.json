@@ -1,0 +1,24 @@
+{
+  "clauseId": "a49a9e6b76c64c9c9aa6160d3b9dc400",
+  "clauseName": "1.4.10_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.10",
+  "clauseContent": "1.4.10.  <span style=\"color: rgb(26, 26, 26);\">购买农产品用于集体福利、个人消费</span>\n<span style=\"color: rgb(51, 51, 51);\">将商品用于集体福利、个人消费，不是企业经营销售的商品，购入时可以不通过“库存商品”核算，直接通过费用科目核算；如抵扣了进项税额，还需要通过“应交税费—应交增值税（进项税额转出）”。涉及个税时，还需确认个税的账务处理。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

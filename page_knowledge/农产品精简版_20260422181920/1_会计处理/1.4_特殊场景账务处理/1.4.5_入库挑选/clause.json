@@ -1,0 +1,24 @@
+{
+  "clauseId": "e8407924e9e7415399b2ae766e610f39",
+  "clauseName": "1.4.5_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.5",
+  "clauseContent": "1.4.5.  <span style=\"color: rgb(26, 26, 26);\">入库挑选</span>\n<span style=\"color: rgb(51, 51, 51);\">农产品原材料入库后挑选，分不同等级入库，原材料入库后挑选，分不同等级入库。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第五项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

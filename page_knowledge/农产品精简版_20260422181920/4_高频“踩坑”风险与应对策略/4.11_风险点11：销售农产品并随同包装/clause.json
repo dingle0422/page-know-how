@@ -1,0 +1,24 @@
+{
+  "clauseId": "5b9df7064e0643da96b4f2ed824df74e",
+  "clauseName": "4.11_农产品精简版（20260422181920）",
+  "clauseNumber": "4.11",
+  "clauseContent": "4.11.  <span style=\"color: rgb(26, 26, 26);\">风险点11：销售农产品并随同包装</span>\n<span style=\"color: rgb(0, 0, 0);\">（1）场景：屠宰企业销售礼品盒包装的生牛肉</span>\n<span style=\"color: rgb(0, 0, 0);\">（2）风险：礼盒按照13%，牛肉按照9%开具发票，属于一项业务涉及不同税率，如果拆分成两个业务，不符合增值税法规定。</span>\n<span style=\"color: rgb(0, 0, 0);\">（3）应对：屠宰企业销售的是生牛肉，只是装入礼盒包装，仍属于初级农产品或生制品范围，仍按9%税率征税。建议品名“肉及肉制品”，税率9%，备注可注明“礼品盒包装”，确保与实际货物一致。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第四条|第十一款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

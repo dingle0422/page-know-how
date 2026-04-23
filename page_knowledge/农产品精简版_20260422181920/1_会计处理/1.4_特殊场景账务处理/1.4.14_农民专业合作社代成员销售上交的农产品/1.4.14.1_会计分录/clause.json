@@ -1,0 +1,24 @@
+{
+  "clauseId": "d048646abb8a49c4bf27452bb7b7e36d",
+  "clauseName": "1.4.14.1_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.14.1",
+  "clauseContent": "1.4.14.1.  <span style=\"color: rgb(0, 0, 0);\">会计分录</span>\n<span style=\"color: rgb(51, 51, 51);\">合作社采用农民专业合作社财务会计制度时，会计分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）收到成员交来的产品时，按合同或协议约定的价格：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：受托代销商品</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：成员往来</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）售出受托代销商品时，按实际收到的价款：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：库存现金等</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：受托代销商品</span>\n<span style=\"color: rgb(51, 51, 51);\">注：如果实际收到的价款大于合同或协议约定的价格，按其差额，贷记“经营收入”等科目；如果实际收到的价款小于合同或协议约定的价格，按其差额，借记“经营支出”等科目。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）合作社支付委托方代销商品款时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：成员往来</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：库存现金等</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十四项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

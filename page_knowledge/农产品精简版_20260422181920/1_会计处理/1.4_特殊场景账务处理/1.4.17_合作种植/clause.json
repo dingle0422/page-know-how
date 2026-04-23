@@ -1,0 +1,24 @@
+{
+  "clauseId": "f9404a883d934bb081c6c0f10c0be3c4",
+  "clauseName": "1.4.17_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.17",
+  "clauseContent": "1.4.17.  <span style=\"color: rgb(26, 26, 26);\">合作种植</span>\n<span style=\"color: rgb(51, 51, 51);\">A公司和B公司合作种植一块地，A公司出种子和农资，B公司出土地，收获的农作物由两家公司各分一半，并且各自销售自己分得的那一半。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十七项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

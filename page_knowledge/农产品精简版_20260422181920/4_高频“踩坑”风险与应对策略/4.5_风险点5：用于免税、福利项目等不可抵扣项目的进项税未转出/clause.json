@@ -1,0 +1,24 @@
+{
+  "clauseId": "237fa715de344c87b2eb5322be64b1da",
+  "clauseName": "4.5_农产品精简版（20260422181920）",
+  "clauseNumber": "4.5",
+  "clauseContent": "4.5.  <span style=\"color: rgb(26, 26, 26);\">风险点5：用于免税、福利项目等不可抵扣项目的进项税未转出</span>\n<span style=\"color: rgb(0, 0, 0);\">（1）场景：公司将自产或外购的农产品用于员工食堂、节日福利、免税项目、简易计税项目或出现非正常损失，进项税已抵扣未转出。</span>\n<span style=\"color: rgb(0, 0, 0);\">（2）风险：用于集体福利、个人消费、免税项目、非正常损失、简易计税的进项税不得抵扣，已抵扣的进项税额则是需要做抵扣处理，否则构成偷税。</span>\n<span style=\"color: rgb(0, 0, 0);\">（3）应对：定期自查，将用于上述项目的农产品对应的进项税及时做转出处理。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：如果企业自产或者外购农产品免费赠送客户，按照视同销售以市场公允价格缴纳了增值税，则相应的进项税额可以抵扣。用于集体福利、个人消费不需要按照视同销售处理，但是如上述处理，不能抵扣相应的进项税额。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第四条|第五款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

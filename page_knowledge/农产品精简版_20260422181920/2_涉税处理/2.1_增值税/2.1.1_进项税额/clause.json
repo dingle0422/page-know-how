@@ -1,0 +1,24 @@
+{
+  "clauseId": "f7e5e4274e8d4db3b607f33d3874c0ff",
+  "clauseName": "2.1.1_农产品精简版（20260422181920）",
+  "clauseNumber": "2.1.1",
+  "clauseContent": "2.1.1.  <span style=\"color: rgb(26, 26, 26);\">进项税额</span>\n<span style=\"color: rgb(51, 51, 51);\">一般纳税人在抵扣农产品进项税额时，涉及到的规则比较复杂，需根据发票类型、销售方身份、购进农产品用途综合判断。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第一款|第一项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "cc1d9cf3d87f4d8888f7706fc81be331",
+  "clauseName": "5.1.6_农产品精简版（20260422181920）",
+  "clauseNumber": "5.1.6",
+  "clauseContent": "5.1.6.  <span style=\"color: rgb(26, 26, 26);\">药用植物</span>\n<span style=\"color: rgb(51, 51, 51);\"> 药用植物，是指用作中药原药的各种植物的根、茎、皮、叶、花、果实等。</span>\n<span style=\"color: rgb(51, 51, 51);\"> 利用上述药用植物加工制成的片、丝、块、段等中药饮片，属于本货物的征税范围。</span>\n<span style=\"color: rgb(51, 51, 51);\"> 干姜、姜黄属于本货物的征税范围。</span>\n<span style=\"color: rgb(51, 51, 51);\"> 中成药不属于本货物的征税范围。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第五条|第一款|第六项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "800cf3dff19344f8a4cb21753d853cc1",
+  "clauseName": "1.4.9.1_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.9.1",
+  "clauseContent": "1.4.9.1.  <span style=\"color: rgb(0, 0, 0);\">会计分录</span>\n<span style=\"color: rgb(51, 51, 51);\">①甲方采购的农产品未对外销售，仍为集团内存货：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：主营业务收入 (乙方确认的内部收入)</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：主营业务成本 (乙方内部成本)</span>\n<span style=\"color: rgb(51, 51, 51);\"> 存货 (内部未实现利润)</span>\n<span style=\"color: rgb(51, 51, 51);\">借：存货 (甲方已抵扣的进项税)</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：递延收益 (未来实现销售时转入损益)</span>\n<span style=\"color: rgb(51, 51, 51);\">②甲方采购的农产品已对外实现销售（集团外）：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：主营业务收入（乙方确认的内部销售收入）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：主营业务成本（乙方结转的内部销售成本）</span>\n<span style=\"color: rgb(51, 51, 51);\">主营业务成本（补回甲方抵扣的进项税对应的成本差额）</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第九项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "f132bf19f3b744a6b33912ead4f343b3",
+  "clauseName": "1.4.8_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.8",
+  "clauseContent": "1.4.8.  <span style=\"color: rgb(26, 26, 26);\">“公司+农户”模式</span>\n<span style=\"color: rgb(51, 51, 51);\">“公司+农户”模式养殖蛋鸡，农户提供的仅是劳务，所有权始终归公司，会计上按自有资产核算。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第八项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

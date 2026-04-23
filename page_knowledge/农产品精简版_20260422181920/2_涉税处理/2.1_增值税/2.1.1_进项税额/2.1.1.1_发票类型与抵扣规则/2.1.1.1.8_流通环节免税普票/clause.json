@@ -1,0 +1,24 @@
+{
+  "clauseId": "3e292fad832e41dc9dd35ea8c8a755c2",
+  "clauseName": "2.1.1.1.8_农产品精简版（20260422181920）",
+  "clauseNumber": "2.1.1.1.8",
+  "clauseContent": "2.1.1.1.8.  <span style=\"color: rgb(26, 26, 26);\">流通环节免税普票 </span>\n<span style=\"color: rgb(51, 51, 51);\">销售方身份/业务性质：批发、零售免税蔬菜/鲜活肉蛋/种子种苗（如苗木、树苗等）的纳税人 </span>\n<span style=\"color: rgb(51, 51, 51);\">不得抵扣。 </span>\n<span style=\"color: rgb(51, 51, 51);\">关键条件与风险提示：此类发票用于已享受免税的流通环节，进项税不得抵扣。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第一款|第一项|第一目|第八点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

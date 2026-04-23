@@ -1,0 +1,24 @@
+{
+  "clauseId": "730521f4880344368dc771b7cce9d0ad",
+  "clauseName": "1.4.9.2_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.9.2",
+  "clauseContent": "1.4.9.2.  <span style=\"color: rgb(0, 0, 0);\">策略</span>\n<span style=\"color: rgb(51, 51, 51);\">此处理应遵循《监管规则适用指引——会计类第1号》，确保合并报表层面正确反映增值税影响。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第九项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

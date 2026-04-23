@@ -1,0 +1,24 @@
+{
+  "clauseId": "a17ce13f50fb45cca7435bc38eaaba76",
+  "clauseName": "2.3.2_农产品精简版（20260422181920）",
+  "clauseNumber": "2.3.2",
+  "clauseContent": "2.3.2.  <span style=\"color: rgb(26, 26, 26);\">个人所得税</span>\n<span style=\"color: rgb(51, 51, 51);\">暂不征收（查账征收）：个人、个体户、个人独资企业、合伙企业从事种植业、养殖业、饲养业、捕捞业（“四业”）取得的所得。核定征收除外：实行核定征收的个人独资企业、合伙企业、个体工商户等申报个人所得税的主体，不能享受该优惠。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：支付给农户的农产品收购款或委托饲养费，无需代扣代缴个人所得税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第三款|第二项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

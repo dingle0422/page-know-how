@@ -1,0 +1,24 @@
+{
+  "clauseId": "8064ffb2da6e4fc48022f2118fff8d66",
+  "clauseName": "1.3.2.3.2_农产品精简版（20260422181920）",
+  "clauseNumber": "1.3.2.3.2",
+  "clauseContent": "1.3.2.3.2.  <span style=\"color: rgb(26, 26, 26);\">发生饲养、管护等成本 </span>\n<span style=\"color: rgb(51, 51, 51);\">借：生产性生物资产—未成熟生产性生物资产 </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：原材料/应付职工薪酬/银行存款 资本化</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第三款|第二项|第三目|第二点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:22",
+  "updatedAt": "2026-04-22T18:19:22",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

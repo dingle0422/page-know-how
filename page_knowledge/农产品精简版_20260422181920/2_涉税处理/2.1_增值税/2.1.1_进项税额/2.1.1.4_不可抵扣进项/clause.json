@@ -1,0 +1,24 @@
+{
+  "clauseId": "842a3dc84f014aeaab31a4b3cfb5d3a6",
+  "clauseName": "2.1.1.4_农产品精简版（20260422181920）",
+  "clauseNumber": "2.1.1.4",
+  "clauseContent": "2.1.1.4.  <span style=\"color: rgb(26, 26, 26);\">不可抵扣进项</span>\n<span style=\"color: rgb(51, 51, 51);\">需要注意的是，以下是哪怕取得了发票都不可抵扣进项税额的情形：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）用于简易计税方法计税项目。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）用于免征增值税项目（如批发零售免税蔬菜、鲜活肉蛋）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）用于集体福利或个人消费（如员工食堂领用、员工礼品、招待客户）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）非正常损失（如管理不善造成货物被盗、霉烂变质）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（5）购进并直接用于消费的餐饮服务、居民日常服务和娱乐服务。</span>\n<span style=\"color: rgb(51, 51, 51);\">注1：如果收到了不合规发票，如发票税率错误，比如6%税率或者0税率的农产品专票也是不能抵扣进项税额的。</span>\n<span style=\"color: rgb(51, 51, 51);\">注2：有些人认为建筑公司在异地开展项目，购买农产品，取得的发票不能抵扣进项税额，这是错误的。只要发票是合规的，没有用于上述不可抵扣项目，就可以抵扣进项税额。</span>\n<span style=\"color: rgb(51, 51, 51);\">注3：如果纳税人无偿赠送外购的农产品，视同销售缴纳增值税后，相应的进项税额也可以抵扣。</span>\n<span style=\"color: rgb(51, 51, 51);\">注4：餐饮企业购买农产品用于一般计税项目（6%餐饮服务），相应的进项税额是可以抵扣的。</span>\n<span style=\"color: rgb(51, 51, 51);\">注5：厂区绿化、办公室绿植属于生产经营配套的环境整治与管理支出，为全厂生产经营服务，不直接属于职工福利范畴。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第一款|第一项|第四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

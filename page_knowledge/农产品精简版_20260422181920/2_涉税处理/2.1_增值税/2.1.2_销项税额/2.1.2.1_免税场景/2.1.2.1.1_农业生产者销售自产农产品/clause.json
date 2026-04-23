@@ -1,0 +1,24 @@
+{
+  "clauseId": "1fec734a3659489c8760768f92c59e63",
+  "clauseName": "2.1.2.1.1_农产品精简版（20260422181920）",
+  "clauseNumber": "2.1.2.1.1",
+  "clauseContent": "2.1.2.1.1.  <span style=\"color: rgb(26, 26, 26);\">农业生产者销售自产农产品 </span>\n<span style=\"color: rgb(51, 51, 51);\">免税条件：从事农业生产（农产品自产自销）是指直接从事植物种植、动物饲养、收割、捕捞的单位和个人销售其初级农产品。 </span>\n<span style=\"color: rgb(51, 51, 51);\">开票规定：开具免税普通发票，非自然人可以放弃优惠开具专票，如个体工商户、企业、农民专业合作社等，小规模纳税人适用1%/3%，一般纳税人适用9%。自然人不得开具增值税专用发票。</span>\n<span style=\"color: rgb(51, 51, 51);\">风险提示：享受免税优惠必须是“自产”，外购再销售不享受；“公司+农户”模式，2026年起政策未明确，需与主管税局确认。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第二条|第一款|第二项|第一目|第一点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

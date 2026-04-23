@@ -1,0 +1,24 @@
+{
+  "clauseId": "aac6b44601cf4675bff252af47baed6f",
+  "clauseName": "4.10_农产品精简版（20260422181920）",
+  "clauseNumber": "4.10",
+  "clauseContent": "4.10.  <span style=\"color: rgb(26, 26, 26);\">风险点10：误开农产品收购发票</span>\n<span style=\"color: rgb(0, 0, 0);\">（1）场景：蔬菜的批发商享受免征增值税的优惠政策，企业向批发商购买农产品，不需要批发商开具免税销售发票，企业自行开具农产品收购发票。</span>\n<span style=\"color: rgb(0, 0, 0);\">（2）风险点：农产品收购发票，只能用于企业收购个人自产自销的农产品时开具，向批发商购买非自产农产品，不能开具农产品收购发票。</span>\n<span style=\"color: rgb(0, 0, 0);\">（3）应对：批发商需要针对其销售的农产品开具免税的增值税普通发票（或原免税销售发票）给企业；企业应凭批发商开具的合规发票计算抵扣进项税额，不得自行开具农产品收购发票。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第四条|第十款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:24",
+  "updatedAt": "2026-04-22T18:19:24",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

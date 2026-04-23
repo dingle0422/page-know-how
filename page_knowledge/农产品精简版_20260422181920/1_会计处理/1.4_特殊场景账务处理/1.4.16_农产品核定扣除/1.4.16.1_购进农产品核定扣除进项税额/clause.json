@@ -1,0 +1,24 @@
+{
+  "clauseId": "b6df2956f0f94197b319dd6bb4783b15",
+  "clauseName": "1.4.16.1_农产品精简版（20260422181920）",
+  "clauseNumber": "1.4.16.1",
+  "clauseContent": "1.4.16.1.  <span style=\"color: rgb(0, 0, 0);\">购进农产品核定扣除进项税额</span>\n<span style=\"color: rgb(51, 51, 51);\">购进时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：原材料 (全额)</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">销售后，核定进项税时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费—应交增值税(进项税额)</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：主营业务成本</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "农产品精简版|第一条|第四款|第十六项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-04-22T18:19:23",
+  "updatedAt": "2026-04-22T18:19:23",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}
