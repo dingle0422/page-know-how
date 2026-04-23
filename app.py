@@ -128,7 +128,7 @@ class ReasonRequest(BaseModel):
                     "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取。仅在 version=v1 下生效。",
     )
     relationMaxDepth: int = Field(
-        default=3,
+        default=5,
         description="关联展开最大跳深（含首跳）。enableRelations=False 时忽略。",
     )
     relationMaxNodes: int = Field(
@@ -138,6 +138,16 @@ class ReasonRequest(BaseModel):
     relationWorkers: int = Field(
         default=8,
         description="关联展开的调度线程数；候选评估池容量为本值的 2 倍。",
+    )
+    relationsExpansionMode: str = Field(
+        default="all",
+        description="关联展开模式。enableRelations=True 时生效：\n"
+                    "- 'all'（默认）：跳过对每个候选条款的 LLM 二次判定，"
+                    "  只要 ClauseLocator 能定位到内容，一律入 RelationFragment 并按深度全展开。"
+                    "  触发率 100%、省掉 N 次 LLM 评估调用反而更快，token 略增；"
+                    "  外层闸（chunk LLM relevant_headings 命中）仍然保留。\n"
+                    "- 'smart'：每个候选条款都用 LLM 判 is_relevant，准确率高但触发率受 LLM "
+                    "  采样波动影响（同一问题多次跑可能命中数不一致）。",
     )
 
 
@@ -388,9 +398,10 @@ def _run_reasoning(
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
     enable_relations: bool = False,
-    relation_max_depth: int = 3,
+    relation_max_depth: int = 5,
     relation_max_nodes: int = 50,
     relation_workers: int = 8,
+    relations_expansion_mode: str = "all",
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
@@ -403,6 +414,7 @@ def _run_reasoning(
         extra_kwargs["relation_max_depth"] = relation_max_depth
         extra_kwargs["relation_max_nodes"] = relation_max_nodes
         extra_kwargs["relation_workers"] = relation_workers
+        extra_kwargs["relations_expansion_mode"] = relations_expansion_mode
     else:
         if summary_clean_answer:
             logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
@@ -534,6 +546,7 @@ async def reason(req: ReasonRequest):
                 relation_max_depth=req.relationMaxDepth,
                 relation_max_nodes=req.relationMaxNodes,
                 relation_workers=req.relationWorkers,
+                relations_expansion_mode=req.relationsExpansionMode,
             )
             return ReasonResponse(
                 data=ReasonData(

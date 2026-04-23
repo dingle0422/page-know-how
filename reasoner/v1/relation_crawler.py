@@ -1,4 +1,4 @@
-"""关联条款 Crawler：BFS 多跳、并发、上下文相关性判定、终止护栏。
+"""关联条款 Crawler：BFS 多跳、并发、（可选 LLM）相关性判定、终止护栏。
 
 输入：(source_chunk_index, source_dir, parent_assessment)
     - source_dir 必须含 clause.json；其 references 是抽取阶段已经预展开的
@@ -6,17 +6,21 @@
     - parent_assessment 是触发本次展开的上一层 LLM 判定理由（chunk 模式下
       取自 chunk LLM 的 analysis 摘要，副路径取 _assess_* 的 conclusion 摘要）。
 
+两种展开模式（由 expand_all 参数切换）：
+    - expand_all=False（"smart" 模式）：每个候选条款都用 LLM 判 is_relevant，
+      仅 relevant 节点入 RelationFragment 并向下展开。准确率高但触发率受 LLM 采样波动影响。
+    - expand_all=True（"all" 模式，**默认**）：跳过 LLM 判定，只要 ClauseLocator
+      能定位到内容，一律入 RelationFragment 并按深度展开全部子 references。
+      用一点 token 成本换确定性触发，且省掉 N 次 LLM RT，反而更快。
+
 行为：
     1. 读 clause.json.references → 把每个 ref + 其 resolvedClauses 扁平化为 (policy_id, clause_id,
        highlightedContent) 候选队列（首跳）。
     2. 用 ClauseLocator 拉每个候选条款的真实内容（local-first，remote fallback）。
-    3. 调 LLM (RELATION_RELEVANCE_PROMPT) 判定 is_relevant + should_descend，传入：
-         - 用户问题
-         - 上一层 assessment（首跳为 source 的 parent_assessment，深跳为父节点的 reason）
-         - 上一层引用本节点时的 highlightedContent
-         - 当前条款完整 markdown 内容
-    4. is_relevant=True → 入 RelationFragment 注册到全局 RelationRegistry，并按 hop_depth < max_depth 向下递归展开。
-    5. 子节点用线程池并发评估。
+    3. expand_all=False：调 LLM (RELATION_RELEVANCE_PROMPT) 判定 is_relevant；
+       expand_all=True：跳过 LLM，定位成功即视为命中。
+    4. 命中节点 → 入 RelationFragment 注册到全局 RelationRegistry，并按 hop_depth < max_depth 递归展开。
+    5. 子节点用线程池并发评估（all 模式下也并发，但只跑 locator，无 LLM）。
     6. 护栏：max_depth、max_nodes、(policy_id, clause_id) 全局去重、cycle 检测、
        missing/error 短路。
 
@@ -64,8 +68,9 @@ class RelationCrawler:
         executor: ThreadPoolExecutor,
         vendor: str = "qwen3.5-122b-a10b",
         model: str = "Qwen3.5-122B-A10B",
-        max_depth: int = 3,
+        max_depth: int = 5,
         max_nodes: int = 50,
+        expand_all: bool = True,
     ):
         self.question = question
         self.registry = registry
@@ -75,6 +80,9 @@ class RelationCrawler:
         self.model = model
         self.max_depth = max(1, int(max_depth))
         self.max_nodes = max(1, int(max_nodes))
+        # expand_all=True：跳过 LLM 判定，定位成功即命中并按深度全展开（默认行为）。
+        # expand_all=False：保留旧的 LLM 二次判定（"smart" 模式）。
+        self.expand_all = bool(expand_all)
 
         # 单次 crawl 内的 visited（policy_id, clause_id）防止同一 source 内的环
         # 跨 source 的去重交给 RelationRegistry
@@ -135,9 +143,10 @@ class RelationCrawler:
         )
 
         if new_fragments:
+            mode_label = "all" if self.expand_all else "smart"
             logger.info(
-                f"[RelationCrawler] source_dir={source_dir} 命中 {len(new_fragments)} 个关联条款"
-                f"（max_depth={self.max_depth}, budget_used={self.max_nodes - node_budget[0]})"
+                f"[RelationCrawler:{mode_label}] source_dir={source_dir} 命中 {len(new_fragments)} 个关联条款"
+                f"（max_depth={self.max_depth}, budget_used={self.max_nodes - node_budget[0]}）"
             )
         return new_fragments
 
@@ -215,7 +224,11 @@ class RelationCrawler:
         source_chunk_index: int,
         source_dir: str,
     ) -> tuple[Optional[RelationFragment], list[_CandidateRef]]:
-        """对单个候选条款：定位 → LLM 判定 → 返回 (fragment | None, 下一跳候选)。"""
+        """对单个候选条款：定位 → 判定（LLM 或直通）→ 返回 (fragment | None, 下一跳候选)。
+
+        - expand_all=False：调 LLM 判定 is_relevant，仅命中节点入 fragment。
+        - expand_all=True ：跳过 LLM，定位成功即视为命中（"all" 模式）。
+        """
         clause_dict, source = self.locator.locate(cand.policy_id, cand.clause_id)
         if clause_dict is None:
             logger.debug(
@@ -223,31 +236,35 @@ class RelationCrawler:
             )
             return None, []
 
-        heading_label = " > ".join(clause_dict.get("heading_path") or []) or clause_dict.get("clause_full_name", "")
-
-        prompt = RELATION_RELEVANCE_PROMPT.format(
-            question=self.question,
-            parent_assessment=cand.parent_assessment or "（无）",
-            parent_highlighted=cand.highlighted or "（无）",
-            policy_id=cand.policy_id,
-            clause_id=cand.clause_id,
-            heading_label=heading_label or "（无）",
-            hop_depth=cand.hop_depth,
-            current_content=clause_dict.get("content") or "（空）",
-        )
-
-        decision = _call_llm_json(prompt, vendor=self.vendor, model=self.model)
-        if decision is None:
-            return None, []
-        is_relevant = bool(decision.get("is_relevant"))
-        reason = (decision.get("reason") or "").strip()
-
-        if not is_relevant:
-            logger.debug(
-                f"[RelationCrawler] reject hop={cand.hop_depth} policy={cand.policy_id} "
-                f"clause={cand.clause_id}: {reason[:80]}"
+        if self.expand_all:
+            # all 模式：跳过 LLM 判定，定位成功即命中；下一层用 parent_assessment 透传
+            next_assessment = cand.parent_assessment
+        else:
+            heading_label = " > ".join(clause_dict.get("heading_path") or []) or clause_dict.get("clause_full_name", "")
+            prompt = RELATION_RELEVANCE_PROMPT.format(
+                question=self.question,
+                parent_assessment=cand.parent_assessment or "（无）",
+                parent_highlighted=cand.highlighted or "（无）",
+                policy_id=cand.policy_id,
+                clause_id=cand.clause_id,
+                heading_label=heading_label or "（无）",
+                hop_depth=cand.hop_depth,
+                current_content=clause_dict.get("content") or "（空）",
             )
-            return None, []
+
+            decision = _call_llm_json(prompt, vendor=self.vendor, model=self.model)
+            if decision is None:
+                return None, []
+            is_relevant = bool(decision.get("is_relevant"))
+            reason = (decision.get("reason") or "").strip()
+
+            if not is_relevant:
+                logger.debug(
+                    f"[RelationCrawler:smart] reject hop={cand.hop_depth} policy={cand.policy_id} "
+                    f"clause={cand.clause_id}: {reason[:80]}"
+                )
+                return None, []
+            next_assessment = reason if reason else cand.parent_assessment
 
         fragment = RelationFragment(
             policy_id=cand.policy_id,
@@ -265,40 +282,39 @@ class RelationCrawler:
         )
 
         next_layer: list[_CandidateRef] = []
-        # 只要 is_relevant=True，就按 hop_depth < max_depth 决定是否下钻
-        if is_relevant:
-            next_assessment = reason if reason else cand.parent_assessment
-            for ref in clause_dict.get("references", []) or []:
-                highlighted = ref.get("highlightedContent", "") or ""
-                # 本地节点 ref 可能含 resolvedClauses；远程兜底节点没有 resolvedClauses，
-                # 此时 ref 自身的 (policyId, clauseId) 即下一跳目标
-                children = ref.get("resolvedClauses") or []
-                if children:
-                    for child in children:
-                        pid = child.get("policyId", "")
-                        cid = child.get("clauseId", "")
-                        if not pid or not cid:
-                            continue
-                        if child.get("cycle") or child.get("missing"):
-                            continue
-                        next_layer.append(_CandidateRef(
-                            policy_id=pid,
-                            clause_id=cid,
-                            highlighted=highlighted,
-                            parent_assessment=next_assessment,
-                            hop_depth=cand.hop_depth + 1,
-                        ))
-                else:
-                    pid = ref.get("policyId", "")
-                    cid = ref.get("clauseId", "")
-                    if pid and cid:
-                        next_layer.append(_CandidateRef(
-                            policy_id=pid,
-                            clause_id=cid,
-                            highlighted=highlighted,
-                            parent_assessment=next_assessment,
-                            hop_depth=cand.hop_depth + 1,
-                        ))
+        # 命中即按 hop_depth < max_depth 决定是否下钻；
+        # all / smart 共用同一段下一跳收集逻辑（仅 next_assessment 来源不同）
+        for ref in clause_dict.get("references", []) or []:
+            highlighted = ref.get("highlightedContent", "") or ""
+            # 本地节点 ref 可能含 resolvedClauses；远程兜底节点没有 resolvedClauses，
+            # 此时 ref 自身的 (policyId, clauseId) 即下一跳目标
+            children = ref.get("resolvedClauses") or []
+            if children:
+                for child in children:
+                    pid = child.get("policyId", "")
+                    cid = child.get("clauseId", "")
+                    if not pid or not cid:
+                        continue
+                    if child.get("cycle") or child.get("missing"):
+                        continue
+                    next_layer.append(_CandidateRef(
+                        policy_id=pid,
+                        clause_id=cid,
+                        highlighted=highlighted,
+                        parent_assessment=next_assessment,
+                        hop_depth=cand.hop_depth + 1,
+                    ))
+            else:
+                pid = ref.get("policyId", "")
+                cid = ref.get("clauseId", "")
+                if pid and cid:
+                    next_layer.append(_CandidateRef(
+                        policy_id=pid,
+                        clause_id=cid,
+                        highlighted=highlighted,
+                        parent_assessment=next_assessment,
+                        hop_depth=cand.hop_depth + 1,
+                    ))
 
         return fragment, next_layer
 

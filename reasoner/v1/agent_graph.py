@@ -106,10 +106,11 @@ class AgentGraph:
         answer_system_prompt: str | None = None,
         think_mode: bool = False,
         enable_relations: bool = False,
-        relation_max_depth: int = 3,
+        relation_max_depth: int = 5,
         relation_max_nodes: int = 50,
         relation_workers: int = 8,
         relation_remote_timeout: float = 5.0,
+        relations_expansion_mode: str = "all",
         page_knowledge_dir: str | None = None,
         policy_index_path: str | None = None,
     ):
@@ -171,6 +172,18 @@ class AgentGraph:
         self.relation_max_nodes = max(1, int(relation_max_nodes))
         self.relation_workers = max(1, int(relation_workers))
         self.relation_remote_timeout = float(relation_remote_timeout)
+        # relations 展开模式：
+        #   "all"   - 默认；跳过 LLM 二次判定，定位成功即命中并按深度全展开
+        #             （省 N 次 LLM RT，触发率 100%，token 略增）
+        #   "smart" - 旧行为；每个候选条款用 LLM 判 is_relevant，准确率高但触发率
+        #             受 chunk LLM 与 relation LLM 双重采样波动影响
+        mode = (relations_expansion_mode or "all").strip().lower()
+        if mode not in ("all", "smart"):
+            logger.warning(
+                f"[Relations] 未知 relations_expansion_mode='{relations_expansion_mode}'，回退到 'all'"
+            )
+            mode = "all"
+        self.relations_expansion_mode = mode
 
         # 推导 page_knowledge 目录与索引路径（默认从 knowledge_root 的 parent 推断）。
         # 调用方（如 stress test）可显式传入 override。
@@ -222,11 +235,12 @@ class AgentGraph:
                 model=self.model,
                 max_depth=self.relation_max_depth,
                 max_nodes=self.relation_max_nodes,
+                expand_all=(self.relations_expansion_mode == "all"),
             )
             logger.info(
-                f"[Relations] 已启用关联展开：max_depth={self.relation_max_depth}, "
-                f"max_nodes={self.relation_max_nodes}, workers={self.relation_workers}, "
-                f"page_knowledge_dir={self.page_knowledge_dir}"
+                f"[Relations] 已启用关联展开：mode={self.relations_expansion_mode}, "
+                f"max_depth={self.relation_max_depth}, max_nodes={self.relation_max_nodes}, "
+                f"workers={self.relation_workers}, page_knowledge_dir={self.page_knowledge_dir}"
             )
 
     def _shutdown_relation_executors(self) -> None:
