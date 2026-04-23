@@ -149,6 +149,26 @@ class ReasonRequest(BaseModel):
                     "- 'smart'：每个候选条款都用 LLM 判 is_relevant，准确率高但触发率受 LLM "
                     "  采样波动影响（同一问题多次跑可能命中数不一致）。",
     )
+    summaryPipelineMode: str = Field(
+        default="layered",
+        description="batch summary 流水线模式（summaryBatchSize > 0 时生效）：\n"
+                    "- 'layered'（默认）：当前实现。chunk + 关联展开走 _chunk_streaming_pipeline\n"
+                    "  的'按 slot 顺序流式 batch + 后续递归压缩按层同步'；其他入口走\n"
+                    "  _recursive_batch_reduce 同步分层。\n"
+                    "- 'reduce_queue'：所有压缩任务统一进 ReducePipeline，凑批+回灌，"
+                    "  无层间同步点。chunk 数大、batch 长尾差异显著时可见明显加速；"
+                    "  代价是早 flush 的 part 经过更多次中间压缩。"
+                    "  生产侧的相关性激活逻辑（chunk LLM relevant_headings 命中才展开关联）"
+                    "  完全保留。",
+    )
+    reduceMaxPartDepth: int = Field(
+        default=5,
+        description="reduce_queue 模式下单 part 经过的最大中间 BATCH_SUMMARY 次数。"
+                    "命中上限的 part 不再参与凑批，转入 frozen 列表直接保留到 final merge，"
+                    "避免某些 part 被反复压缩造成信息严重损耗。"
+                    "调大可减少 frozen 数量、让 final merge 入口更接近 batch_size；"
+                    "调小则相反。summaryPipelineMode='layered' 时本字段忽略。",
+    )
 
 
 class ReasonData(BaseModel):
@@ -402,6 +422,8 @@ def _run_reasoning(
     relation_max_nodes: int = 50,
     relation_workers: int = 8,
     relations_expansion_mode: str = "all",
+    summary_pipeline_mode: str = "layered",
+    reduce_max_part_depth: int = 5,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
@@ -415,6 +437,8 @@ def _run_reasoning(
         extra_kwargs["relation_max_nodes"] = relation_max_nodes
         extra_kwargs["relation_workers"] = relation_workers
         extra_kwargs["relations_expansion_mode"] = relations_expansion_mode
+        extra_kwargs["summary_pipeline_mode"] = summary_pipeline_mode
+        extra_kwargs["reduce_max_part_depth"] = reduce_max_part_depth
     else:
         if summary_clean_answer:
             logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
@@ -547,6 +571,8 @@ async def reason(req: ReasonRequest):
                 relation_max_nodes=req.relationMaxNodes,
                 relation_workers=req.relationWorkers,
                 relations_expansion_mode=req.relationsExpansionMode,
+                summary_pipeline_mode=req.summaryPipelineMode,
+                reduce_max_part_depth=req.reduceMaxPartDepth,
             )
             return ReasonResponse(
                 data=ReasonData(

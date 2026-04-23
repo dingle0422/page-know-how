@@ -5,6 +5,7 @@ import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from typing import Callable
 
 from llm.client import chat
 from reasoner.v1.react_agent import ReactAgent, AgentResult
@@ -38,6 +39,7 @@ from reasoner.v1.chunk_builder import (
 )
 from reasoner.v1.clause_locator import ClauseLocator
 from reasoner.v1.relation_crawler import RelationCrawler
+from reasoner.v1.reduce_pipeline import ReducePart, ReducePipeline
 
 from reasoner._registries import (
     ExploredRegistry,
@@ -111,6 +113,8 @@ class AgentGraph:
         relation_workers: int = 8,
         relation_remote_timeout: float = 5.0,
         relations_expansion_mode: str = "all",
+        summary_pipeline_mode: str = "layered",
+        reduce_max_part_depth: int = 5,
         page_knowledge_dir: str | None = None,
         policy_index_path: str | None = None,
     ):
@@ -165,6 +169,7 @@ class AgentGraph:
         self._chunk_relevant_headings: list[str] = []
         self._chunk_reasoning_results: list[dict] = []
         self._chunk_slots: list[_OrderedSlot] = []  # 流式调度产物，trace 阶段引用
+        self._reduce_pipeline: ReducePipeline | None = None  # reduce_queue 模式下保留以便 trace 阶段拿轨迹
 
         # ---------- 关联展开（可选） ----------
         self.enable_relations = enable_relations
@@ -184,6 +189,29 @@ class AgentGraph:
             )
             mode = "all"
         self.relations_expansion_mode = mode
+
+        # ---------- batch summary 流水线模式 ----------
+        # "layered"      - 默认；保留原行为：chunk+relations 走 _chunk_streaming_pipeline
+        #                  的"按 slot 顺序流式 batch + 后续递归压缩按层同步"；其他入口走
+        #                  _recursive_batch_reduce 同步分层。
+        # "reduce_queue" - 所有压缩任务统一进 ReducePipeline，凑批+回灌，无层间同步点。
+        #                  适合 chunk 数大、batch 长尾差异显著的场景。代价是早 flush 的
+        #                  part 经过更多次中间压缩；用 reduce_max_part_depth 兜底护栏。
+        sp_mode = (summary_pipeline_mode or "layered").strip().lower()
+        if sp_mode not in ("layered", "reduce_queue"):
+            logger.warning(
+                f"[ReducePipeline] 未知 summary_pipeline_mode='{summary_pipeline_mode}'，"
+                f"回退到 'layered'"
+            )
+            sp_mode = "layered"
+        self.summary_pipeline_mode = sp_mode
+        self.reduce_max_part_depth = max(1, int(reduce_max_part_depth))
+        if self.summary_pipeline_mode == "reduce_queue":
+            logger.info(
+                f"[ReducePipeline] 已启用 reduce_queue 模式："
+                f"max_part_depth={self.reduce_max_part_depth}, "
+                f"batch_size={self.summary_batch_size}"
+            )
 
         # 推导 page_knowledge 目录与索引路径（默认从 knowledge_root 的 parent 推断）。
         # 调用方（如 stress test）可显式传入 override。
@@ -644,32 +672,61 @@ class AgentGraph:
             )
             skill_thread.start()
 
-        try:
-            if self.enable_relations and self.relation_crawler is not None:
-                batch_outputs, ordered_parts = self._chunk_streaming_pipeline(chunks)
-            else:
-                ordered_parts = self._chunk_reason_phase(chunks)
-                batch_outputs = None
-        finally:
-            if skill_thread is not None:
-                skill_thread.join()
-
-        if self.enable_skills and self.skill_registry:
-            done_records_snapshot = self.skill_registry.get_all()
-        else:
-            done_records_snapshot = []
-        summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
-
-        if batch_outputs is not None:
-            # 流式调度已经把 ordered_parts 凑批跑完 BATCH_SUMMARY，
-            # 此处只剩"对 batch_outputs 做 final merge"。
-            # 把 batch_outputs 喂回 _recursive_batch_reduce，逻辑会自动判断
-            # 是否需要再压一层（>batch_size 时递归，否则直接 final merge）。
-            answer = self._recursive_batch_reduce(
-                batch_outputs, layer=2, skill_context=summary_skill_context,
+        # 三种走法：
+        #   (A) reduce_queue 模式且 batch_size > 0：走统一 ReducePipeline，
+        #       生产侧（chunk LLM + 关联展开 + 派生 chunk LLM）边产出边入队，
+        #       中间 batch summary 与生产侧并发，收口时 final merge 内部 join skill 线程。
+        #   (B) 关联展开 + layered：走原 _chunk_streaming_pipeline。
+        #   (C) 其他：走原 _chunk_reason_phase 同步等齐。
+        use_reduce_queue = (
+            self.summary_pipeline_mode == "reduce_queue"
+            and self.summary_batch_size > 0
+        )
+        if (
+            self.summary_pipeline_mode == "reduce_queue"
+            and self.summary_batch_size <= 0
+        ):
+            logger.warning(
+                "[ReducePipeline] summary_batch_size<=0，reduce_queue 模式无法激活，"
+                "回退到 layered"
             )
+
+        if use_reduce_queue:
+            # ReducePipeline 自己管 final merge，且会在 final merge 触发时 join skill_thread；
+            # 不需要外层再 join + 计算 skill_context。
+            try:
+                answer = self._chunk_reduce_queue_pipeline(chunks, skill_thread=skill_thread)
+            finally:
+                # 兜底 join，避免 final merge 路径异常时 skill_thread 悬挂
+                if skill_thread is not None and skill_thread.is_alive():
+                    skill_thread.join()
         else:
-            answer = self._chunk_finalize_summary(ordered_parts, summary_skill_context)
+            try:
+                if self.enable_relations and self.relation_crawler is not None:
+                    batch_outputs, ordered_parts = self._chunk_streaming_pipeline(chunks)
+                else:
+                    ordered_parts = self._chunk_reason_phase(chunks)
+                    batch_outputs = None
+            finally:
+                if skill_thread is not None:
+                    skill_thread.join()
+
+            if self.enable_skills and self.skill_registry:
+                done_records_snapshot = self.skill_registry.get_all()
+            else:
+                done_records_snapshot = []
+            summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
+
+            if batch_outputs is not None:
+                # 流式调度已经把 ordered_parts 凑批跑完 BATCH_SUMMARY，
+                # 此处只剩"对 batch_outputs 做 final merge"。
+                # 把 batch_outputs 喂回 _recursive_batch_reduce，逻辑会自动判断
+                # 是否需要再压一层（>batch_size 时递归，否则直接 final merge）。
+                answer = self._recursive_batch_reduce(
+                    batch_outputs, layer=2, skill_context=summary_skill_context,
+                )
+            else:
+                answer = self._chunk_finalize_summary(ordered_parts, summary_skill_context)
 
         if self.summary_clean_answer:
             logger.info(
@@ -936,6 +993,252 @@ class AgentGraph:
             f"原始+派生 parts 总计 {len(ordered_parts)} 条"
         )
         return ordered_parts, batch_outputs
+
+    # ------------------- reduce_queue 模式（chunk + relations 通用） -------------------
+
+    def _chunk_reduce_queue_pipeline(
+        self,
+        chunks: list[KnowledgeChunk],
+        skill_thread: threading.Thread | None,
+    ) -> str:
+        """reduce_queue 模式的 chunk 入口：复用 chunk LLM / RelationCrawler / 派生 chunk LLM
+        三相生产侧逻辑，但用 ReducePipeline 接管所有 batch summary 调度。
+
+        与 _chunk_streaming_pipeline 的差异：
+          - 不再按 slot 顺序 head-of-line 凑批；任何 part 完成即 submit_part 入队，
+            队列长度凑齐 batch_size 立即 flush 一批中间 BATCH_SUMMARY。
+          - 中间 BATCH_SUMMARY 输出回灌当新 part 继续凑批；多次压缩在同一 pipeline 内完成，
+            层间无同步点。
+          - final merge 触发时由 pipeline 调用闭包，闭包内部 join skill 线程并构造 skill_context。
+          - _chunk_slots 仍按原方式填充，trace 渲染逻辑无需改动；
+            self._reduce_pipeline 引用保留，trace 末尾追加流水线轨迹。
+        """
+        total_chunks = len(chunks)
+        slots = [_OrderedSlot(parent_index=c.index, self_chunk=c) for c in chunks]
+        self._chunk_slots = slots
+
+        chunk_pool_size = min(max(total_chunks * 2, 16), 100)
+        chunk_pool = ThreadPoolExecutor(
+            max_workers=chunk_pool_size, thread_name_prefix="chunk-llm",
+        )
+
+        has_relations = self.enable_relations and self.relation_crawler is not None
+
+        def _final_merge(parts: list[ReducePart]) -> str:
+            # final merge 内部 join skill 线程，确保 skill_context 完整
+            if skill_thread is not None:
+                skill_thread.join()
+            if self.enable_skills and self.skill_registry:
+                done_records = self.skill_registry.get_all()
+            else:
+                done_records = []
+            skill_ctx = self._build_skill_context_for_summary(done_records)
+            summaries = [p.text for p in parts]
+            return self._batch_final_merge(
+                summaries, layer=0, skill_context=skill_ctx,
+            )
+
+        pipeline = ReducePipeline(
+            batch_size=self.summary_batch_size,
+            intermediate_prompt=BATCH_SUMMARY_PROMPT,
+            final_merge_callable=_final_merge,
+            question=self.question,
+            vendor=self.vendor,
+            model=self.model,
+            max_part_depth=self.reduce_max_part_depth,
+            logger_label="ReduceQueue·Chunk",
+        )
+        self._reduce_pipeline = pipeline
+
+        try:
+            for chunk, slot in zip(chunks, slots):
+                pipeline.producer_inc(1)
+                chunk_pool.submit(
+                    self._reduce_run_self,
+                    chunk, slot, total_chunks, chunk_pool, pipeline, has_relations,
+                )
+
+            answer = pipeline.wait_and_finalize()
+        finally:
+            chunk_pool.shutdown(wait=True)
+
+        # 与流式版本一致：回填 trace 用的 _chunk_reasoning_results / _chunk_relevant_headings
+        self._chunk_reasoning_results = [
+            slot.self_result if slot.self_result else {
+                "relevant_headings": [], "analysis": "", "pitfalls": [],
+            }
+            for slot in slots
+        ]
+        for slot in slots:
+            if slot.self_result:
+                hs = slot.self_result.get("relevant_headings", []) or []
+                self._chunk_relevant_headings.extend(hs)
+            for d_idx in sorted(slot.derived_results.keys()):
+                d_res = slot.derived_results[d_idx]
+                hs = d_res.get("relevant_headings", []) or []
+                self._chunk_relevant_headings.extend(hs)
+
+        return answer
+
+    def _reduce_run_self(
+        self,
+        chunk: KnowledgeChunk,
+        slot: _OrderedSlot,
+        total_chunks: int,
+        chunk_pool: ThreadPoolExecutor,
+        pipeline: ReducePipeline,
+        has_relations: bool,
+    ) -> None:
+        """worker：根 chunk LLM → 投递 self part → 决定派生 token 调度。
+
+        producer token 流转规则：入口已 producer_inc(1) 占位；
+          - 无关联 / 无命中 / 无 targets：归还该 1，结束；
+          - 有派生 M 个：先 producer_inc(M)，再归还根 token (净增 M-1)；
+            每个派生 worker 完成时各归还 1。
+        """
+        try:
+            result = self._reason_on_chunk(chunk, total_chunks)
+        except Exception as e:
+            logger.error(f"[ReduceQueue] chunk {chunk.index} 自身推理异常: {e}")
+            result = {
+                "relevant_headings": [],
+                "analysis": f"（chunk {chunk.index} 推理失败: {e}）",
+                "pitfalls": [],
+            }
+        slot.self_result = result
+        slot.self_done.set()
+
+        # 立即投递 self part 到 reduce 队列
+        self_part_text = self._render_chunk_part(
+            chunk_label=f"{slot.parent_index}/{total_chunks}",
+            result=result,
+        )
+        pipeline.submit_part(ReducePart(
+            text=self_part_text,
+            source_label=f"chunk-{slot.parent_index}",
+            depth=0,
+        ))
+
+        headings = result.get("relevant_headings") or []
+        if not has_relations or not headings:
+            slot.relation_done.set()
+            slot.derived_done.set()
+            pipeline.producer_done(1)
+            return
+
+        targets = self._resolve_relation_targets(chunk, headings)
+        if not targets:
+            slot.relation_done.set()
+            slot.derived_done.set()
+            pipeline.producer_done(1)
+            return
+
+        parent_assessment = self._summarize_assessment_for_crawl(result)
+        # crawl 在独立 dispatch 池跑，避免阻塞 chunk_pool worker
+        self._relation_dispatch_executor.submit(  # type: ignore[union-attr]
+            self._reduce_run_relations,
+            chunk, slot, targets, parent_assessment, chunk_pool, pipeline,
+        )
+
+    def _reduce_run_relations(
+        self,
+        chunk: KnowledgeChunk,
+        slot: _OrderedSlot,
+        targets: list[str],
+        parent_assessment: str,
+        chunk_pool: ThreadPoolExecutor,
+        pipeline: ReducePipeline,
+    ) -> None:
+        """worker：crawl + 切派生 chunk → 决定是否生成派生 token。"""
+        all_fragments: list[RelationFragment] = []
+        try:
+            for target_dir in targets:
+                fragments = self.relation_crawler.crawl(  # type: ignore[union-attr]
+                    source_chunk_index=chunk.index,
+                    source_dir=target_dir,
+                    parent_assessment=parent_assessment,
+                )
+                all_fragments.extend(fragments)
+        except Exception as e:
+            logger.error(f"[ReduceQueue] chunk {chunk.index} 关联展开异常: {e}")
+            all_fragments = []
+
+        slot.relation_fragments = all_fragments
+
+        if not all_fragments:
+            slot.relation_done.set()
+            slot.derived_done.set()
+            pipeline.producer_done(1)
+            return
+
+        derived_chunks = split_relations_into_chunks(
+            fragments=all_fragments,
+            chunk_size=self.chunk_size,
+            parent_chunk=chunk,
+            start_derived_seq=1,
+        )
+        slot.derived_chunks = derived_chunks
+
+        if not derived_chunks:
+            slot.relation_done.set()
+            slot.derived_done.set()
+            pipeline.producer_done(1)
+            return
+
+        with slot.derived_lock:
+            slot.pending_derived = len(derived_chunks)
+            slot.completed_derived = 0
+        slot.relation_done.set()
+
+        # 把根 chunk 的 1 token 替换为 M 个派生 token：
+        #   先 +M（avoid race window where producers 暂时归零触发误收口），再归还原 1
+        m = len(derived_chunks)
+        pipeline.producer_inc(m)
+        pipeline.producer_done(1)
+
+        for d_chunk in derived_chunks:
+            chunk_pool.submit(
+                self._reduce_run_derived, chunk, slot, d_chunk, pipeline,
+            )
+
+    def _reduce_run_derived(
+        self,
+        parent_chunk: KnowledgeChunk,
+        slot: _OrderedSlot,
+        d_chunk: KnowledgeChunk,
+        pipeline: ReducePipeline,
+    ) -> None:
+        """worker：派生 chunk LLM → 投递 derived part → 归还派生 token。"""
+        try:
+            result = self._reason_on_chunk(d_chunk, total_chunks=0)
+        except Exception as e:
+            logger.error(
+                f"[ReduceQueue] derived chunk parent={parent_chunk.index} "
+                f"seq={d_chunk.derived_seq} 推理异常: {e}"
+            )
+            result = {
+                "relevant_headings": [],
+                "analysis": f"（派生 chunk {parent_chunk.index}.{d_chunk.derived_seq} 推理失败: {e}）",
+                "pitfalls": [],
+            }
+        slot.derived_results[d_chunk.derived_seq] = result
+
+        derived_part_text = self._render_chunk_part(
+            chunk_label=f"{parent_chunk.index}.{d_chunk.derived_seq} (关联派生)",
+            result=result,
+        )
+        pipeline.submit_part(ReducePart(
+            text=derived_part_text,
+            source_label=f"derived-{parent_chunk.index}.{d_chunk.derived_seq}",
+            depth=0,
+        ))
+
+        with slot.derived_lock:
+            slot.completed_derived += 1
+            done = slot.completed_derived >= slot.pending_derived
+        if done:
+            slot.derived_done.set()
+        pipeline.producer_done(1)
 
     def _streaming_submit_batch(self, batch_index: int, parts: list[str]) -> str:
         """流式 batch summary：复用 BATCH_SUMMARY_PROMPT 模板（中间提炼层，不带 clean）。"""
@@ -1218,6 +1521,14 @@ class AgentGraph:
                     )
             lines.append("")
 
+        # reduce_queue 模式：把 ReducePipeline 的中间 batch 轨迹追加到 trace 末尾
+        if (
+            self.summary_pipeline_mode == "reduce_queue"
+            and self._reduce_pipeline is not None
+        ):
+            lines.append("")
+            lines.append(self._reduce_pipeline.render_trace_section())
+
         return "\n".join(lines)
 
     def _standard_pipeline(self, skill_context: str = "") -> str:
@@ -1421,9 +1732,65 @@ class AgentGraph:
             stage_label=f"Summary·{mode_label}",
         )
 
+    def _reduce_queue_run_over_parts(
+        self,
+        *,
+        parts: list[str],
+        source_label_prefix: str,
+        intermediate_prompt: str,
+        final_merge: Callable[[list[str]], str],
+        logger_label: str,
+    ) -> str:
+        """退化场景的 reduce_queue：parts 已经全部就位，按完成顺序入队 → 凑批 → 回灌 → final merge。
+
+        与 chunk 模式相比，本路径没有"动态产出"，但仍享受统一架构 + 后续中间 batch 之间
+        的回灌并发性。standard / retrieval 两个入口共享本 helper，区别只在
+        intermediate_prompt 与 final_merge 的具体实现。
+        """
+        if not parts:
+            return final_merge([])
+
+        pipeline = ReducePipeline(
+            batch_size=self.summary_batch_size,
+            intermediate_prompt=intermediate_prompt,
+            final_merge_callable=lambda rps: final_merge([p.text for p in rps]),
+            question=self.question,
+            vendor=self.vendor,
+            model=self.model,
+            max_part_depth=self.reduce_max_part_depth,
+            logger_label=logger_label,
+        )
+        # 这里 parts 已就绪，没有"未完成生产者"，直接全部 submit_part 即可
+        for i, text in enumerate(parts, 1):
+            pipeline.submit_part(ReducePart(
+                text=text,
+                source_label=f"{source_label_prefix}-{i}",
+                depth=0,
+            ))
+        # 把 pipeline 暂存以便事后追加 trace（chunk 模式独占 self._reduce_pipeline，
+        # standard / retrieval 不写 _chunk_slots，trace 章节由各自模块决定是否渲染）
+        self._reduce_pipeline = pipeline
+        return pipeline.wait_and_finalize()
+
     def _batched_summary(self, skill_context: str = "") -> str:
-        """分批并行压缩总结"""
+        """分批并行压缩总结。
+        reduce_queue 模式下走 ReducePipeline（统一流水线，输出回灌、无层间同步）；
+        layered 模式仍走 _recursive_batch_reduce 同步分层。
+        """
         agent_parts = self._build_evidence_parts()
+        if (
+            self.summary_pipeline_mode == "reduce_queue"
+            and self.summary_batch_size > 0
+        ):
+            return self._reduce_queue_run_over_parts(
+                parts=agent_parts,
+                source_label_prefix="agent",
+                intermediate_prompt=BATCH_SUMMARY_PROMPT,
+                final_merge=lambda summaries: self._batch_final_merge(
+                    summaries, layer=0, skill_context=skill_context,
+                ),
+                logger_label="ReduceQueue·Standard",
+            )
         return self._recursive_batch_reduce(agent_parts, layer=1, skill_context=skill_context)
 
     def _recursive_batch_reduce(self, parts: list[str], layer: int, skill_context: str = "") -> str:
@@ -1559,6 +1926,19 @@ class AgentGraph:
         )
 
     def _retrieval_batched_summary(self, organized_parts: list[str], skill_context: str = "") -> str:
+        if (
+            self.summary_pipeline_mode == "reduce_queue"
+            and self.summary_batch_size > 0
+        ):
+            return self._reduce_queue_run_over_parts(
+                parts=organized_parts,
+                source_label_prefix="frag",
+                intermediate_prompt=RETRIEVAL_BATCH_SUMMARY_PROMPT,
+                final_merge=lambda summaries: self._retrieval_batch_final_merge(
+                    summaries, layer=0, skill_context=skill_context,
+                ),
+                logger_label="ReduceQueue·Retrieval",
+            )
         return self._retrieval_recursive_batch_reduce(organized_parts, layer=1, skill_context=skill_context)
 
     def _retrieval_recursive_batch_reduce(self, parts: list[str], layer: int, skill_context: str = "") -> str:
