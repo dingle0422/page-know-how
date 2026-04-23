@@ -203,23 +203,38 @@ def _expand_html_table_grid(table_tag) -> list[list[str]]:
     return grid
 
 
-def _build_narrative_headers(raw_header_row: list[str]) -> tuple[list[str], list[int]]:
+def _build_narrative_headers(
+    raw_header_row: list[str],
+    is_header_row: bool = True,
+) -> tuple[list[str], list[int]]:
     """从展开后的表头行构建去重的列名列表。
 
-    - 相邻重复的列名（由 colspan 展开产生）以"列名1、列名2…"区分。
-    - 返回 (seen_headers, seen_indices)，seen_indices 覆盖所有有效列。
+    - is_header_row=True（默认，表头场景）：
+      相邻位置出现的同文本（即 _expand_html_table_grid 在 colspan 处复制出的副本）
+      被视作同一列，只保留第一个出现位置；非相邻同名仍按"列名1、列名2…"区分。
+      例：['描述','描述','价格','描述','描述']
+          -> 头2个相邻折叠成一份'描述'，尾2个相邻折叠成一份'描述'，
+             两段非相邻 → ('描述1', '价格', '描述2')。
+    - is_header_row=False（数据行场景）：
+      不做相邻折叠，所有非空同名一律加 1/2/3 后缀（保留旧行为）。
+
+    返回 (seen_headers, seen_indices)，seen_indices 是这些列在原 grid 中的列下标。
     """
-    headers: list[str] = []
-    for h in raw_header_row:
-        cleaned = re.sub(r'\s+', '', h)
-        headers.append(cleaned)
+    headers: list[str] = [re.sub(r'\s+', '', h) for h in raw_header_row]
+
+    kept_positions: list[int] = []
+    for i, h in enumerate(headers):
+        if not h:
+            continue
+        if is_header_row and i > 0 and headers[i - 1] == h:
+            continue
+        kept_positions.append(i)
 
     name_positions: dict[str, list[int]] = {}
-    for i, h in enumerate(headers):
-        if h:
-            name_positions.setdefault(h, []).append(i)
+    for i in kept_positions:
+        name_positions.setdefault(headers[i], []).append(i)
 
-    final_names: list[str] = [''] * len(headers)
+    final_names: dict[int, str] = {}
     for name, positions in name_positions.items():
         if len(positions) == 1:
             final_names[positions[0]] = name
@@ -229,7 +244,8 @@ def _build_narrative_headers(raw_header_row: list[str]) -> tuple[list[str], list
 
     seen_headers: list[str] = []
     seen_indices: list[int] = []
-    for i, h in enumerate(final_names):
+    for i in kept_positions:
+        h = final_names.get(i, '')
         if h and h not in seen_headers:
             seen_headers.append(h)
             seen_indices.append(i)
@@ -242,31 +258,59 @@ def _html_table_to_narrative(table_tag) -> str:
 
     正确处理 rowspan/colspan：合并单元格的文本填充到所有占据的位置。
     表头若存在横向合并（colspan），展开为"表头名1、表头名2…"。
+
+    前导行处理（兼容 Quill-better-table 等富文本编辑器产物）：
+      - 全空行（仅含 <br> 等占位）：直接跳过；
+      - 整行同文本行（即一个 colspan=全列宽 的合并单元格，常见于"表标题"）：
+        收集为 caption，narrative 以「表标题：xxx」前缀输出；
+      - 第一个既不是全空、也不是 caption 的行视为真正的表头。
     """
     grid = _expand_html_table_grid(table_tag)
     if not grid:
         return ''
 
-    seen_headers, seen_indices = _build_narrative_headers(grid[0])
+    captions: list[str] = []
+    header_idx = 0
+    while header_idx < len(grid):
+        row = grid[header_idx]
+        non_empty = [c for c in row if c]
+        if not non_empty:
+            header_idx += 1
+            continue
+        if len(non_empty) == len(row) and len(set(non_empty)) == 1:
+            captions.append(non_empty[0])
+            header_idx += 1
+            continue
+        break
+
+    if header_idx >= len(grid):
+        return "表标题：" + "；".join(captions) if captions else ''
+
+    seen_headers, seen_indices = _build_narrative_headers(grid[header_idx])
 
     if not seen_headers:
-        return ''
+        return "表标题：" + "；".join(captions) if captions else ''
 
-    if len(grid) <= 1:
-        return "表头：" + "、".join(seen_headers)
+    data_rows = grid[header_idx + 1:]
 
-    lines: list[str] = []
-    for row_idx, row in enumerate(grid[1:], start=1):
-        parts: list[str] = []
-        for i, col_idx in enumerate(seen_indices):
-            header = seen_headers[i]
-            value = row[col_idx] if col_idx < len(row) else ''
-            if value:
-                parts.append(f"{header}：{value}")
-        if parts:
-            lines.append(f"（{row_idx}）{'；'.join(parts)}。")
+    if not data_rows:
+        body = "表头：" + "、".join(seen_headers)
+    else:
+        lines: list[str] = []
+        for row_idx, row in enumerate(data_rows, start=1):
+            parts: list[str] = []
+            for i, col_idx in enumerate(seen_indices):
+                header = seen_headers[i]
+                value = row[col_idx] if col_idx < len(row) else ''
+                if value:
+                    parts.append(f"{header}：{value}")
+            if parts:
+                lines.append(f"（{row_idx}）{'；'.join(parts)}。")
+        body = '\n'.join(lines)
 
-    return '\n'.join(lines)
+    if captions:
+        return "表标题：" + "；".join(captions) + "\n" + body
+    return body
 
 
 def extract_clause_references(html: str) -> list[dict]:

@@ -163,7 +163,7 @@ class ReasonRequest(BaseModel):
                     "  完全保留。",
     )
     reduceMaxPartDepth: int = Field(
-        default=5,
+        default=3,
         description="reduce_queue 模式下单 part 经过的最大中间 BATCH_SUMMARY 次数。"
                     "命中上限的 part 不再参与凑批，转入 frozen 列表直接保留到 final merge，"
                     "避免某些 part 被反复压缩造成信息严重损耗。"
