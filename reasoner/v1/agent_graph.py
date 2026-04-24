@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from llm.client import chat
+from utils.verbose_logger import agent_scope, step_scope
+from utils.helpers import split_think_block
 from reasoner.v1.react_agent import ReactAgent, AgentResult
 from reasoner.v1.prompts import (
     SUMMARY_PROMPT,
@@ -107,6 +109,7 @@ class AgentGraph:
         summary_clean_answer: bool = False,
         answer_system_prompt: str | None = None,
         think_mode: bool = False,
+        last_think: bool = False,
         enable_relations: bool = False,
         relation_max_depth: int = 5,
         relation_max_nodes: int = 50,
@@ -144,6 +147,17 @@ class AgentGraph:
                 "[ThinkMode] think_mode=True 但 summary_clean_answer=False，"
                 "本次将不会生效（think 版 prompt 仅作用于 *_AND_CLEAN 体系的最终总结）"
             )
+        # last_think：在【全流程最后一步总结】阶段把 chat(enable_thinking=True) 打开，
+        # 让底层模型返回思考轨迹（qwen3.5/3.6 会把 <think>…</think> 写进 content；
+        # deepseek-reasoner / deepseek-v3.2 等会放到 message.reasoning_content，
+        # llm/client.py 已统一回注到 content 前缀）。
+        # 作用范围（仅这些最终节点，中间 batch/chunk/探索阶段都不开）：
+        #   - _all_in_answer / _final_summary / _batch_final_merge
+        #   - _retrieval_final_summary / _retrieval_batch_final_merge
+        #   - _clean_answer（独立 clean 阶段）
+        # 与 think_mode 是正交开关：think_mode 只改 prompt 模板（要求 JSON 输出），
+        # last_think 只改 chat_template_kwargs.enable_thinking（开启推理轨迹）。
+        self.last_think = bool(last_think)
         # 最终作答阶段的 system prompt：调用方（CLI/HTTP）可自定义；
         # 未传入或传入空字符串时回退到默认的 SUMMARY_ANSWER_SYSTEM_PROMPT。
         # 中间提炼层始终使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。
@@ -488,11 +502,13 @@ class AgentGraph:
         logger.info(f"[AllInAnswer] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[AllInAnswer] prompt 内容:\n{prompt}")
         try:
-            answer = chat(
-                prompt, vendor=self.vendor, model=self.model,
-                system=self.answer_system_prompt,
-            )
-            answer = (answer or "").strip()
+            with step_scope("all_in_answer"):
+                answer = chat(
+                    prompt, vendor=self.vendor, model=self.model,
+                    system=self.answer_system_prompt,
+                    enable_thinking=self.last_think,
+                )
+            answer = self._postprocess_final_chat(answer, "all_in_answer").strip()
             if not answer:
                 logger.warning("[AllInAnswer] LLM 返回空，沿用 final summary 原文")
                 return final_summary
@@ -563,7 +579,33 @@ class AgentGraph:
         )
         return self._all_in_answer(final_summary, new_records)
 
+    def _postprocess_final_chat(self, raw: str, step_label: str) -> str:
+        """剥离最终节点 chat() 返回里可能存在的 <think>…</think> 前缀。
+
+        - 当 last_think=True（或某些 qwen 模型强行吐 think）时，llm/client.py 会把
+          reasoning_content 以 <think>…</think> 形式前缀回注到 content。
+        - 业务层要求 answer 保持"纯业务格式"：think_mode=True 时应为合法 JSON；
+          think_mode=False 时应为自然语言客服回答。因此在每个最终节点统一剥掉。
+        - 剥下来的 think 块打到 INFO 日志（截断预览），完整内容保留在 verbose_log
+          的 LLM 响应记录里（llm/client.py 已写入），不会丢失。
+        - 幂等：raw 里没有 <think> 前缀时原样返回。
+        """
+        if not raw:
+            return raw or ""
+        think, body = split_think_block(raw)
+        if think:
+            preview = think[:300].replace("\n", " ")
+            logger.info(
+                f"[FinalChat·{step_label}] 剥离 <think> 前缀 {len(think)} 字符："
+                f"{preview}{'…' if len(think) > 300 else ''}"
+            )
+        return body
+
     def run(self) -> dict:
+        with agent_scope(agent_id="graph-root"):
+            return self._run_impl()
+
+    def _run_impl(self) -> dict:
         if self.chunk_size > 0:
             return self._run_chunk_mode()
 
@@ -1255,10 +1297,11 @@ class AgentGraph:
             f"({len(parts)} 个 parts)"
         )
         try:
-            return chat(
-                prompt, vendor=self.vendor, model=self.model,
-                system=SUMMARY_EXTRACT_SYSTEM_PROMPT,
-            )
+            with step_scope(f"streaming_batch_summary#{batch_index}"):
+                return chat(
+                    prompt, vendor=self.vendor, model=self.model,
+                    system=SUMMARY_EXTRACT_SYSTEM_PROMPT,
+                )
         except Exception as e:
             logger.error(f"[StreamingBatch] 第 {batch_index} 批失败: {e}")
             return f"（第 {batch_index} 批流式压缩失败）\n原始内容:\n{batch_content}"
@@ -1425,8 +1468,9 @@ class AgentGraph:
             f"prompt 长度: {len(prompt)} 字符"
         )
         try:
-            response = chat(prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
+            with step_scope(f"chunk_reason#{chunk.index}"):
+                response = chat(prompt, vendor=self.vendor, model=self.model,
+                                system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
             return self._parse_chunk_json(response, chunk.index)
         except Exception as e:
             logger.error(f"[Chunk] 第 {chunk.index} 块 LLM 调用失败: {e}")
@@ -1714,10 +1758,13 @@ class AgentGraph:
 
         def _do_summary() -> str:
             try:
-                return chat(
-                    prompt, vendor=self.vendor, model=self.model,
-                    system=self.answer_system_prompt,
-                )
+                with step_scope("final_summary"):
+                    raw = chat(
+                        prompt, vendor=self.vendor, model=self.model,
+                        system=self.answer_system_prompt,
+                        enable_thinking=self.last_think,
+                    )
+                return self._postprocess_final_chat(raw, "final_summary")
             except Exception as e:
                 logger.error(f"最终汇总 LLM 调用失败: {e}")
                 fallback_parts = []
@@ -1823,8 +1870,9 @@ class AgentGraph:
                 f"prompt 长度: {len(prompt)} 字符"
             )
             try:
-                return chat(prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
+                with step_scope(f"batch_summary·L{layer}·b{batch_index}"):
+                    return chat(prompt, vendor=self.vendor, model=self.model,
+                                system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
             except Exception as e:
                 logger.error(f"[BatchSummary] 第 {layer} 层 第 {batch_index} 批失败: {e}")
                 return f"（第 {batch_index} 批压缩失败）\n原始内容:\n{batch_content}"
@@ -1878,8 +1926,11 @@ class AgentGraph:
 
         def _do_merge() -> str:
             try:
-                return chat(merge_prompt, vendor=self.vendor, model=self.model,
-                            system=self.answer_system_prompt)
+                with step_scope(f"batch_final_merge·L{layer}"):
+                    raw = chat(merge_prompt, vendor=self.vendor, model=self.model,
+                               system=self.answer_system_prompt,
+                               enable_thinking=self.last_think)
+                return self._postprocess_final_chat(raw, f"batch_final_merge·L{layer}")
             except Exception as e:
                 logger.error(f"[BatchMerge] 最终合并失败: {e}")
                 return "分批合并失败，以下为各摘要：\n" + numbered
@@ -1913,8 +1964,11 @@ class AgentGraph:
 
         def _do_summary() -> str:
             try:
-                return chat(prompt, vendor=self.vendor, model=self.model,
-                            system=self.answer_system_prompt)
+                with step_scope("retrieval_final_summary"):
+                    raw = chat(prompt, vendor=self.vendor, model=self.model,
+                               system=self.answer_system_prompt,
+                               enable_thinking=self.last_think)
+                return self._postprocess_final_chat(raw, "retrieval_final_summary")
             except Exception as e:
                 logger.error(f"[RetrievalSummary] 召回总结失败: {e}")
                 return "召回总结生成失败，以下为召回的知识片段：\n" + knowledge_text
@@ -1971,8 +2025,9 @@ class AgentGraph:
                 f"prompt 长度: {len(prompt)} 字符"
             )
             try:
-                return chat(prompt, vendor=self.vendor, model=self.model,
-                            system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
+                with step_scope(f"retrieval_batch_summary·L{layer}·b{batch_index}"):
+                    return chat(prompt, vendor=self.vendor, model=self.model,
+                                system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
             except Exception as e:
                 logger.error(f"[RetrievalBatch] 第 {layer} 层 第 {batch_index} 批失败: {e}")
                 return f"（第 {batch_index} 批压缩失败）\n原始内容:\n{batch_content}"
@@ -2024,8 +2079,11 @@ class AgentGraph:
 
         def _do_merge() -> str:
             try:
-                return chat(merge_prompt, vendor=self.vendor, model=self.model,
-                            system=self.answer_system_prompt)
+                with step_scope(f"retrieval_batch_final_merge·L{layer}"):
+                    raw = chat(merge_prompt, vendor=self.vendor, model=self.model,
+                               system=self.answer_system_prompt,
+                               enable_thinking=self.last_think)
+                return self._postprocess_final_chat(raw, f"retrieval_batch_final_merge·L{layer}")
             except Exception as e:
                 logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
                 return "召回分批合并失败，以下为各摘要：\n" + numbered
@@ -2044,7 +2102,10 @@ class AgentGraph:
         logger.info(f"[CleanAnswer] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[CleanAnswer] prompt 内容:\n{prompt}")
         try:
-            cleaned = chat(prompt, vendor=self.vendor, model=self.model)
+            with step_scope("clean_answer"):
+                cleaned = chat(prompt, vendor=self.vendor, model=self.model,
+                               enable_thinking=self.last_think)
+            cleaned = self._postprocess_final_chat(cleaned, "clean_answer")
             logger.info("答案清洗完成")
             return cleaned
         except Exception as e:

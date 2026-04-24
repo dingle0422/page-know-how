@@ -97,7 +97,9 @@ def _enhance_with_skill_results(
         question=question, raw_answer=raw_answer, skill_context=skill_context,
     )
     try:
-        enhanced = chat(prompt, vendor=vendor, model=model)
+        from utils.verbose_logger import step_scope as _vstep
+        with _vstep("double_check_enhance"):
+            enhanced = chat(prompt, vendor=vendor, model=model)
         enhanced = enhanced.strip()
         if not enhanced:
             logger.warning("[DoubleCheck] LLM 返回空，沿用原回答")
@@ -116,7 +118,9 @@ def _judge_need_skill(question: str, raw_answer: str, vendor: str, model: str) -
         question=question, raw_answer=raw_answer, index_doc=index_doc,
     )
     try:
-        resp = chat(prompt, vendor=vendor, model=model)
+        from utils.verbose_logger import step_scope as _vstep
+        with _vstep("double_check_need_skill"):
+            resp = chat(prompt, vendor=vendor, model=model)
     except Exception as e:
         logger.error("[DoubleCheck] 判断是否需要 skill LLM 调用失败: %s", e)
         return []

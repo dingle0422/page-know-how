@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from llm.client import chat
+from utils.verbose_logger import step_scope
 from reasoner.v1.prompts import SUMMARY_EXTRACT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -294,10 +295,11 @@ class ReducePipeline:
         )
         t0 = time.time()
         try:
-            output = chat(
-                prompt, vendor=self.vendor, model=self.model,
-                system=self.intermediate_system_prompt,
-            )
+            with step_scope(f"reduce_intermediate·b{batch_seq}·d{depth_in}->d{depth_out}"):
+                output = chat(
+                    prompt, vendor=self.vendor, model=self.model,
+                    system=self.intermediate_system_prompt,
+                )
         except Exception as e:
             elapsed = int((time.time() - t0) * 1000)
             logger.error(f"[{self.logger_label}] batch#{batch_seq} 失败: {e}")

@@ -36,6 +36,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from llm.client import chat
+from utils.verbose_logger import step_scope
 from reasoner._registries import RelationFragment, RelationRegistry
 from reasoner.v1.clause_locator import ClauseLocator
 from reasoner.v1.prompts import RELATION_RELEVANCE_PROMPT
@@ -322,7 +323,8 @@ class RelationCrawler:
 def _call_llm_json(prompt: str, vendor: str, model: str) -> Optional[dict]:
     """复用 react_agent 中的轻量 JSON LLM 调用模式（剥 ```json 外壳 + json.loads）。"""
     try:
-        response = chat(prompt, vendor=vendor, model=model)
+        with step_scope("relation_relevance"):
+            response = chat(prompt, vendor=vendor, model=model)
     except Exception as e:
         logger.warning(f"[RelationCrawler] LLM 调用失败: {e}")
         return None

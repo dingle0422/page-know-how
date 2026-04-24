@@ -14,6 +14,11 @@ from pydantic import BaseModel, Field
 
 from extractor.builder import extract_from_api
 from extractor.policy_index import get_root_map as _policy_index_root_map
+from utils.verbose_logger import (
+    open_session as _open_verbose_session,
+    VERBOSE_DEFAULT_ENABLED,
+    log_event as _log_verbose_event,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -107,6 +112,18 @@ class ReasonRequest(BaseModel):
                     "中间提炼层仍固定使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。"
                     "仅在 version=v1 下生效",
     )
+    lastThink: bool = Field(
+        default=False,
+        description="在【全流程最后一步总结/清洗】阶段打开底层 LLM 的 enable_thinking=True，"
+                    "让模型返回推理轨迹（qwen3.5/3.6 会把 <think>...</think> 写进 content；"
+                    "deepseek-reasoner / deepseek-v3.2 等会返回到 message.reasoning_content，"
+                    "llm/client.py 已统一前缀回注到 content）。"
+                    "只作用于最终节点的 chat 调用（all_in_answer / final_summary / "
+                    "batch_final_merge / retrieval_final_summary / retrieval_batch_final_merge / "
+                    "clean_answer），中间 batch/chunk/探索阶段都不受影响。"
+                    "与 thinkMode 正交：thinkMode 只改 prompt 模板（要求 JSON 输出结构），"
+                    "lastThink 只改 chat_template_kwargs.enable_thinking（开启模型推理轨迹）。",
+    )
     thinkMode: bool = Field(
         default=True,
         description="启用 think 模式：在【所有最终节点】的 summary+clean 阶段，"
@@ -134,7 +151,7 @@ class ReasonRequest(BaseModel):
     )
     relationMaxNodes: int = Field(
         default=50,
-        description="单次 chunk / 子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展。",
+        description="单次 chunk / 子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展（横向纵向都包含）。",
     )
     relationWorkers: int = Field(
         default=8,
@@ -169,6 +186,19 @@ class ReasonRequest(BaseModel):
                     "避免某些 part 被反复压缩造成信息严重损耗。"
                     "调大可减少 frozen 数量、让 final merge 入口更接近 batch_size；"
                     "调小则相反。summaryPipelineMode='layered' 时本字段忽略。",
+    )
+    verbose: bool = Field(
+        default=VERBOSE_DEFAULT_ENABLED,
+        description="启用 verbose 模式：以当次请求的 session 编号为文件名，"
+                    "完整记录该请求下根智能体 / 子智能体 / 汇总层每一步的 LLM 输入输出。"
+                    "日志落盘在 <project>/verbose_logs/ 目录；当累计大小 ≥ 20MB 时，"
+                    "自动打包为 archives/verbose_logs_<起始时间>__<结束时间>.zip 并清理原始文件。"
+                    "未显式传入时默认跟随环境变量 VERBOSE_TRACE 的配置。",
+    )
+    sessionId: str | None = Field(
+        default=None,
+        description="可选：显式指定 verbose session 编号（便于跨服务日志串联）；"
+                    "不传则自动生成 sess-<随机>。仅在 verbose=True 时生效。",
     )
 
 
@@ -418,6 +448,7 @@ def _run_reasoning(
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
+    last_think: bool = False,
     enable_relations: bool = False,
     relation_max_depth: int = 5,
     relation_max_nodes: int = 50,
@@ -461,6 +492,7 @@ def _run_reasoning(
         check_pitfalls=check_pitfalls,
         chunk_size=chunk_size,
         enable_skills=enable_skills,
+        last_think=last_think,
         **extra_kwargs,
     )
     result = graph.run()
@@ -548,51 +580,86 @@ async def kh_update(req: KhUpdateRequest):
 async def reason(req: ReasonRequest):
     sem = _get_reasoning_semaphore()
     async with sem:
-        try:
-            knowledge_dir = await asyncio.to_thread(
-                _get_or_extract_knowledge, req.policyId
-            )
-            result = await asyncio.to_thread(
-                _run_reasoning, req.question, knowledge_dir,
-                version=req.version,
-                max_rounds=req.maxRounds,
-                vendor=req.vendor,
-                model=req.model,
-                clean_answer=req.cleanAnswer,
-                summary_batch_size=req.summaryBatchSize,
-                retrieval_mode=req.retrievalMode,
-                check_pitfalls=req.checkPitfalls,
-                chunk_size=req.chunkSize,
-                enable_skills=req.enableSkills,
-                summary_clean_answer=req.summaryCleanAnswer,
-                answer_system_prompt=req.answerSystemPrompt,
-                think_mode=req.thinkMode,
-                enable_relations=req.enableRelations,
-                relation_max_depth=req.relationMaxDepth,
-                relation_max_nodes=req.relationMaxNodes,
-                relation_workers=req.relationWorkers,
-                relations_expansion_mode=req.relationsExpansionMode,
-                summary_pipeline_mode=req.summaryPipelineMode,
-                reduce_max_part_depth=req.reduceMaxPartDepth,
-            )
-            return ReasonResponse(
-                data=ReasonData(
-                    khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
-                    answer=result["answer"],
-                    think=result.get("think", ""),
-                    skillsResult=result.get("skills_result", {}),
-                    policyId=req.policyId,
-                ),
-                status_code=200,
-                message="success",
-            )
-        except Exception as e:
-            logger.exception(f"推理失败: {e}")
-            return ReasonResponse(
-                data=None,
-                status_code=500,
-                message=f"推理失败: {str(e)}",
-            )
+        # verbose 开启时：以 sessionId（未传则自动生成）新建独立日志文件，
+        # 完整记录本次请求涉及的所有智能体步骤；退出时自动触发归档。
+        session_meta = {
+            "endpoint": "/api/reason",
+            "policyId": req.policyId,
+            "question": req.question,
+            "version": req.version,
+            "vendor": req.vendor,
+            "model": req.model,
+            "retrievalMode": req.retrievalMode,
+            "chunkSize": req.chunkSize,
+            "summaryBatchSize": req.summaryBatchSize,
+            "enableRelations": req.enableRelations,
+            "thinkMode": req.thinkMode,
+        }
+        with _open_verbose_session(
+            session_id=req.sessionId,
+            meta=session_meta,
+            enabled=req.verbose,
+        ):
+            try:
+                knowledge_dir = await asyncio.to_thread(
+                    _get_or_extract_knowledge, req.policyId
+                )
+                if req.verbose:
+                    _log_verbose_event(
+                        "knowledge_ready",
+                        policyId=req.policyId,
+                        knowledge_dir=knowledge_dir,
+                    )
+                result = await asyncio.to_thread(
+                    _run_reasoning, req.question, knowledge_dir,
+                    version=req.version,
+                    max_rounds=req.maxRounds,
+                    vendor=req.vendor,
+                    model=req.model,
+                    clean_answer=req.cleanAnswer,
+                    summary_batch_size=req.summaryBatchSize,
+                    retrieval_mode=req.retrievalMode,
+                    check_pitfalls=req.checkPitfalls,
+                    chunk_size=req.chunkSize,
+                    enable_skills=req.enableSkills,
+                    summary_clean_answer=req.summaryCleanAnswer,
+                    answer_system_prompt=req.answerSystemPrompt,
+                    think_mode=req.thinkMode,
+                    last_think=req.lastThink,
+                    enable_relations=req.enableRelations,
+                    relation_max_depth=req.relationMaxDepth,
+                    relation_max_nodes=req.relationMaxNodes,
+                    relation_workers=req.relationWorkers,
+                    relations_expansion_mode=req.relationsExpansionMode,
+                    summary_pipeline_mode=req.summaryPipelineMode,
+                    reduce_max_part_depth=req.reduceMaxPartDepth,
+                )
+                if req.verbose:
+                    _log_verbose_event(
+                        "reason_finished",
+                        answer_preview=(result.get("answer") or "")[:200],
+                        kh_obj=result.get("kh_obj", {}),
+                    )
+                return ReasonResponse(
+                    data=ReasonData(
+                        khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
+                        answer=result["answer"],
+                        think=result.get("think", ""),
+                        skillsResult=result.get("skills_result", {}),
+                        policyId=req.policyId,
+                    ),
+                    status_code=200,
+                    message="success",
+                )
+            except Exception as e:
+                logger.exception(f"推理失败: {e}")
+                if req.verbose:
+                    _log_verbose_event("reason_error", error=repr(e))
+                return ReasonResponse(
+                    data=None,
+                    status_code=500,
+                    message=f"推理失败: {str(e)}",
+                )
 
 
 @app.get("/example")

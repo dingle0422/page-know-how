@@ -144,7 +144,9 @@ def _select_skills(question: str, vendor: str, model: str) -> list[str]:
 
     prompt = _SELECT_PROMPT.format(index_doc=index_doc, question=question)
     try:
-        resp = chat(prompt, vendor=vendor, model=model)
+        from utils.verbose_logger import step_scope as _vstep
+        with _vstep("skill_select"):
+            resp = chat(prompt, vendor=vendor, model=model)
     except Exception as e:
         logger.error("[Evaluator] Step1 LLM 调用失败: %s", e)
         return []
@@ -174,7 +176,9 @@ def _generate_command(skill_name: str, question: str, vendor: str, model: str) -
         skill_name=skill_name, detail_doc=detail_doc, question=question,
     )
     try:
-        resp = chat(prompt, vendor=vendor, model=model)
+        from utils.verbose_logger import step_scope as _vstep
+        with _vstep(f"skill_generate_cmd·{skill_name}"):
+            resp = chat(prompt, vendor=vendor, model=model)
     except Exception as e:
         logger.error("[Evaluator] Step2 LLM 调用失败 (skill=%s): %s", skill_name, e)
         return ""
@@ -247,7 +251,9 @@ def select_extra_skills(
         + evidence_hint
     )
     try:
-        resp = chat(prompt, vendor=vendor, model=model)
+        from utils.verbose_logger import step_scope as _vstep
+        with _vstep("skill_select_extra"):
+            resp = chat(prompt, vendor=vendor, model=model)
     except Exception as e:
         logger.error("[Evaluator] select_extra_skills LLM 调用失败: %s", e)
         return []

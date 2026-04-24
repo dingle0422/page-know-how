@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from llm.client import chat
 from reasoner._sort_utils import natural_dir_sort_key
 from reasoner._registries import KnowledgeFragment
+from utils.verbose_logger import agent_scope, step_scope
 from reasoner.v0.prompts import (
     DISCLOSURE_PROMPT,
     CONTENT_ASSESS_PROMPT,
@@ -92,6 +93,10 @@ class ReactAgent:
 
     def run(self) -> AgentResult:
         """执行 ReAct 循环"""
+        with agent_scope(agent_id=self.agent_id):
+            return self._run_impl()
+
+    def _run_impl(self) -> AgentResult:
         logger.info(f"[{self.agent_id}] 开始探索: {self.current_dir}")
 
         if self.registry:
@@ -628,7 +633,8 @@ class ReactAgent:
         )
 
         try:
-            response = chat(prompt, vendor=self.vendor, model=self.model)
+            with step_scope("path_correction"):
+                response = chat(prompt, vendor=self.vendor, model=self.model)
             cleaned = response.strip()
             if cleaned.startswith("```json"):
                 cleaned = cleaned[7:]
@@ -668,7 +674,8 @@ class ReactAgent:
             knowledge_content=stripped_content,
             available_subdirs=subdirs_str,
         )
-        return self._call_llm_json(prompt)
+        with step_scope("root_disclosure"):
+            return self._call_llm_json(prompt)
 
     def _assess_content(self, knowledge_content: str, current_dir: str) -> dict | None:
         """标准模式：评估当前层级知识是否包含与用户问题相关的证据"""
@@ -678,7 +685,8 @@ class ReactAgent:
             parent_summary=self.parent_summary or "（无上游摘要）",
             knowledge_content=stripped_content,
         )
-        return self._call_llm_json(prompt)
+        with step_scope("content_assess"):
+            return self._call_llm_json(prompt)
 
     def _assess_relevance(self, knowledge_content: str, current_dir: str) -> dict | None:
         """召回模式：评估当前层级知识是否与用户问题相关"""
@@ -688,7 +696,8 @@ class ReactAgent:
             parent_summary=self.parent_summary or "（无上游摘要）",
             knowledge_content=stripped_content,
         )
-        return self._call_llm_json(prompt)
+        with step_scope("relevance_assess"):
+            return self._call_llm_json(prompt)
 
     def _ask_navigation(self, knowledge_content: str, available_subdirs: list[str], current_dir: str) -> dict | None:
         """非根节点：决定探索方向（EXPLORE / BACKTRACK / STOP）"""
@@ -712,7 +721,8 @@ class ReactAgent:
                 knowledge_content=stripped_content,
                 available_subdirs=subdirs_str,
             )
-        return self._call_llm_json(prompt)
+        with step_scope("navigation_disclosure"):
+            return self._call_llm_json(prompt)
 
     def _parallel_decide(
         self, knowledge_content: str, available_subdirs: list[str], current_dir: str
@@ -760,7 +770,8 @@ class ReactAgent:
         )
 
         try:
-            response = chat(prompt, vendor=self.vendor, model=self.model)
+            with step_scope("force_summary"):
+                response = chat(prompt, vendor=self.vendor, model=self.model)
             cleaned = response.strip()
             if cleaned.startswith("```json"):
                 cleaned = cleaned[7:]
@@ -801,7 +812,8 @@ class ReactAgent:
 
         is_relevant = False
         try:
-            response = chat(prompt, vendor=self.vendor, model=self.model)
+            with step_scope("force_retrieval_judge"):
+                response = chat(prompt, vendor=self.vendor, model=self.model)
             cleaned = response.strip()
             if cleaned.startswith("```json"):
                 cleaned = cleaned[7:]

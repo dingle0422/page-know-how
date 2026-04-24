@@ -97,6 +97,7 @@ def _process_single_question(
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
     enable_skills: bool = True,
+    last_think: bool = False,
 ) -> dict:
     """处理单个问题并返回结果字典，供串行和并行模式共用。
     original_index: 问题在原始输入文件中的数据行索引（0-based）。
@@ -119,6 +120,7 @@ def _process_single_question(
             retrieval_mode=retrieval_mode,
             check_pitfalls=check_pitfalls,
             enable_skills=enable_skills,
+            last_think=last_think,
         )
         result = graph.run()
         answer = result["answer"]
@@ -162,6 +164,7 @@ def run_single_question(
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
     enable_skills: bool = True,
+    last_think: bool = False,
 ) -> dict:
     """
     对单个问题执行推理，直接返回结果字典，同时打印答案到终端。
@@ -185,6 +188,7 @@ def run_single_question(
         retrieval_mode=retrieval_mode,
         check_pitfalls=check_pitfalls,
         enable_skills=enable_skills,
+        last_think=last_think,
     )
     result = graph.run()
     answer = result["answer"]
@@ -222,6 +226,7 @@ def _run_sequential(
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
     enable_skills: bool = True,
+    last_think: bool = False,
 ) -> None:
     """串行逐个处理待推理问题。"""
     for original_index, display_pos, question in pending:
@@ -229,6 +234,7 @@ def _run_sequential(
             question, original_index, display_pos, total,
             knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
             retrieval_mode, check_pitfalls, enable_skills,
+            last_think=last_think,
         )
         results.append(result_dict)
         _flush_results(results, output_path)
@@ -250,6 +256,7 @@ def _run_parallel(
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
     enable_skills: bool = True,
+    last_think: bool = False,
 ) -> None:
     """并行处理待推理问题，线程安全地收集结果并实时落盘。"""
     lock = threading.Lock()
@@ -263,6 +270,7 @@ def _run_parallel(
                 question, original_index, display_pos, total,
                 knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
                 retrieval_mode, check_pitfalls, enable_skills,
+                last_think=last_think,
             ): (original_index, question)
             for original_index, display_pos, question in pending
         }
@@ -308,6 +316,7 @@ def run_reasoning(
     retrieval_mode: bool = False,
     check_pitfalls: bool = False,
     enable_skills: bool = True,
+    last_think: bool = False,
 ) -> str:
     """
     推理引擎主入口。
@@ -360,12 +369,14 @@ def run_reasoning(
             pending, total, results, output_path,
             knowledge_dir, max_rounds, vendor, model, clean_answer, summary_batch_size,
             retrieval_mode, check_pitfalls, enable_skills,
+            last_think=last_think,
         )
     else:
         _run_parallel(
             pending, total, results, output_path,
             knowledge_dir, max_rounds, vendor, model, max_workers, clean_answer, summary_batch_size,
             retrieval_mode, check_pitfalls, enable_skills,
+            last_think=last_think,
         )
 
     total_elapsed = round(time.time() - total_start, 1)

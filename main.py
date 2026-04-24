@@ -88,32 +88,60 @@ def cmd_reason(args):
         retrieval_mode=args.retrieval_mode,
         check_pitfalls=args.check_pitfalls,
         enable_skills=enable_skills,
+        last_think=args.last_think,
     )
     if version == "v1":
         common_kwargs["chunk_size"] = args.chunk_size
         common_kwargs["summary_clean_answer"] = args.summary_clean_answer
         common_kwargs["think_mode"] = args.think_mode
+        common_kwargs["answer_system_prompt"] = args.answer_system_prompt
+        common_kwargs["enable_relations"] = args.enable_relations
+        common_kwargs["relation_max_depth"] = args.relation_max_depth
+        common_kwargs["relation_max_nodes"] = args.relation_max_nodes
+        common_kwargs["relation_workers"] = args.relation_workers
+        common_kwargs["relations_expansion_mode"] = args.relations_expansion_mode
+        common_kwargs["summary_pipeline_mode"] = args.summary_pipeline_mode
+        common_kwargs["reduce_max_part_depth"] = args.reduce_max_part_depth
     else:
         if args.summary_clean_answer:
             print("警告：--summary-clean-answer 仅在 --version v1 下生效，本次将被忽略")
         if args.think_mode:
             print("警告：--think-mode 仅在 --version v1 下生效，本次将被忽略")
+        if args.answer_system_prompt:
+            print("警告：--answer-system-prompt 仅在 --version v1 下生效，本次将被忽略")
+        if args.enable_relations:
+            print("警告：--enable-relations 仅在 --version v1 下生效，本次将被忽略")
 
-    if has_single:
-        run_single_question(question=args.single_question, **common_kwargs)
-    else:
-        if not args.question_column:
-            print("错误：使用 --questions 时必须同时指定 --question-column")
-            raise SystemExit(1)
-        output_path = run_reasoning(
-            questions_file=args.questions,
-            question_column=args.question_column,
-            output_path=args.output,
-            max_workers=args.max_workers,
-            **common_kwargs,
-        )
-        print(f"\n推理完成！")
-        print(f"结果文件: {output_path}")
+    verbose_trace = getattr(args, "verbose_trace", False)
+    session_id = getattr(args, "session_id", None)
+    session_meta = {
+        "entrypoint": "cli",
+        "command": "reason",
+        "version": version,
+        "policyId": getattr(args, "policy_id", None),
+        "knowledgeDir": args.knowledge_dir,
+        "vendor": args.vendor,
+        "model": args.model,
+        "mode": "single" if has_single else "batch",
+    }
+
+    from utils.verbose_logger import open_session as _open_verbose_session
+    with _open_verbose_session(session_id=session_id, meta=session_meta, enabled=verbose_trace):
+        if has_single:
+            run_single_question(question=args.single_question, **common_kwargs)
+        else:
+            if not args.question_column:
+                print("错误：使用 --questions 时必须同时指定 --question-column")
+                raise SystemExit(1)
+            output_path = run_reasoning(
+                questions_file=args.questions,
+                question_column=args.question_column,
+                output_path=args.output,
+                max_workers=args.max_workers,
+                **common_kwargs,
+            )
+            print(f"\n推理完成！")
+            print(f"结果文件: {output_path}")
 
 
 def main():
@@ -231,6 +259,85 @@ def main():
              "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
              "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
              "中间提炼 prompt 始终保持原样不动"
+    )
+    reason_parser.add_argument(
+        "--last-think", action="store_true", default=False,
+        help="在【全流程最后一步总结/清洗】阶段打开底层 LLM 的 enable_thinking=True，"
+             "让模型返回推理轨迹（qwen3.5/3.6 会把 <think>...</think> 写进 content；"
+             "deepseek-reasoner / deepseek-v3.2 等会返回到 message.reasoning_content，"
+             "已在 llm/client.py 统一前缀回注到 content）。"
+             "只作用于最终节点的 chat 调用（all_in_answer / final_summary / "
+             "batch_final_merge / retrieval_final_summary / retrieval_batch_final_merge / "
+             "clean_answer），中间 batch/chunk/探索阶段都不受影响。"
+             "与 --think-mode 正交：think-mode 只改 prompt 模板（要求 JSON 输出结构），"
+             "last-think 只改 chat_template_kwargs.enable_thinking（开启模型推理轨迹）"
+    )
+    reason_parser.add_argument(
+        "--answer-system-prompt", default=None,
+        help="最终作答阶段的 system prompt 自定义内容（仅 v1 生效）。"
+             "不传或传空字符串则使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT 默认版本；"
+             "中间提炼层仍固定使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响"
+    )
+    reason_parser.add_argument(
+        "--enable-relations", action="store_true", default=False,
+        help="启用关联条款展开（仅 v1 生效）：当 chunk/子智能体命中相关知识且其目录包含 "
+             "clause.json 中的预展开 references 时，按 LLM 多跳并发拉取外部条款；"
+             "chunk 模式下切分为派生 chunk 与原 chunk 一并进入流式 batch summary，"
+             "standard/retrieval 模式下 inline 追加到对应 fragment 末尾。"
+             "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取"
+    )
+    reason_parser.add_argument(
+        "--relation-max-depth", type=int, default=5,
+        help="关联展开最大跳深（含首跳）。--enable-relations=False 时忽略。默认 5"
+    )
+    reason_parser.add_argument(
+        "--relation-max-nodes", type=int, default=50,
+        help="单次 chunk/子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展。默认 50"
+    )
+    reason_parser.add_argument(
+        "--relation-workers", type=int, default=8,
+        help="关联展开的调度线程数；候选评估池容量为本值的 2 倍。默认 8"
+    )
+    reason_parser.add_argument(
+        "--relations-expansion-mode", default="all", choices=["all", "smart"],
+        help="关联展开模式（--enable-relations=True 时生效）：\n"
+             "'all'（默认）：跳过对每个候选条款的 LLM 二次判定，"
+             "只要 ClauseLocator 能定位到内容，一律入 RelationFragment 并按深度全展开。"
+             "触发率 100%%、省掉 N 次 LLM 评估调用反而更快，token 略增；"
+             "外层闸（chunk LLM relevant_headings 命中）仍然保留。\n"
+             "'smart'：每个候选条款都用 LLM 判 is_relevant，准确率高但触发率受 LLM "
+             "采样波动影响（同一问题多次跑可能命中数不一致）"
+    )
+    reason_parser.add_argument(
+        "--summary-pipeline-mode", default="reduce_queue", choices=["layered", "reduce_queue"],
+        help="batch summary 流水线模式（--summary-batch-size > 0 时生效）：\n"
+             "'layered'：chunk + 关联展开走 _chunk_streaming_pipeline 的"
+             "'按 slot 顺序流式 batch + 后续递归压缩按层同步'；其他入口走 "
+             "_recursive_batch_reduce 同步分层。\n"
+             "'reduce_queue'（默认）：所有压缩任务统一进 ReducePipeline，凑批+回灌，"
+             "无层间同步点。chunk 数大、batch 长尾差异显著时可见明显加速；"
+             "代价是早 flush 的 part 经过更多次中间压缩"
+    )
+    reason_parser.add_argument(
+        "--reduce-max-part-depth", type=int, default=4,
+        help="reduce_queue 模式下单 part 经过的最大中间 BATCH_SUMMARY 次数。"
+             "命中上限的 part 不再参与凑批，转入 frozen 列表直接保留到 final merge。"
+             "--summary-pipeline-mode=layered 时本字段忽略。默认 4"
+    )
+    from utils.verbose_logger import VERBOSE_DEFAULT_ENABLED as _VT_DEFAULT
+    reason_parser.add_argument(
+        "--verbose-trace", action="store_true", default=_VT_DEFAULT,
+        help="启用 verbose 模式：以当次请求的 session 编号为文件名，"
+             "完整记录根智能体/子智能体/汇总层每一步的 LLM 输入输出。"
+             "日志落盘在 <project>/verbose_logs/ 目录；当累计大小 ≥ 20MB 时，"
+             "自动打包为 archives/verbose_logs_<起>__<止>.zip 并清理原始文件。"
+             "未显式传入时默认跟随环境变量 VERBOSE_TRACE 的配置。"
+             "注意：与顶层日志级别 --verbose/-v 是两个不同的开关"
+    )
+    reason_parser.add_argument(
+        "--session-id", default=None,
+        help="可选：显式指定 verbose session 编号（便于跨服务日志串联）；"
+             "不传则自动生成 sess-<随机>。仅在 --verbose-trace 开启时生效"
     )
 
     args = parser.parse_args()

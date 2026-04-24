@@ -1,8 +1,14 @@
 import json
+import time
 import logging
 import requests
 
 from utils.helpers import retry
+from utils.verbose_logger import (
+    is_session_active,
+    log_llm_call,
+    log_llm_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +44,7 @@ def chat(
             "messages": messages_payload,
             "stream": False,
             "chat_template_kwargs": {"enable_thinking": enable_thinking},
-            "temperature": 0.5,
+            # "temperature": 0.5,
         }
     elif vendor == "qwen3.6-35b-a3b":
         URL = "http://mlp.paas.dc.servyou-it.com/qwen3.6-35b-a3b/v1/chat/completions"
@@ -48,7 +54,7 @@ def chat(
             "messages": messages_payload,
             "stream": False,
             "chat_template_kwargs": {"enable_thinking": enable_thinking},
-            "temperature": 0.5,
+            # "temperature": 0.5,
         }
        
     elif vendor == "qwen3.5-27b":
@@ -74,17 +80,82 @@ def chat(
             "model": model,
             "messages": messages_payload,
             "stream": False,
-            "top_p": 0.7,
-            "temperature": 0.5,
+            # "top_p": 0.7,
+            # "temperature": 0.5,
         }
+        if enable_thinking:
+            PAYLOAD["chat_template_kwargs"] = {"enable_thinking": True}
 
     logger.debug(f"LLM 请求 [{vendor}/{model}]: {messages[:100]}...")
-    response = requests.post(URL, data=json.dumps(PAYLOAD), headers=HEADERS, timeout=(30, 360)).json()
+
+    verbose_on = is_session_active()
+    t0 = time.time() if verbose_on else None
+
+    try:
+        response = requests.post(
+            URL, data=json.dumps(PAYLOAD), headers=HEADERS, timeout=(30, 360)
+        ).json()
+    except Exception as e:
+        if verbose_on:
+            elapsed_ms = int((time.time() - t0) * 1000) if t0 is not None else None
+            try:
+                log_llm_error(
+                    prompt=messages,
+                    error=repr(e),
+                    system=system,
+                    vendor=vendor,
+                    model=model,
+                    elapsed_ms=elapsed_ms,
+                    extra={"enable_thinking": enable_thinking},
+                )
+            except Exception:
+                pass
+        raise
 
     if "success" in response:
-        raise Exception(response.get("errorContext", "未知错误"))
+        err = response.get("errorContext", "未知错误")
+        if verbose_on:
+            elapsed_ms = int((time.time() - t0) * 1000) if t0 is not None else None
+            try:
+                log_llm_error(
+                    prompt=messages,
+                    error=str(err),
+                    system=system,
+                    vendor=vendor,
+                    model=model,
+                    elapsed_ms=elapsed_ms,
+                    extra={"enable_thinking": enable_thinking},
+                )
+            except Exception:
+                pass
+        raise Exception(err)
 
     result = response["choices"][0]["message"]
     content = result["content"] if isinstance(result, dict) else str(result)
+    # 部分 OpenAI 兼容服务（如 deepseek-reasoner / deepseek-v3.2 的 thinking 模式）
+    # 会把思考过程单独放到 message.reasoning_content 字段，而不是塞回 content。
+    # 统一把非空 reasoning_content 以 <think>…</think> 前缀并入 content，保持
+    # 与 qwen 系列（原生把 <think> 写进 content）一致的下游体验。
+    if isinstance(result, dict):
+        reasoning = result.get("reasoning_content")
+        if reasoning and isinstance(reasoning, str) and reasoning.strip():
+            if "<think>" not in (content or ""):
+                content = f"<think>{reasoning.strip()}</think>\n{content or ''}"
     logger.debug(f"LLM 响应: {content[:100]}...")
+
+    if verbose_on:
+        elapsed_ms = int((time.time() - t0) * 1000) if t0 is not None else None
+        try:
+            log_llm_call(
+                prompt=messages,
+                response=content,
+                system=system,
+                vendor=vendor,
+                model=model,
+                elapsed_ms=elapsed_ms,
+                extra={"enable_thinking": enable_thinking},
+            )
+        except Exception:
+            pass
+
     return content

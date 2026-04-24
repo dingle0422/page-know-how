@@ -97,6 +97,9 @@ runtime/output/
 # 如果 input 里是本地数据，可按需打开下面这一行
 # runtime/input/
 
+# Verbose 模式日志（含归档 zip）
+verbose_logs/
+
 # 临时文件
 tmp/
 temp/

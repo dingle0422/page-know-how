@@ -43,3 +43,34 @@ def truncate_text(text: str, max_length: int = 200) -> str:
     if len(text) <= max_length:
         return text
     return text[:max_length] + "..."
+
+
+# 匹配最开头（允许前置空白 / BOM）的一段 <think>...</think>，支持多行、non-greedy。
+# 仅剥离**文首的第一段**，不动后面正文里可能出现的 <think> 字样。
+_THINK_BLOCK_RE = re.compile(
+    r"\A[\s\ufeff]*<think[^>]*>(?P<body>.*?)</think>\s*",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def split_think_block(text: str) -> tuple[str, str]:
+    """把 LLM 返回的带 <think>...</think> 前缀的文本拆成 (think, answer)。
+
+    - 兼容 qwen3.5/3.6 原生把 <think> 写进 content 的风格，
+      以及 deepseek-v3.2 / deepseek-reasoner 由 llm/client.py 统一回注的前缀。
+    - 仅剥离文首的第一段 think 块；如果 text 开头没有 <think>，返回 ("", text) 不改动。
+    - 幂等：对已经不含 think 前缀的字符串重复调用是安全的。
+
+    返回：
+        (think_content, answer_body)
+        think_content: <think> 标签之间的内容（已 strip；不含标签本身），可能是空串
+        answer_body:   剩余的业务主体（已 strip）
+    """
+    if not text:
+        return "", text or ""
+    m = _THINK_BLOCK_RE.match(text)
+    if not m:
+        return "", text
+    think = (m.group("body") or "").strip()
+    answer = text[m.end():].lstrip()
+    return think, answer
