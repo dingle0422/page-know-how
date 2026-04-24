@@ -151,7 +151,7 @@ def format_result(
     if is_confident_top1:
         return (
             f"「{result.query}」标准商品名称已识别为：{best.standard_name}"
-            f"（简称：{best.abbreviation or '无'}），适用税率 {best.tax_rate}，"
+            f"（简称：{best.abbreviation or '无'}），"
             f"匹配置信度 {best.confidence}（显著高于其余候选）。\n"
             f"该归类为权威识别结果，应直接据此进行后续涉税判断，"
             f"不要再使用「若属于X / 若属于Y」等句式对该商品的归类做二次猜测。"
@@ -160,6 +160,6 @@ def format_result(
     lines = [f"「{result.query}」在税收分类编码体系中的候选匹配："]
     for c in result.candidates:
         lines.append(
-            f"  - {c.standard_name}（{c.abbreviation}），税率 {c.tax_rate}，匹配度 {c.confidence}"
+            f"  - {c.standard_name}（{c.abbreviation}），匹配度 {c.confidence}"
         )
     return "\n".join(lines)
