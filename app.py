@@ -67,8 +67,8 @@ class ReasonRequest(BaseModel):
     policyId: str
     question: str
     maxRounds: int = Field(default=10, description="每个子智能体的最大 ReAct 轮次（默认 5）")
-    vendor: str = Field(default="qwen3.5-122b-a10b", description="LLM 供应商（默认 qwen3.5-122b-a10b 直连）")
-    model: str = Field(default="Qwen3.5-122B-A10B", description="LLM 模型名称（默认 Qwen3.5-122B-A10B）")
+    vendor: str = Field(default="aliyun", description="LLM 供应商（默认 qwen3.5-122b-a10b 直连）")
+    model: str = Field(default="deepseek-v3.2", description="LLM 模型名称（默认 Qwen3.5-122B-A10B）")
     cleanAnswer: bool = Field(
         default=False,
         description="启用答案清洗：在 summary 后追加一轮 LLM 调用，以咨询客服口吻输出精简结论（默认 False）",
@@ -113,7 +113,7 @@ class ReasonRequest(BaseModel):
                     "仅在 version=v1 下生效",
     )
     lastThink: bool = Field(
-        default=False,
+        default=True,
         description="在【全流程最后一步总结/清洗】阶段打开底层 LLM 的 enable_thinking=True，"
                     "让模型返回推理轨迹（qwen3.5/3.6 会把 <think>...</think> 写进 content；"
                     "deepseek-reasoner / deepseek-v3.2 等会返回到 message.reasoning_content，"
@@ -155,7 +155,7 @@ class ReasonRequest(BaseModel):
     )
     relationWorkers: int = Field(
         default=8,
-        description="关联展开的调度线程数；候选评估池容量为本值的 2 倍。",
+        description="关联展开的调度线程数；",
     )
     relationsExpansionMode: str = Field(
         default="all",
@@ -168,7 +168,7 @@ class ReasonRequest(BaseModel):
                     "  采样波动影响（同一问题多次跑可能命中数不一致）。",
     )
     summaryPipelineMode: str = Field(
-        default="reduce_queue",
+        default="layered",
         description="batch summary 流水线模式（summaryBatchSize > 0 时生效）：\n"
                     "- 'layered'（默认）：当前实现。chunk + 关联展开走 _chunk_streaming_pipeline\n"
                     "  的'按 slot 顺序流式 batch + 后续递归压缩按层同步'；其他入口走\n"
