@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import logging
@@ -15,8 +16,93 @@ __all__ = [
     "KnowledgeChunk",
     "build_knowledge_chunks",
     "split_relations_into_chunks",
+    "build_parent_location_label",
     "natural_dir_sort_key",
 ]
+
+_KNOWLEDGE_NAME_CACHE: dict[str, str] = {}
+
+
+def _read_knowledge_name(knowledge_root: str) -> str:
+    """读取知识包的业务名称（如 "农产品精简版"），带进程级缓存。
+
+    解析优先级：
+        1. <page_knowledge_dir>/_policy_index.json 中 entry.root == basename(knowledge_root)
+           的 entry.name；
+        2. knowledge_root 下任一子目录 clause.json 的 searchLabels[0]，按 "|" 切第一段；
+        3. 兜底：knowledge_root 的 basename（可能带时间戳）。
+    """
+    if not knowledge_root:
+        return ""
+    key = os.path.normpath(knowledge_root)
+    cached = _KNOWLEDGE_NAME_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    name = ""
+    base = os.path.basename(key)
+
+    try:
+        page_dir = os.path.dirname(key)
+        idx_path = os.path.join(page_dir, "_policy_index.json")
+        if os.path.isfile(idx_path):
+            with open(idx_path, "r", encoding="utf-8") as f:
+                idx = json.load(f)
+            for entry in (idx or {}).values():
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get("root") == base and entry.get("name"):
+                    name = str(entry["name"]).strip()
+                    break
+    except Exception as e:
+        logger.debug(f"[KnowledgeName] 读取 _policy_index.json 失败: {e}")
+
+    if not name:
+        try:
+            for d in sorted(os.listdir(key)):
+                sub = os.path.join(key, d)
+                if not os.path.isdir(sub):
+                    continue
+                cj = os.path.join(sub, "clause.json")
+                if not os.path.isfile(cj):
+                    continue
+                with open(cj, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                labels = data.get("searchLabels") or []
+                if labels and isinstance(labels[0], str) and "|" in labels[0]:
+                    name = labels[0].split("|", 1)[0].strip()
+                    if name:
+                        break
+        except Exception as e:
+            logger.debug(f"[KnowledgeName] 回退读取子 clause.json 失败: {e}")
+
+    if not name:
+        name = base
+
+    _KNOWLEDGE_NAME_CACHE[key] = name
+    return name
+
+
+def build_parent_location_label(knowledge_root: str, parent_dir: str) -> str:
+    """把 parent_dir 组装为业务化可读的定位串：
+
+        "<知识名> > <一级章节> > ... > <末级章节>"
+
+    - 最根部加上知识名（来自 _policy_index.json 或子 clause.json 的 searchLabels）；
+    - 章节段沿用目录名（保留 "2_涉税处理" 这类业务编号），便于 LLM 回贴原文；
+    - parent_dir 为空或无法相对化时退化为目录名列表或空串。
+    """
+    if not parent_dir:
+        return ""
+    try:
+        rel = os.path.relpath(parent_dir, knowledge_root) if knowledge_root else parent_dir
+    except ValueError:
+        rel = parent_dir
+    segs = [s for s in rel.replace("\\", "/").split("/") if s and s != "."]
+    kn = _read_knowledge_name(knowledge_root) if knowledge_root else ""
+    if kn:
+        return " > ".join([kn, *segs])
+    return " > ".join(segs) if segs else ""
 
 _IGNORED_DIRS = frozenset({
     "__pycache__", ".ipynb_checkpoints", ".git", ".svn",
@@ -233,15 +319,20 @@ def build_knowledge_chunks(
     return chunks
 
 
-def _format_relation_fragment_text(fragment: "RelationFragment") -> str:
+def _format_relation_fragment_text(
+    fragment: "RelationFragment",
+    knowledge_root: str = "",
+) -> str:
     """把单个 RelationFragment 渲染为用于派生 chunk 的字符串块。
 
-    保持与原始 chunk 类似的【层级】+ 正文结构，并在头部以注释行携带：
+    保持与原始 chunk 类似的【层级】+ 正文结构，并在头部带上完整的"来由"上下文：
       - 关联跳深 / 来源 policyId+clauseId
+      - **父章节业务定位**：知识名 > 一级章节 > ... > 末级章节
       - 上一层 LLM 的关联性结论（parent_assessment 摘要）
-      - 上一层引用本节点时的高亮文本
+      - 以业务化口吻把高亮关键词嵌入到正文引导语，让 LLM 把关联知识贴回父章节原文
 
-    这样 LLM 在 chunk 推理阶段就能拿到完整的"来由"上下文，避免脱离语境。
+    派生 chunk 在 chunk 推理阶段单独成块，若不显式带上父章节路径，LLM 会完全不知道
+    该关联是从哪个上游知识块牵出来的——这里 knowledge_root 参数就是用来构造该定位。
     """
     heading_parts = list(fragment.heading_path) or [fragment.clause_full_name or fragment.clause_id]
     if fragment.clause_number:
@@ -252,13 +343,19 @@ def _format_relation_fragment_text(fragment: "RelationFragment") -> str:
         f"> 关联跳深: hop={fragment.hop_depth} · 来源={fragment.source} · "
         f"policyId={fragment.policy_id} · clauseId={fragment.clause_id}",
     ]
+    parent_label = build_parent_location_label(knowledge_root, fragment.parent_dir)
+    if parent_label:
+        meta_lines.append(f"> 来自父章节: {parent_label}")
     if fragment.parent_assessment:
         meta_lines.append(f"> 上层关联性判定: {_one_line(fragment.parent_assessment, 200)}")
+
     if fragment.highlighted:
-        meta_lines.append(f"> 上层引用高亮: {_one_line(fragment.highlighted, 120)}")
+        intro = f"**{fragment.highlighted}的关联知识细节如下：**"
+    else:
+        intro = "**关联知识细节如下：**"
 
     body = (fragment.content or "").strip() or "（条款内容为空）"
-    return "\n".join([heading_label, *meta_lines, "", body])
+    return "\n".join([heading_label, *meta_lines, "", intro, body])
 
 
 def _one_line(text: str, limit: int) -> str:
@@ -271,6 +368,7 @@ def split_relations_into_chunks(
     chunk_size: int,
     parent_chunk: KnowledgeChunk,
     start_derived_seq: int = 1,
+    knowledge_root: str = "",
 ) -> list[KnowledgeChunk]:
     """把一批关联条款片段按 chunk_size 切分为派生 KnowledgeChunk 列表。
 
@@ -314,7 +412,7 @@ def split_relations_into_chunks(
         seq += 1
 
     for frag in fragments:
-        text = _format_relation_fragment_text(frag)
+        text = _format_relation_fragment_text(frag, knowledge_root=knowledge_root)
         text_len = len(text)
         # 单 fragment 超 chunk_size：先 flush 当前累积，再让该 fragment 独立成一个 chunk
         if text_len >= chunk_size:

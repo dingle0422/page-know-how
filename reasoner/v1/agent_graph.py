@@ -35,6 +35,7 @@ from reasoner.v1.prompts import (
 )
 from reasoner.v1.chunk_builder import (
     build_knowledge_chunks,
+    build_parent_location_label,
     split_relations_into_chunks,
     natural_dir_sort_key,
     KnowledgeChunk,
@@ -935,6 +936,7 @@ class AgentGraph:
             chunk_size=self.chunk_size,
             parent_chunk=chunk,
             start_derived_seq=1,
+            knowledge_root=self.knowledge_root,
         )
         slot.derived_chunks = derived_chunks
 
@@ -1218,6 +1220,7 @@ class AgentGraph:
             chunk_size=self.chunk_size,
             parent_chunk=chunk,
             start_derived_seq=1,
+            knowledge_root=self.knowledge_root,
         )
         slot.derived_chunks = derived_chunks
 
@@ -1643,14 +1646,22 @@ class AgentGraph:
         """把 RelationRegistry 中按 dir 命中的 RelationFragment 渲染为追加到 fragment 末尾的字符串。
 
         与 chunk 派生 chunk 不同：副路径下关联条款不会单独成 part（避免破坏 batch_size 切分），
-        而是 inline 追加到对应 fragment 的同一 part 内。
+        而是 inline 追加到对应 fragment 的同一 part 内。header 里会显式标注父章节业务定位
+        （知识名 > 各级章节），避免 LLM 在 final summary 阶段看到一坨关联条款却不知道
+        它们挂在哪个父知识块上。
         """
         if not self.enable_relations or self.relation_registry is None:
             return ""
         rels = self.relation_registry.get_by_dir(directory)
         if not rels:
             return ""
-        lines = ["**关联条款命中：**"]
+        parent_label = build_parent_location_label(self.knowledge_root, directory)
+        header = (
+            f"**关联条款命中**（父章节：{parent_label}）："
+            if parent_label
+            else "**关联条款命中：**"
+        )
+        lines = [header]
         for r in rels:
             heading = " > ".join(r.heading_path) or r.clause_full_name
             lines.append(
@@ -1658,7 +1669,9 @@ class AgentGraph:
                 f"(policy={r.policy_id} clause={r.clause_id})"
             )
             if r.highlighted:
-                lines.append(f"> 上层引用高亮: {r.highlighted}")
+                lines.append(f"**{r.highlighted}的关联知识细节如下：**")
+            else:
+                lines.append("**关联知识细节如下：**")
             lines.append(r.content or "（关联条款内容为空）")
         return "\n".join(lines)
 
