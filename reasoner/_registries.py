@@ -121,6 +121,8 @@ class RelationFragment:
     source: str                    # "local" | "remote" | "missing"
     parent_chunk_index: int        # chunk 模式：触发本次展开的原始 chunk index；副路径为 -1
     parent_dir: str                # 触发本次展开的原始 dir 绝对路径
+    target_dir: str = ""           # 本条款在本地知识库中的 dir 绝对路径（远程兜底时为空）
+    target_knowledge_root: str = ""  # 本条款所属 policy 的 knowledge_root 绝对路径（page_knowledge_dir 下一层）
 
 
 class RelationRegistry:

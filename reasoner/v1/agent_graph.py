@@ -36,12 +36,14 @@ from reasoner.v1.prompts import (
 from reasoner.v1.chunk_builder import (
     build_knowledge_chunks,
     build_parent_location_label,
+    build_target_location_label,
     split_relations_into_chunks,
     natural_dir_sort_key,
     KnowledgeChunk,
 )
 from reasoner.v1.clause_locator import ClauseLocator
 from reasoner.v1.relation_crawler import RelationCrawler
+from reasoner.v1.highlight_precheck import HighlightPrecheck
 from reasoner.v1.reduce_pipeline import ReducePart, ReducePipeline
 
 from reasoner._registries import (
@@ -244,6 +246,8 @@ class AgentGraph:
         self.relation_registry: RelationRegistry | None = None
         self.clause_locator: ClauseLocator | None = None
         self.relation_crawler: RelationCrawler | None = None
+        self.highlight_precheck: HighlightPrecheck | None = None
+        self._highlight_precheck_stats: dict = {}
         self._relation_eval_executor: ThreadPoolExecutor | None = None
         self._relation_dispatch_executor: ThreadPoolExecutor | None = None
         # 副路径（standard / retrieval）on_hit 触发的 crawl future 收集器
@@ -280,10 +284,21 @@ class AgentGraph:
                 max_nodes=self.relation_max_nodes,
                 expand_all=(self.relations_expansion_mode == "all"),
             )
+            self.highlight_precheck = HighlightPrecheck(
+                question=self.question,
+                knowledge_root=self.knowledge_root,
+                crawler=self.relation_crawler,
+                vendor=self.vendor,
+                model=self.model,
+            )
             logger.info(
                 f"[Relations] 已启用关联展开：mode={self.relations_expansion_mode}, "
                 f"max_depth={self.relation_max_depth}, max_nodes={self.relation_max_nodes}, "
                 f"workers={self.relation_workers}, page_knowledge_dir={self.page_knowledge_dir}"
+            )
+            logger.info(
+                "[Relations] HighlightPrecheck 已注册：reasoning 启动时将与 "
+                "skill 判定、chunk/agent 相关性判定并行跑一次"
             )
 
     def _shutdown_relation_executors(self) -> None:
@@ -309,6 +324,28 @@ class AgentGraph:
             ))
         except Exception as e:
             logger.exception(f"[Skill] 预评估阶段异常: {e}")
+
+    def _run_highlight_precheck(self) -> None:
+        """在独立线程中跑 HighlightPrecheck。
+
+        把当前知识包所有外链 highlightedContent 一次性喂给 LLM 判定是否需要展开，
+        命中结果通过 RelationCrawler 直接写入 RelationRegistry。统计信息存到
+        self._highlight_precheck_stats 供 trace 使用。
+
+        与 skill 判定 / chunk & agent 相关性判定并行执行；失败不影响主推理链路。
+        """
+        if self.highlight_precheck is None:
+            return
+        try:
+            self._highlight_precheck_stats = self.highlight_precheck.run()
+        except Exception as e:
+            logger.exception(f"[HighlightPrecheck] 异常: {e}")
+            self._highlight_precheck_stats = {
+                "total_candidates": 0,
+                "selected": 0,
+                "fragments": 0,
+                "reason": f"异常: {e}",
+            }
 
     def _run_root_agent_and_flatten(self) -> None:
         """主推理：根智能体 -> 子智能体并行 -> 展平结果。
@@ -612,16 +649,34 @@ class AgentGraph:
 
         mode_label = "召回模式" if self.retrieval_mode else "标准模式"
         skill_label = "Skill开启" if self.enable_skills else "Skill关闭"
+        precheck_label = (
+            "HighlightPrecheck开启" if self.highlight_precheck is not None
+            else "HighlightPrecheck关闭"
+        )
         logger.info(
-            f"AgentGraph 启动 [{mode_label} | {skill_label}]: 问题={self.question[:50]}..."
+            f"AgentGraph 启动 [{mode_label} | {skill_label} | {precheck_label}]: "
+            f"问题={self.question[:50]}..."
         )
 
+        # 启动阶段的并行任务：skill 判定 + highlight 关键词预判 + 主推理（agent 相关性判定）
+        side_tasks: list[tuple[str, Callable]] = []
         if self.enable_skills:
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                skill_future = executor.submit(self._run_skill_evaluation)
+            side_tasks.append(("skill", self._run_skill_evaluation))
+        if self.highlight_precheck is not None:
+            side_tasks.append(("highlight_precheck", self._run_highlight_precheck))
+
+        if side_tasks:
+            with ThreadPoolExecutor(max_workers=len(side_tasks) + 1) as executor:
+                side_futures = {
+                    name: executor.submit(fn) for name, fn in side_tasks
+                }
                 reasoning_future = executor.submit(self._run_root_agent_and_flatten)
                 reasoning_future.result()
-                skill_future.result()
+                for name, fut in side_futures.items():
+                    try:
+                        fut.result()
+                    except Exception as e:
+                        logger.exception(f"[Parallel·{name}] 启动阶段任务异常: {e}")
         else:
             self._run_root_agent_and_flatten()
 
@@ -715,6 +770,15 @@ class AgentGraph:
             )
             skill_thread.start()
 
+        precheck_thread: threading.Thread | None = None
+        if self.highlight_precheck is not None:
+            precheck_thread = threading.Thread(
+                target=self._run_highlight_precheck,
+                name="highlight-precheck",
+                daemon=True,
+            )
+            precheck_thread.start()
+
         # 三种走法：
         #   (A) reduce_queue 模式且 batch_size > 0：走统一 ReducePipeline，
         #       生产侧（chunk LLM + 关联展开 + 派生 chunk LLM）边产出边入队，
@@ -736,13 +800,20 @@ class AgentGraph:
 
         if use_reduce_queue:
             # ReducePipeline 自己管 final merge，且会在 final merge 触发时 join skill_thread；
-            # 不需要外层再 join + 计算 skill_context。
+            # HighlightPrecheck 的 orphan 注入也下沉到 pipeline 内部（需要在 wait_and_finalize
+            # 收口之前完成 part 投递），以保持与分批压缩的顺序一致。
             try:
-                answer = self._chunk_reduce_queue_pipeline(chunks, skill_thread=skill_thread)
+                answer = self._chunk_reduce_queue_pipeline(
+                    chunks,
+                    skill_thread=skill_thread,
+                    precheck_thread=precheck_thread,
+                )
             finally:
-                # 兜底 join，避免 final merge 路径异常时 skill_thread 悬挂
+                # 兜底 join，避免 final merge 路径异常时 skill_thread / precheck_thread 悬挂
                 if skill_thread is not None and skill_thread.is_alive():
                     skill_thread.join()
+                if precheck_thread is not None and precheck_thread.is_alive():
+                    precheck_thread.join()
         else:
             try:
                 if self.enable_relations and self.relation_crawler is not None:
@@ -753,12 +824,25 @@ class AgentGraph:
             finally:
                 if skill_thread is not None:
                     skill_thread.join()
+                # 必须先 join precheck 才能保证 RelationRegistry 稳定、
+                # _build_chunk_orphan_part 能看到完整的 orphan 集合。
+                if precheck_thread is not None:
+                    precheck_thread.join()
 
             if self.enable_skills and self.skill_registry:
                 done_records_snapshot = self.skill_registry.get_all()
             else:
                 done_records_snapshot = []
             summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
+
+            # 把 HighlightPrecheck 主动判定命中、但未被任何 chunk slot 收纳的 RelationFragment
+            # 作为额外 part 注入，确保其原文进入最终汇总的 prompt。
+            orphan_part = self._build_chunk_orphan_part()
+            if orphan_part:
+                if batch_outputs is not None:
+                    batch_outputs.append(orphan_part)
+                else:
+                    ordered_parts.append(orphan_part)
 
             if batch_outputs is not None:
                 # 流式调度已经把 ordered_parts 凑批跑完 BATCH_SUMMARY，
@@ -1044,6 +1128,7 @@ class AgentGraph:
         self,
         chunks: list[KnowledgeChunk],
         skill_thread: threading.Thread | None,
+        precheck_thread: threading.Thread | None = None,
     ) -> str:
         """reduce_queue 模式的 chunk 入口：复用 chunk LLM / RelationCrawler / 派生 chunk LLM
         三相生产侧逻辑，但用 ReducePipeline 接管所有 batch summary 调度。
@@ -1094,6 +1179,13 @@ class AgentGraph:
         )
         self._reduce_pipeline = pipeline
 
+        # HighlightPrecheck 的 orphan 注入：在 pipeline 收口前以"独立生产者"的方式投递，
+        # 为其保留一个 producer slot（在任意 chunk producer_done 前就 inc，避免
+        # active_producers 提前归零被 _is_settled_locked 误判为已收口）。
+        orphan_reserved = precheck_thread is not None
+        if orphan_reserved:
+            pipeline.producer_inc(1)
+
         try:
             for chunk, slot in zip(chunks, slots):
                 pipeline.producer_inc(1)
@@ -1101,6 +1193,27 @@ class AgentGraph:
                     self._reduce_run_self,
                     chunk, slot, total_chunks, chunk_pool, pipeline, has_relations,
                 )
+
+            if orphan_reserved:
+                def _inject_orphan():
+                    try:
+                        if precheck_thread is not None:
+                            precheck_thread.join()
+                        orphan_text = self._build_chunk_orphan_part()
+                        if orphan_text:
+                            pipeline.submit_part(ReducePart(
+                                text=orphan_text,
+                                source_label="highlight-precheck-orphan",
+                                depth=0,
+                            ))
+                    finally:
+                        pipeline.producer_done(1)
+
+                threading.Thread(
+                    target=_inject_orphan,
+                    name="precheck-orphan-inject",
+                    daemon=True,
+                ).start()
 
             answer = pipeline.wait_and_finalize()
         finally:
@@ -1620,6 +1733,7 @@ class AgentGraph:
         )
 
         organized = []
+        rendered_dirs: set[str] = set()
         for frag in sorted_fragments:
             heading_label = " > ".join(frag.heading_path)
             text = f"【{heading_label}】\n{frag.content}"
@@ -1632,8 +1746,13 @@ class AgentGraph:
             relation_block = self._render_inline_relations(frag.directory_path)
             if relation_block:
                 text += "\n\n" + relation_block
+            rendered_dirs.add(os.path.normpath(frag.directory_path))
 
             organized.append(text)
+
+        orphan_part = self._build_orphan_relation_part(rendered_dirs)
+        if orphan_part:
+            organized.append(orphan_part)
 
         logger.info(
             f"[Retrieval] 知识片段梳理：{len(fragments)} 个片段，"
@@ -1646,9 +1765,12 @@ class AgentGraph:
         """把 RelationRegistry 中按 dir 命中的 RelationFragment 渲染为追加到 fragment 末尾的字符串。
 
         与 chunk 派生 chunk 不同：副路径下关联条款不会单独成 part（避免破坏 batch_size 切分），
-        而是 inline 追加到对应 fragment 的同一 part 内。header 里会显式标注父章节业务定位
-        （知识名 > 各级章节），避免 LLM 在 final summary 阶段看到一坨关联条款却不知道
-        它们挂在哪个父知识块上。
+        而是 inline 追加到对应 fragment 的同一 part 内。呈现规则：
+          - 父章节定位只在 header 显示一次（同一 directory 下多条关联共享同一父章节）；
+          - 每条关联用三行同构的【标签 · 内容】块呈现一条"父章节 → 命中关键词 → 本条款"的溯源链，
+            其中父章节已在 header 出现，每条关联自身只需再补【命中关键词】+【关联条款位置】；
+          - 三条坐标格式完全一致，LLM 能识别出它们是同一坐标系下的三个不同点；
+          - 不输出 hop / source / policyId / clauseId 等技术元数据——对业务推理无帮助。
         """
         if not self.enable_relations or self.relation_registry is None:
             return ""
@@ -1656,18 +1778,15 @@ class AgentGraph:
         if not rels:
             return ""
         parent_label = build_parent_location_label(self.knowledge_root, directory)
-        header = (
-            f"**关联条款命中**（父章节：{parent_label}）："
-            if parent_label
-            else "**关联条款命中：**"
-        )
-        lines = [header]
+        lines = ["**关联条款命中：**"]
+        if parent_label:
+            lines.append(f"【来自父章节 · {parent_label}】")
         for r in rels:
-            heading = " > ".join(r.heading_path) or r.clause_full_name
-            lines.append(
-                f"\n**[hop={r.hop_depth}/{r.source}] {heading}** "
-                f"(policy={r.policy_id} clause={r.clause_id})"
-            )
+            target_label = build_target_location_label(r)
+            lines.append("")
+            if r.highlighted:
+                lines.append(f"【命中关键词 · {r.highlighted}】")
+            lines.append(f"【关联条款位置 · {target_label}】")
             if r.highlighted:
                 lines.append(f"**{r.highlighted}的关联知识细节如下：**")
             else:
@@ -1719,10 +1838,14 @@ class AgentGraph:
     def _build_evidence_parts(self) -> list[str]:
         """构建子智能体结果的文本片段列表。
 
-        启用关联展开时，把 r.relevant_dirs 中每个目录命中的 RelationFragment inline 追加
-        到对应 part 末尾，不另起 part。
+        启用关联展开时：
+          - 把 r.relevant_dirs 中每个目录命中的 RelationFragment inline 追加到对应 part 末尾；
+          - 所有 r.relevant_dirs 之外残留的 RelationFragment（主要来源：HighlightPrecheck
+            主动预判命中、但其父章节未被任何子智能体探索到）补一个独立的 "额外关联" part，
+            确保这些关联条款仍能进入 final summary 的 prompt。
         """
         agent_parts = []
+        rendered_dirs: set[str] = set()
         for r in self.all_results:
             evidence_str = "\n".join(f"  - {e}" for e in r.evidence) if r.evidence else "  （无证据）"
             part = (
@@ -1741,8 +1864,108 @@ class AgentGraph:
                 rel_blocks = [b for b in rel_blocks if b]
                 if rel_blocks:
                     part += "\n\n" + "\n\n".join(rel_blocks)
+                for d in r.relevant_dirs:
+                    rendered_dirs.add(os.path.normpath(d))
             agent_parts.append(part)
+
+        orphan_part = self._build_orphan_relation_part(rendered_dirs)
+        if orphan_part:
+            agent_parts.append(orphan_part)
+
         return agent_parts
+
+    def _build_chunk_orphan_part(self) -> str:
+        """chunk 模式专用：汇总所有未被任何 chunk slot 收纳的 RelationFragment。
+
+        Chunk 模式的"主循环"是派生 chunk：每个 chunk 的 _streaming_run_relations 把它自己
+        crawl 到的 fragments 切成派生 chunk 跑 LLM。HighlightPrecheck 在 RelationRegistry
+        里先行占位的 (policy_id, clause_id)，会使后续 chunk 的 crawl 去重命中后直接丢弃
+        （registry.has 返回 True），因此这些 fragment 既不会出现在任何 slot.relation_fragments
+        中，也不会成为派生 chunk 的输入——不在这里单独兜底就会在 final summary 阶段丢失。
+
+        本方法把这些 orphan 按 `_format_relation_fragment_text` 统一渲染，拼成一个字符串 part，
+        直接作为 ordered_parts / ReducePart 注入到最终汇总链路（不再经过 chunk LLM 提炼）。
+        """
+        if not self.enable_relations or self.relation_registry is None:
+            return ""
+        all_frags = self.relation_registry.get_all()
+        if not all_frags:
+            return ""
+
+        rendered_keys: set[tuple[str, str]] = set()
+        slots = getattr(self, "_chunk_slots", None) or []
+        for slot in slots:
+            for f in slot.relation_fragments:
+                rendered_keys.add((f.policy_id, f.clause_id))
+
+        orphan_frags = [
+            f for f in all_frags
+            if (f.policy_id, f.clause_id) not in rendered_keys
+        ]
+        if not orphan_frags:
+            return ""
+
+        from reasoner.v1.chunk_builder import _format_relation_fragment_text
+        blocks = [
+            _format_relation_fragment_text(f, knowledge_root=self.knowledge_root)
+            for f in orphan_frags
+        ]
+        logger.info(
+            f"[HighlightPrecheck] chunk 模式补回 {len(orphan_frags)} 个未被任何 chunk slot "
+            f"收纳的 RelationFragment（作为额外 part 注入 final summary）"
+        )
+        return (
+            "### HighlightPrecheck 额外发现的关联条款"
+            "（父 chunk 未被判定相关，但关键词预判认为可能对答案有帮助；原文未经 chunk LLM 提炼）\n\n"
+            + "\n\n".join(blocks)
+        )
+
+    def _build_orphan_relation_part(self, rendered_dirs: set[str]) -> str:
+        """把 RelationRegistry 中父章节不在 rendered_dirs 的关联条款汇总为一个独立 part。
+
+        设计动机：RelationRegistry 由三类来源写入——
+          - chunk LLM 命中后触发的 crawl（parent_chunk_index=chunk.index）；
+          - ReactAgent 命中后触发的 crawl（parent_chunk_index=-1）；
+          - HighlightPrecheck 在启动阶段主动判定需要展开的 crawl（parent_chunk_index=-1）。
+        前两类的 parent_dir 天然落在某个 agent 的 relevant_dirs 里，会被 inline 渲染；
+        HighlightPrecheck 的核心价值恰恰是"父 chunk / agent 都没判相关、但关联知识可能
+        依然重要"——这类 fragment 的 parent_dir 不在 rendered_dirs 里，若不额外兜底就
+        会在 final summary prompt 里丢失。这里按 parent_dir 分组走相同的 inline 渲染器，
+        保持与主循环一致的呈现风格，只是统一挂在"额外关联"标题下。
+        """
+        if not self.enable_relations or self.relation_registry is None:
+            return ""
+        all_frags = self.relation_registry.get_all()
+        if not all_frags:
+            return ""
+
+        orphan_dirs: list[str] = []
+        seen_norm: set[str] = set()
+        for f in all_frags:
+            if not f.parent_dir:
+                continue
+            norm = os.path.normpath(f.parent_dir)
+            if norm in rendered_dirs or norm in seen_norm:
+                continue
+            seen_norm.add(norm)
+            orphan_dirs.append(f.parent_dir)
+
+        if not orphan_dirs:
+            return ""
+
+        blocks: list[str] = []
+        for d in orphan_dirs:
+            block = self._render_inline_relations(d)
+            if block:
+                blocks.append(block)
+        if not blocks:
+            return ""
+
+        header = (
+            "### HighlightPrecheck 额外发现的关联条款"
+            "（其父章节未被任何子智能体主动探索到，但 LLM 关键词预判认为可能对答案有帮助）"
+        )
+        return header + "\n\n" + "\n\n".join(blocks)
 
     def _final_summary(self, skill_context: str = "") -> str:
         """调用 LLM 做最终汇总（单次全量），并行触发 judge → 按需 all-in-answer"""

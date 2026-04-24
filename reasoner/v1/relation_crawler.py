@@ -33,7 +33,7 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 from llm.client import chat
 from utils.verbose_logger import step_scope
@@ -96,8 +96,14 @@ class RelationCrawler:
         source_chunk_index: int,
         source_dir: str,
         parent_assessment: str,
+        ref_filter: Optional[Callable[[str, str, str], bool]] = None,
     ) -> list[RelationFragment]:
-        """从 source_dir/clause.json 起步做 BFS。返回本次新增的 RelationFragment 列表。"""
+        """从 source_dir/clause.json 起步做 BFS。返回本次新增的 RelationFragment 列表。
+
+        ref_filter: 可选的首跳过滤函数，入参 (highlighted, target_policy_id, target_clause_id)，
+            返回 True 表示保留该首跳候选。用于 HighlightPrecheck 只展开 LLM 选中的高亮关联，
+            不把父 clause 的全部 references 一起拉下来。BFS 后续深跳不受此 filter 约束。
+        """
         clause_json = os.path.join(source_dir, "clause.json")
         if not os.path.isfile(clause_json):
             logger.debug(f"[RelationCrawler] {source_dir} 无 clause.json，跳过")
@@ -118,6 +124,8 @@ class RelationCrawler:
                 if not pid or not cid:
                     continue
                 if child.get("cycle") or child.get("missing"):
+                    continue
+                if ref_filter is not None and not ref_filter(highlighted, pid, cid):
                     continue
                 first_hop.append(_CandidateRef(
                     policy_id=pid,
@@ -267,6 +275,9 @@ class RelationCrawler:
                 return None, []
             next_assessment = reason if reason else cand.parent_assessment
 
+        target_dir = clause_dict.get("dir_abspath", "") or ""
+        target_knowledge_root = self._derive_target_knowledge_root(target_dir)
+
         fragment = RelationFragment(
             policy_id=cand.policy_id,
             clause_id=cand.clause_id,
@@ -280,6 +291,8 @@ class RelationCrawler:
             source=source,
             parent_chunk_index=source_chunk_index,
             parent_dir=source_dir,
+            target_dir=target_dir,
+            target_knowledge_root=target_knowledge_root,
         )
 
         next_layer: list[_CandidateRef] = []
@@ -318,6 +331,35 @@ class RelationCrawler:
                     ))
 
         return fragment, next_layer
+
+    def _derive_target_knowledge_root(self, target_dir: str) -> str:
+        """由 target_dir 反推其所属 policy 的 knowledge_root（= page_knowledge_dir 下一层的目录）。
+
+        例：page_knowledge_dir=/.../page_knowledge
+            target_dir=/.../page_knowledge/农产品精简版_20260422181920/2_涉税处理/2.1_增值税/...
+            返回：/.../page_knowledge/农产品精简版_20260422181920
+
+        当 target_dir 为空（远程兜底）或不在 page_knowledge_dir 下（异常路径）时返回空串，
+        渲染层会退化到 heading_path / clause_full_name。
+
+        这里不直接复用 AgentGraph.knowledge_root，是为了支持跨 policy 引用——目标条款
+        可能属于另一个 policy，它的"知识名"应该来自它自己的 _policy_index.json。
+        """
+        if not target_dir:
+            return ""
+        pk = getattr(self.locator, "page_knowledge_dir", "") or ""
+        if not pk:
+            return ""
+        try:
+            pk_abs = os.path.abspath(pk)
+            td_abs = os.path.abspath(target_dir)
+            rel = os.path.relpath(td_abs, pk_abs)
+        except ValueError:
+            return ""
+        segs = [s for s in rel.replace("\\", "/").split("/") if s and s != "."]
+        if not segs or segs[0] == "..":
+            return ""
+        return os.path.join(pk_abs, segs[0])
 
 
 def _call_llm_json(prompt: str, vendor: str, model: str) -> Optional[dict]:

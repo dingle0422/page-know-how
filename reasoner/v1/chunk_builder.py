@@ -17,8 +17,14 @@ __all__ = [
     "build_knowledge_chunks",
     "split_relations_into_chunks",
     "build_parent_location_label",
+    "build_target_location_label",
     "natural_dir_sort_key",
 ]
+
+
+def build_target_location_label(fragment: "RelationFragment") -> str:
+    """公开入口：构造 RelationFragment 的本体业务定位（见 _build_target_location_label）。"""
+    return _build_target_location_label(fragment)
 
 _KNOWLEDGE_NAME_CACHE: dict[str, str] = {}
 
@@ -325,27 +331,27 @@ def _format_relation_fragment_text(
 ) -> str:
     """把单个 RelationFragment 渲染为用于派生 chunk 的字符串块。
 
-    保持与原始 chunk 类似的【层级】+ 正文结构，并在头部带上完整的"来由"上下文：
-      - 关联跳深 / 来源 policyId+clauseId
-      - **父章节业务定位**：知识名 > 一级章节 > ... > 末级章节
-      - 上一层 LLM 的关联性结论（parent_assessment 摘要）
-      - 以业务化口吻把高亮关键词嵌入到正文引导语，让 LLM 把关联知识贴回父章节原文
+    头部三行是同构的三条业务坐标，**格式完全一致**（都是"【标签 · 内容】"）：
+      - 【来自父章节 · ...】触发本次关联展开的上游章节路径；
+      - 【命中关键词 · ...】父章节里那段被高亮、并把本条款牵出来的 highlightedContent；
+      - 【关联条款位置 · ...】本条款自身在知识库里的章节路径；
+    三者同构是刻意设计——LLM 能一眼看出"父章节 → 关键词 → 本条款"这条溯源链条上的三个坐标点，
+    从而明确"这块关联知识属于 A 章节、但它是因为 B 章节正文里高亮的某词才被拉进来的"。
 
-    派生 chunk 在 chunk 推理阶段单独成块，若不显式带上父章节路径，LLM 会完全不知道
-    该关联是从哪个上游知识块牵出来的——这里 knowledge_root 参数就是用来构造该定位。
+    故意**不把** hop_depth / source / policyId / clauseId 放进 prompt：这些是内部去重与 trace 用的
+    技术标识（UUID、数字跳深），对 LLM 的业务推理没有任何帮助，反而挤占 token 与干扰注意力。
     """
-    heading_parts = list(fragment.heading_path) or [fragment.clause_full_name or fragment.clause_id]
-    if fragment.clause_number:
-        heading_parts = [f"{fragment.clause_number}_{heading_parts[-1]}"] if len(heading_parts) == 1 else heading_parts
-    heading_label = "【关联条款 · " + " > ".join(heading_parts) + "】"
+    target_label = _build_target_location_label(fragment)
 
-    meta_lines = [
-        f"> 关联跳深: hop={fragment.hop_depth} · 来源={fragment.source} · "
-        f"policyId={fragment.policy_id} · clauseId={fragment.clause_id}",
-    ]
+    heading_lines: list[str] = []
     parent_label = build_parent_location_label(knowledge_root, fragment.parent_dir)
     if parent_label:
-        meta_lines.append(f"> 来自父章节: {parent_label}")
+        heading_lines.append(f"【来自父章节 · {parent_label}】")
+    if fragment.highlighted:
+        heading_lines.append(f"【命中关键词 · {fragment.highlighted}】")
+    heading_lines.append(f"【关联条款位置 · {target_label}】")
+
+    meta_lines: list[str] = []
     if fragment.parent_assessment:
         meta_lines.append(f"> 上层关联性判定: {_one_line(fragment.parent_assessment, 200)}")
 
@@ -355,7 +361,30 @@ def _format_relation_fragment_text(
         intro = "**关联知识细节如下：**"
 
     body = (fragment.content or "").strip() or "（条款内容为空）"
-    return "\n".join([heading_label, *meta_lines, "", intro, body])
+    return "\n".join([*heading_lines, *meta_lines, "", intro, body])
+
+
+def _build_target_location_label(fragment: "RelationFragment") -> str:
+    """为 RelationFragment 构造"本条款在知识库中的业务定位"字符串。
+
+    优先级（与 parent_label 逻辑对称）：
+      1. target_dir + target_knowledge_root 都非空：走 build_parent_location_label，
+         得到 "知识名 > 2_涉税处理 > 2.1_增值税 > ..."（带业务编号）。
+      2. 任一缺失（远程兜底节点无 dir_abspath）：回退到 heading_path 拼接；
+         heading_path 是名称段（无编号），由 ClauseLocator 从相对路径去编号产出，
+         此时无法带编号，只能退化为可读名链。
+      3. 全部缺失：退化到 clause_full_name 或 clause_id。
+    """
+    if fragment.target_dir and fragment.target_knowledge_root:
+        label = build_parent_location_label(
+            fragment.target_knowledge_root, fragment.target_dir,
+        )
+        if label:
+            return label
+    heading_parts = list(fragment.heading_path)
+    if heading_parts:
+        return " > ".join(heading_parts)
+    return fragment.clause_full_name or fragment.clause_id
 
 
 def _one_line(text: str, limit: int) -> str:
