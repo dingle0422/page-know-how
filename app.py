@@ -150,7 +150,7 @@ class ReasonRequest(BaseModel):
         description="关联展开最大跳深（含首跳）。enableRelations=False 时忽略。",
     )
     relationMaxNodes: int = Field(
-        default=50,
+        default=999,
         description="单次 chunk / 子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展（横向纵向都包含）。",
     )
     relationWorkers: int = Field(
@@ -220,6 +220,19 @@ class ReasonData(BaseModel):
     skillsResult: dict[str, str] = Field(
         default_factory=dict,
         description="本次推理实际调用的 skill 结果：{skill_name: stdout}；未启用 skill 或未触发任何 skill 时为空 {}",
+    )
+    sessionId: str | None = Field(
+        default=None,
+        description="本次请求的 verbose session id。verbose=True 时为真正用于落盘的 id"
+                    "（调用方传了 sessionId 就用调用方的，否则由服务端自动生成 sess-xxxxx）；"
+                    "verbose=False 时回显调用方传入的值（可能为 null）。"
+                    "配合 logName 可直接定位到 verbose_logs/ 下对应的 jsonl 日志文件",
+    )
+    logName: str | None = Field(
+        default=None,
+        description="verbose=True 时，本次 session 对应的日志文件名，格式 "
+                    "<YYYYMMDD_HHMMSS>_<sessionId>.jsonl，位于服务端 verbose_logs/ 目录下。"
+                    "verbose=False 时为 null（没有落盘）",
     )
 
 
@@ -599,7 +612,11 @@ async def reason(req: ReasonRequest):
             session_id=req.sessionId,
             meta=session_meta,
             enabled=req.verbose,
-        ):
+        ) as _session:
+            # verbose=True → _session 为真实 _Session 对象，取其 session_id / file_path 回显；
+            # verbose=False → _session 为 None，仅回显调用方原样的 sessionId，log_name 置空。
+            resp_session_id = _session.session_id if _session is not None else req.sessionId
+            resp_log_name = _session.file_path.name if _session is not None else None
             try:
                 knowledge_dir = await asyncio.to_thread(
                     _get_or_extract_knowledge, req.policyId
@@ -647,6 +664,8 @@ async def reason(req: ReasonRequest):
                         think=result.get("think", ""),
                         skillsResult=result.get("skills_result", {}),
                         policyId=req.policyId,
+                        sessionId=resp_session_id,
+                        logName=resp_log_name,
                     ),
                     status_code=200,
                     message="success",
@@ -656,7 +675,15 @@ async def reason(req: ReasonRequest):
                 if req.verbose:
                     _log_verbose_event("reason_error", error=repr(e))
                 return ReasonResponse(
-                    data=None,
+                    data=ReasonData(
+                        khObj="{}",
+                        answer=f"推理失败: {str(e)}",
+                        think="",
+                        skillsResult={},
+                        policyId=req.policyId,
+                        sessionId=resp_session_id,
+                        logName=resp_log_name,
+                    ) if resp_log_name or resp_session_id else None,
                     status_code=500,
                     message=f"推理失败: {str(e)}",
                 )
