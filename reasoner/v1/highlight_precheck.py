@@ -12,7 +12,9 @@
       RelationCrawler 强制展开其目标条款（按 ref_filter 精确只展开选中的）。
     - 命中结果写入共享的 RelationRegistry；无论父 chunk 后续是否被判定相关，
       这些关联条款都会经由已有的渲染路径（_format_relation_fragment_text /
-      _render_inline_relations）进入 final summary 的 prompt。
+      _render_inline_relations / 以及 chunk 模式的 _build_chunk_orphan_part 兜底）
+      进入 summary 链路，与其他 part 按 batch_size 规则统一参与 BATCH_SUMMARY
+      或直进 final merge。
 
 设计要点：
     - 候选按 (highlighted, target_policy_id, target_clause_id) 全局去重，

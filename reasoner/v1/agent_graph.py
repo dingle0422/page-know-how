@@ -836,7 +836,12 @@ class AgentGraph:
             summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
 
             # 把 HighlightPrecheck 主动判定命中、但未被任何 chunk slot 收纳的 RelationFragment
-            # 作为额外 part 注入，确保其原文进入最终汇总的 prompt。
+            # 作为额外 part 追加到 summary 递归入口：
+            #   - 若 batch_outputs 非空（走过流式 BATCH_SUMMARY），追加到 batch_outputs 尾部，
+            #     随后与其他 batch 摘要一起进 _recursive_batch_reduce(layer=2)：总数 ≤ batch_size
+            #     时 orphan 原文直进 final merge 的 prompt，否则再过一轮 BATCH_SUMMARY。
+            #   - 若未过流式 BATCH_SUMMARY（summary_batch_size==0 等路径），直接追加到
+            #     ordered_parts，由 _chunk_finalize_summary 决定 final merge 时的处理。
             orphan_part = self._build_chunk_orphan_part()
             if orphan_part:
                 if batch_outputs is not None:
@@ -1881,10 +1886,14 @@ class AgentGraph:
         crawl 到的 fragments 切成派生 chunk 跑 LLM。HighlightPrecheck 在 RelationRegistry
         里先行占位的 (policy_id, clause_id)，会使后续 chunk 的 crawl 去重命中后直接丢弃
         （registry.has 返回 True），因此这些 fragment 既不会出现在任何 slot.relation_fragments
-        中，也不会成为派生 chunk 的输入——不在这里单独兜底就会在 final summary 阶段丢失。
+        中，也不会成为派生 chunk 的输入——不在这里单独兜底就会在 summary 阶段丢失。
 
         本方法把这些 orphan 按 `_format_relation_fragment_text` 统一渲染，拼成一个字符串 part，
-        直接作为 ordered_parts / ReducePart 注入到最终汇总链路（不再经过 chunk LLM 提炼）。
+        作为额外 part 追加到 summary 递归入口（layered 模式下进 _recursive_batch_reduce
+        layer=2；reduce_queue 模式下进 pipeline.submit_part），**不再经过 chunk LLM 提炼**，
+        但仍会按 summary 链路的普通 part 参与后续可能的 BATCH_SUMMARY / final merge 调度：
+          - 如果 summary 入口的 part 总数 ≤ batch_size，orphan 原文直进 final merge 的 prompt；
+          - 否则 orphan 会跟其他已压缩过的摘要一起再走一轮 BATCH_SUMMARY_PROMPT，然后递归收口。
         """
         if not self.enable_relations or self.relation_registry is None:
             return ""
@@ -1912,7 +1921,9 @@ class AgentGraph:
         ]
         logger.info(
             f"[HighlightPrecheck] chunk 模式补回 {len(orphan_frags)} 个未被任何 chunk slot "
-            f"收纳的 RelationFragment（作为额外 part 注入 final summary）"
+            f"收纳的 RelationFragment（原文未经 chunk LLM / StreamingBatch 提炼，"
+            f"作为额外 part 追加到 summary 递归入口，后续按 batch_size 规则"
+            f"可能参与 BATCH_SUMMARY 或直进 final merge）"
         )
         return (
             "### HighlightPrecheck 额外发现的关联条款"
