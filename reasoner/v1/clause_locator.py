@@ -162,7 +162,10 @@ class ClauseLocator:
     # ---------- 内部：远程兜底 ----------
 
     def _try_remote(self, policy_id: str, clause_id: str) -> Optional[dict]:
-        raw = self._fetch_remote(policy_id, clause_id, self.api_url)
+        # 把 self.remote_timeout 透传到 extractor.parser._fetch_single_clause,
+        # 防止下游 requests 在 read 阶段永久 hang、拖住 executor 线程不退出。
+        # 下游接受 float（按 read 处理、connect 自动取 min(10, T)）或 (connect, read) tuple。
+        raw = self._fetch_remote(policy_id, clause_id, self.api_url, timeout=self.remote_timeout)
         if raw is None:
             return None
         html = raw.get("clauseContent", "") or ""

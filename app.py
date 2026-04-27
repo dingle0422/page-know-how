@@ -5,6 +5,7 @@ import json
 import logging
 import asyncio
 import time
+import uuid
 from contextlib import asynccontextmanager
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -54,8 +55,18 @@ REASON_SYNC_POLL_INTERVAL = float(os.environ.get("REASON_SYNC_POLL_INTERVAL", "0
 # 否则网关会先一步返回 504 Gateway Timeout。常见 Nginx/Ingress 默认 30~60s，
 # 这里默认取 10s 留足余量；如果你的网关更激进，自行调小（但不要低于 2s）。
 REASON_BLPOP_TIMEOUT_SECONDS = float(os.environ.get("REASON_BLPOP_TIMEOUT_SECONDS", "10"))
+# 单条 executor 的硬超时（秒）。到点 asyncio.wait_for 会把 worker 协程打断、槽位释放,
+# 对应 task 被标为 failed(error="executor timeout after Xs")。
+# 默认 2h；如业务 P99 接近该值，改大即可；设为 0 / 负数 = 不套超时（回退老行为）。
+# 注意：executor 里 asyncio.to_thread 跑的同步代码不可取消，底层线程要靠下游
+# httpx/LLM client 自身的 read timeout 防泄漏。
+REASON_EXECUTOR_TIMEOUT_SECONDS = float(os.environ.get("REASON_EXECUTOR_TIMEOUT_SECONDS", str(2 * 3600)))
 REDIS_SERVER_URL = os.environ.get("REDIS_SERVER_URL", "http://mlp.paas.dc.servyou-it.com/redis-server")
 REDIS_SERVER_AUTH_TOKEN = os.environ.get("REDIS_SERVER_AUTH_TOKEN", "")
+
+# 本服务进程的实例 ID。每次启动生成一次（uuid），写入每条 running 任务的 instance_id,
+# 使 startup cleanup 能精确区分"本进程正在跑的 running" vs "上一代崩掉留下的僵尸"。
+INSTANCE_ID: str = ""
 
 # lifespan 内初始化；模块级暴露给路由处理函数。
 _redis_client: RedisServerClient | None = None
@@ -71,8 +82,9 @@ def _require_redis() -> RedisServerClient:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    global _redis_client, _worker_pool
-    logger.info(f"[lifespan] 启动，REDIS_SERVER_URL={REDIS_SERVER_URL}")
+    global _redis_client, _worker_pool, INSTANCE_ID
+    INSTANCE_ID = str(uuid.uuid4())
+    logger.info(f"[lifespan] 启动，REDIS_SERVER_URL={REDIS_SERVER_URL} INSTANCE_ID={INSTANCE_ID}")
     _redis_client = RedisServerClient(
         REDIS_SERVER_URL,
         auth_token=REDIS_SERVER_AUTH_TOKEN,
@@ -86,12 +98,30 @@ async def lifespan(_app: FastAPI):
         logger.exception(f"[lifespan] redis_server 不可达，推理服务无法启动: {e}")
         raise
 
+    # 启动前扫一遍 task:*，把上一代进程崩掉留下的 running 僵尸全部改写成 failed,
+    # 让客户端轮询立刻能看到 "server restarted while running" 而不必死等 TTL。
+    # 必须放在 WorkerPool.start() 之前：避免新 worker 刚启动就把自己正在处理的
+    # running 记录（instance_id == INSTANCE_ID）被并发扫到——反正也扫不到，
+    # 因为 cleanup 只处理 instance_id != INSTANCE_ID 的条目，这里只是顺序保险。
+    try:
+        await _tq.cleanup_stale_running_tasks(
+            _redis_client,
+            current_instance_id=INSTANCE_ID,
+            ttl_seconds=REASON_TASK_TTL_SECONDS,
+        )
+    except Exception as e:
+        # 清理失败不应阻塞服务启动——大不了那些僵尸记录等 TTL 到期自己消失,
+        # 新任务仍然能正常入队执行。
+        logger.warning(f"[lifespan] 启动清理僵尸 running 任务失败（忽略继续启动）: {e}")
+
     _worker_pool = _tq.WorkerPool(
         _redis_client,
         executor=_reason_executor,
         worker_count=MAX_CONCURRENT_REASONING,
         task_ttl_seconds=REASON_TASK_TTL_SECONDS,
         blpop_timeout_seconds=REASON_BLPOP_TIMEOUT_SECONDS,
+        instance_id=INSTANCE_ID,
+        executor_timeout_seconds=REASON_EXECUTOR_TIMEOUT_SECONDS,
     )
     await _worker_pool.start()
     try:

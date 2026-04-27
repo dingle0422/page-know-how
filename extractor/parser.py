@@ -3,11 +3,34 @@ import re
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import TypedDict
+from typing import TypedDict, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 HTML_TAG_RE = re.compile(r'<[a-zA-Z][^>]*>')
+
+
+# 远程条款接口（_fetch_single_clause / _fetch_policy_clauses_raw）的默认 (connect, read) 超时。
+# 不配会让 requests 永不超时，`_reason_executor` 底下的线程在关联展开阶段有机会永久 hang,
+# 进而让 asyncio.wait_for 无法真正回收线程（asyncio 层能跳出，OS 线程泄漏）。
+# 这里取较保守的 (10, 60)：clause 接口正常 <1s，给 60s 余量覆盖偶发慢 + 网关波动。
+_DEFAULT_REMOTE_TIMEOUT: tuple[float, float] = (10.0, 60.0)
+
+TimeoutLike = Optional[Union[float, tuple[float, float]]]
+
+
+def _normalize_timeout(timeout: TimeoutLike) -> Union[float, tuple[float, float]]:
+    """把 None / float / (connect, read) 归一化成 requests 可直接吃的 timeout。
+
+    - None → 回退到模块默认 ``_DEFAULT_REMOTE_TIMEOUT``;
+    - float T → 视为 read；connect 取 ``min(10, T)`` 保底（避免 connect 也被拖到同样长）;
+    - tuple → 原样透传。
+    """
+    if timeout is None:
+        return _DEFAULT_REMOTE_TIMEOUT
+    if isinstance(timeout, (int, float)):
+        return (min(10.0, float(timeout)), float(timeout))
+    return timeout
 
 
 class Clause(TypedDict):
@@ -494,15 +517,27 @@ DEFAULT_API_URL = "http://10.199.0.40:8080/kg-platform/api/clauses/list"
 DEFAULT_CLAUSE_API_URL = "http://10.199.0.40:8080/kg-platform/api/clauses/get"
 
 
-def _fetch_single_clause(policy_id: str, clause_id: str, api_url: str) -> dict | None:
+def _fetch_single_clause(
+    policy_id: str,
+    clause_id: str,
+    api_url: str,
+    timeout: TimeoutLike = None,
+) -> dict | None:
     """按 (policyId, clauseId) 调用细粒度接口拉取单条 clause raw dict。
 
     返回结构与 fetch_api_clauses 中 raw 同形（包含 clauseId/clauseNumber/clauseName/clauseContent 等）。
     失败、网络异常、查无均返回 None（调用方据此标记 missing/error）。
+
+    ``timeout`` 透传给 requests；默认回退 ``_DEFAULT_REMOTE_TIMEOUT``, 防止 read 永久 hang
+    导致 executor 底下的线程泄漏。超时会被 except 吸收成 None, 关联展开优雅降级。
     """
     import requests
     try:
-        response = requests.post(api_url, json={"policyId": policy_id, "clauseId": clause_id})
+        response = requests.post(
+            api_url,
+            json={"policyId": policy_id, "clauseId": clause_id},
+            timeout=_normalize_timeout(timeout),
+        )
         response.raise_for_status()
         result = response.json()
     except Exception as e:
@@ -536,15 +571,25 @@ def _fetch_single_clause(policy_id: str, clause_id: str, api_url: str) -> dict |
     return None
 
 
-def _fetch_policy_clauses_raw(policy_id: str, api_url: str) -> list[dict]:
+def _fetch_policy_clauses_raw(
+    policy_id: str,
+    api_url: str,
+    timeout: TimeoutLike = None,
+) -> list[dict]:
     """按 policyId 调用全文接口拉取整篇 policy 的 raw clause 列表。
 
     与 fetch_api_clauses 内部使用的接口同源，但仅返回原始 clause 列表，不做 number / path 加工。
     异常或为空时返回 []，调用方据此降级处理。
+
+    ``timeout`` 透传 requests；默认回退 ``_DEFAULT_REMOTE_TIMEOUT``, 防止下游 hang 拖住线程。
     """
     import requests
     try:
-        response = requests.post(api_url, json={"policyId": policy_id})
+        response = requests.post(
+            api_url,
+            json={"policyId": policy_id},
+            timeout=_normalize_timeout(timeout),
+        )
         response.raise_for_status()
         result = response.json()
     except Exception as e:
@@ -565,6 +610,7 @@ def resolve_references(
     visited: set[tuple[str, str]],
     single_url: str,
     bulk_url: str,
+    timeout: TimeoutLike = None,
 ) -> None:
     """就地填充 refs[i]['resolvedClauses']，递归展开嵌套引用，遇循环 / 查无 / 异常停止该分支。
 
@@ -589,6 +635,7 @@ def resolve_references(
         ref['resolvedClauses'] = _expand_to_clause_nodes(
             policy_id, raw_clause_id,
             clause_cache, policy_cache, visited, single_url, bulk_url,
+            timeout=timeout,
         )
 
 
@@ -600,6 +647,7 @@ def _expand_to_clause_nodes(
     visited: set[tuple[str, str]],
     single_url: str,
     bulk_url: str,
+    timeout: TimeoutLike = None,
 ) -> list[dict]:
     """把 (policyId, raw_clauseId) 展开成扁平的 clause 节点列表，每个节点本身可再含 resolvedClauses。
 
@@ -612,7 +660,10 @@ def _expand_to_clause_nodes(
         return []
 
     if raw_clause_id == '':
-        child_ids = _expand_whole_policy(policy_id, clause_cache, policy_cache, bulk_url)
+        child_ids = _expand_whole_policy(
+            policy_id, clause_cache, policy_cache, bulk_url,
+            timeout=timeout,
+        )
     elif ',' in raw_clause_id:
         child_ids = [cid.strip() for cid in raw_clause_id.split(',') if cid.strip()]
     else:
@@ -621,6 +672,7 @@ def _expand_to_clause_nodes(
     return [
         _resolve_single_clause(
             policy_id, cid, clause_cache, policy_cache, visited, single_url, bulk_url,
+            timeout=timeout,
         )
         for cid in child_ids
     ]
@@ -631,12 +683,13 @@ def _expand_whole_policy(
     clause_cache: dict[tuple[str, str], dict | None],
     policy_cache: dict[str, list[str]],
     bulk_url: str,
+    timeout: TimeoutLike = None,
 ) -> list[str]:
     """整篇引用：返回该 policy 的全部 clauseId 列表（按 API 原顺序），首次访问时拉 bulk 并回填两个 cache。"""
     if policy_id in policy_cache:
         return policy_cache[policy_id]
 
-    raw_list = _fetch_policy_clauses_raw(policy_id, bulk_url)
+    raw_list = _fetch_policy_clauses_raw(policy_id, bulk_url, timeout=timeout)
     ids: list[str] = []
     for raw in raw_list:
         cid = raw.get('clauseId', '')
@@ -658,6 +711,7 @@ def _resolve_single_clause(
     visited: set[tuple[str, str]],
     single_url: str,
     bulk_url: str,
+    timeout: TimeoutLike = None,
 ) -> dict:
     """对单个 (policyId, clauseId) 解析为一个轻量 clause 节点。
 
@@ -680,7 +734,7 @@ def _resolve_single_clause(
     if key in clause_cache:
         raw = clause_cache[key]
     else:
-        raw = _fetch_single_clause(policy_id, clause_id, single_url)
+        raw = _fetch_single_clause(policy_id, clause_id, single_url, timeout=timeout)
         clause_cache[key] = raw
 
     if raw is None:
@@ -699,6 +753,7 @@ def _resolve_single_clause(
             children = _expand_to_clause_nodes(
                 ref.get('policyId', ''), ref.get('clauseId', ''),
                 clause_cache, policy_cache, visited, single_url, bulk_url,
+                timeout=timeout,
             )
             flat_children.extend(children)
         node['resolvedClauses'] = flat_children
