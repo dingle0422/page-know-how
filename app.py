@@ -39,6 +39,25 @@ _knowledge_cache: dict[str, str] = {}
 MAX_CONCURRENT_REASONING = int(os.environ.get("MAX_CONCURRENT_REASONING", "10"))
 _reasoning_semaphore: asyncio.Semaphore | None = None
 
+# 请求登记表：request_id -> 元信息；dict 保序 ≈ 入队顺序（FIFO），
+# 与 asyncio.Semaphore 内部 _waiters 队列的唤醒顺序一致，因此可直接用作"执行顺序"。
+# 字段：
+#   question / policyId     —— 便于 requestQueueStatus 直接回显
+#   state                   —— "queued" | "running"
+#   enqueue_time            —— 进入 /api/reason 的 epoch 秒
+#   start_time              —— 实际拿到 semaphore 开始推理的 epoch 秒（queued 阶段为 None）
+_request_registry: "dict[int, dict]" = {}
+_request_seq: int = 0
+_registry_lock: asyncio.Lock | None = None
+
+
+def _get_registry_lock() -> asyncio.Lock:
+    """懒初始化 registry 写锁，保证 request_id 单调自增且字典操作原子。"""
+    global _registry_lock
+    if _registry_lock is None:
+        _registry_lock = asyncio.Lock()
+    return _registry_lock
+
 
 def _get_reasoning_semaphore() -> asyncio.Semaphore:
     """懒初始化，确保在事件循环内创建 Semaphore"""
@@ -47,6 +66,40 @@ def _get_reasoning_semaphore() -> asyncio.Semaphore:
         _reasoning_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REASONING)
         logger.info(f"全局推理并发上限: {MAX_CONCURRENT_REASONING}")
     return _reasoning_semaphore
+
+
+async def _register_request(question: str, policy_id: str) -> int:
+    """登记一个新请求为 queued，返回 request_id。"""
+    global _request_seq
+    lock = _get_registry_lock()
+    async with lock:
+        _request_seq += 1
+        rid = _request_seq
+        _request_registry[rid] = {
+            "question": question,
+            "policyId": policy_id,
+            "state": "queued",
+            "enqueue_time": time.time(),
+            "start_time": None,
+        }
+    return rid
+
+
+async def _mark_request_running(request_id: int) -> None:
+    """拿到 semaphore 后将该请求标记为 running。"""
+    lock = _get_registry_lock()
+    async with lock:
+        info = _request_registry.get(request_id)
+        if info is not None:
+            info["state"] = "running"
+            info["start_time"] = time.time()
+
+
+async def _unregister_request(request_id: int) -> None:
+    """请求结束（成功 / 失败 / 取消）时从登记表移除。"""
+    lock = _get_registry_lock()
+    async with lock:
+        _request_registry.pop(request_id, None)
 
 
 def _load_policy_index() -> dict[str, str]:
@@ -255,6 +308,37 @@ class KhUpdateData(BaseModel):
 
 class KhUpdateResponse(BaseModel):
     data: KhUpdateData | None = None
+    status_code: int
+    message: str
+
+
+class QueueEntry(BaseModel):
+    requestId: int = Field(description="服务端为每个进入 /api/reason 的请求分配的单调递增编号，可用于跨接口追踪。")
+    question: str
+    policyId: str
+    state: str = Field(description='"queued"=正在等待 semaphore；"running"=已拿到槽位、正在推理')
+    enqueueTime: float = Field(description="进入 /api/reason 的 epoch 秒（浮点）")
+    startTime: float | None = Field(
+        default=None,
+        description="实际开始推理的 epoch 秒；queued 阶段为 null",
+    )
+    waitingSeconds: float = Field(description="已排队秒数：running 表示排队耗时，queued 表示当前已等待时长")
+    runningSeconds: float | None = Field(
+        default=None,
+        description="running 状态下已推理秒数；queued 阶段为 null",
+    )
+
+
+class QueueStatusData(BaseModel):
+    maxConcurrent: int = Field(description="服务端 MAX_CONCURRENT_REASONING 配置，即同时推理上限")
+    runningCount: int
+    queuedCount: int
+    running: list[QueueEntry] = Field(description="按进入服务先后排序的正在推理请求")
+    queued: list[QueueEntry] = Field(description="按入队先后排序的排队中请求（与 Semaphore FIFO 唤醒顺序一致）")
+
+
+class QueueStatusResponse(BaseModel):
+    data: QueueStatusData | None = None
     status_code: int
     message: str
 
@@ -592,101 +676,170 @@ async def kh_update(req: KhUpdateRequest):
 @app.post("/api/reason", response_model=ReasonResponse)
 async def reason(req: ReasonRequest):
     sem = _get_reasoning_semaphore()
-    async with sem:
-        # verbose 开启时：以 sessionId（未传则自动生成）新建独立日志文件，
-        # 完整记录本次请求涉及的所有智能体步骤；退出时自动触发归档。
-        session_meta = {
-            "endpoint": "/api/reason",
-            "policyId": req.policyId,
-            "question": req.question,
-            "version": req.version,
-            "vendor": req.vendor,
-            "model": req.model,
-            "retrievalMode": req.retrievalMode,
-            "chunkSize": req.chunkSize,
-            "summaryBatchSize": req.summaryBatchSize,
-            "enableRelations": req.enableRelations,
-            "thinkMode": req.thinkMode,
-        }
-        with _open_verbose_session(
-            session_id=req.sessionId,
-            meta=session_meta,
-            enabled=req.verbose,
-        ) as _session:
-            # verbose=True → _session 为真实 _Session 对象，取其 session_id / file_path 回显；
-            # verbose=False → _session 为 None，仅回显调用方原样的 sessionId，log_name 置空。
-            resp_session_id = _session.session_id if _session is not None else req.sessionId
-            resp_log_name = _session.file_path.name if _session is not None else None
-            try:
-                knowledge_dir = await asyncio.to_thread(
-                    _get_or_extract_knowledge, req.policyId
-                )
-                if req.verbose:
-                    _log_verbose_event(
-                        "knowledge_ready",
-                        policyId=req.policyId,
-                        knowledge_dir=knowledge_dir,
+    # 先登记为 queued，再去抢 semaphore；这样在 /api/requestQueueStatus 中能看到排队中的请求。
+    # finally 里统一清理，覆盖正常返回、异常、以及 asyncio.CancelledError（客户端断开）。
+    request_id = await _register_request(req.question, req.policyId)
+    try:
+        async with sem:
+            await _mark_request_running(request_id)
+            # verbose 开启时：以 sessionId（未传则自动生成）新建独立日志文件，
+            # 完整记录本次请求涉及的所有智能体步骤；退出时自动触发归档。
+            session_meta = {
+                "endpoint": "/api/reason",
+                "policyId": req.policyId,
+                "question": req.question,
+                "version": req.version,
+                "vendor": req.vendor,
+                "model": req.model,
+                "retrievalMode": req.retrievalMode,
+                "chunkSize": req.chunkSize,
+                "summaryBatchSize": req.summaryBatchSize,
+                "enableRelations": req.enableRelations,
+                "thinkMode": req.thinkMode,
+            }
+            with _open_verbose_session(
+                session_id=req.sessionId,
+                meta=session_meta,
+                enabled=req.verbose,
+            ) as _session:
+                # verbose=True → _session 为真实 _Session 对象，取其 session_id / file_path 回显；
+                # verbose=False → _session 为 None，仅回显调用方原样的 sessionId，log_name 置空。
+                resp_session_id = _session.session_id if _session is not None else req.sessionId
+                resp_log_name = _session.file_path.name if _session is not None else None
+                try:
+                    knowledge_dir = await asyncio.to_thread(
+                        _get_or_extract_knowledge, req.policyId
                     )
-                result = await asyncio.to_thread(
-                    _run_reasoning, req.question, knowledge_dir,
-                    version=req.version,
-                    max_rounds=req.maxRounds,
-                    vendor=req.vendor,
-                    model=req.model,
-                    clean_answer=req.cleanAnswer,
-                    summary_batch_size=req.summaryBatchSize,
-                    retrieval_mode=req.retrievalMode,
-                    check_pitfalls=req.checkPitfalls,
-                    chunk_size=req.chunkSize,
-                    enable_skills=req.enableSkills,
-                    summary_clean_answer=req.summaryCleanAnswer,
-                    answer_system_prompt=req.answerSystemPrompt,
-                    think_mode=req.thinkMode,
-                    last_think=req.lastThink,
-                    enable_relations=req.enableRelations,
-                    relation_max_depth=req.relationMaxDepth,
-                    relation_max_nodes=req.relationMaxNodes,
-                    relation_workers=req.relationWorkers,
-                    relations_expansion_mode=req.relationsExpansionMode,
-                    summary_pipeline_mode=req.summaryPipelineMode,
-                    reduce_max_part_depth=req.reduceMaxPartDepth,
-                )
-                if req.verbose:
-                    _log_verbose_event(
-                        "reason_finished",
-                        answer_preview=(result.get("answer") or "")[:200],
-                        kh_obj=result.get("kh_obj", {}),
+                    if req.verbose:
+                        _log_verbose_event(
+                            "knowledge_ready",
+                            policyId=req.policyId,
+                            knowledge_dir=knowledge_dir,
+                        )
+                    result = await asyncio.to_thread(
+                        _run_reasoning, req.question, knowledge_dir,
+                        version=req.version,
+                        max_rounds=req.maxRounds,
+                        vendor=req.vendor,
+                        model=req.model,
+                        clean_answer=req.cleanAnswer,
+                        summary_batch_size=req.summaryBatchSize,
+                        retrieval_mode=req.retrievalMode,
+                        check_pitfalls=req.checkPitfalls,
+                        chunk_size=req.chunkSize,
+                        enable_skills=req.enableSkills,
+                        summary_clean_answer=req.summaryCleanAnswer,
+                        answer_system_prompt=req.answerSystemPrompt,
+                        think_mode=req.thinkMode,
+                        last_think=req.lastThink,
+                        enable_relations=req.enableRelations,
+                        relation_max_depth=req.relationMaxDepth,
+                        relation_max_nodes=req.relationMaxNodes,
+                        relation_workers=req.relationWorkers,
+                        relations_expansion_mode=req.relationsExpansionMode,
+                        summary_pipeline_mode=req.summaryPipelineMode,
+                        reduce_max_part_depth=req.reduceMaxPartDepth,
                     )
-                return ReasonResponse(
-                    data=ReasonData(
-                        khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
-                        answer=result["answer"],
-                        think=result.get("think", ""),
-                        skillsResult=result.get("skills_result", {}),
-                        policyId=req.policyId,
-                        sessionId=resp_session_id,
-                        logName=resp_log_name,
-                    ),
-                    status_code=200,
-                    message="success",
-                )
-            except Exception as e:
-                logger.exception(f"推理失败: {e}")
-                if req.verbose:
-                    _log_verbose_event("reason_error", error=repr(e))
-                return ReasonResponse(
-                    data=ReasonData(
-                        khObj="{}",
-                        answer=f"推理失败: {str(e)}",
-                        think="",
-                        skillsResult={},
-                        policyId=req.policyId,
-                        sessionId=resp_session_id,
-                        logName=resp_log_name,
-                    ) if resp_log_name or resp_session_id else None,
-                    status_code=500,
-                    message=f"推理失败: {str(e)}",
-                )
+                    if req.verbose:
+                        _log_verbose_event(
+                            "reason_finished",
+                            answer_preview=(result.get("answer") or "")[:200],
+                            kh_obj=result.get("kh_obj", {}),
+                        )
+                    return ReasonResponse(
+                        data=ReasonData(
+                            khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
+                            answer=result["answer"],
+                            think=result.get("think", ""),
+                            skillsResult=result.get("skills_result", {}),
+                            policyId=req.policyId,
+                            sessionId=resp_session_id,
+                            logName=resp_log_name,
+                        ),
+                        status_code=200,
+                        message="success",
+                    )
+                except Exception as e:
+                    logger.exception(f"推理失败: {e}")
+                    if req.verbose:
+                        _log_verbose_event("reason_error", error=repr(e))
+                    return ReasonResponse(
+                        data=ReasonData(
+                            khObj="{}",
+                            answer=f"推理失败: {str(e)}",
+                            think="",
+                            skillsResult={},
+                            policyId=req.policyId,
+                            sessionId=resp_session_id,
+                            logName=resp_log_name,
+                        ) if resp_log_name or resp_session_id else None,
+                        status_code=500,
+                        message=f"推理失败: {str(e)}",
+                    )
+    finally:
+        await _unregister_request(request_id)
+
+
+@app.get("/api/requestQueueStatus", response_model=QueueStatusResponse)
+async def request_queue_status():
+    """查询当前 /api/reason 的请求队列状态。
+
+    - running：已拿到 semaphore 槽位、正在推理的请求；
+    - queued ：已进入 /api/reason、但还在等待 semaphore 的请求；
+    两组都按进入服务的先后排序（即 request_id 升序，也与 asyncio.Semaphore 的 FIFO 唤醒顺序一致）。
+    """
+    try:
+        lock = _get_registry_lock()
+        now = time.time()
+        async with lock:
+            # 复制一份快照，避免后续构造 QueueEntry 时拿着锁做太多工作。
+            snapshot = sorted(_request_registry.items(), key=lambda kv: kv[0])
+
+        running: list[QueueEntry] = []
+        queued: list[QueueEntry] = []
+        for rid, info in snapshot:
+            enqueue_time = info["enqueue_time"]
+            start_time = info["start_time"]
+            state = info["state"]
+            if state == "running" and start_time is not None:
+                waiting = max(0.0, start_time - enqueue_time)
+                running_secs = max(0.0, now - start_time)
+            else:
+                waiting = max(0.0, now - enqueue_time)
+                running_secs = None
+            entry = QueueEntry(
+                requestId=rid,
+                question=info["question"],
+                policyId=info["policyId"],
+                state=state,
+                enqueueTime=enqueue_time,
+                startTime=start_time,
+                waitingSeconds=round(waiting, 3),
+                runningSeconds=round(running_secs, 3) if running_secs is not None else None,
+            )
+            if state == "running":
+                running.append(entry)
+            else:
+                queued.append(entry)
+
+        return QueueStatusResponse(
+            data=QueueStatusData(
+                maxConcurrent=MAX_CONCURRENT_REASONING,
+                runningCount=len(running),
+                queuedCount=len(queued),
+                running=running,
+                queued=queued,
+            ),
+            status_code=200,
+            message="success",
+        )
+    except Exception as e:
+        logger.exception(f"查询请求队列状态失败: {e}")
+        return QueueStatusResponse(
+            data=None,
+            status_code=500,
+            message=f"查询请求队列状态失败: {str(e)}",
+        )
 
 
 @app.get("/example")
