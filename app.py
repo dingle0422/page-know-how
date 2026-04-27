@@ -880,61 +880,74 @@ async def reason_result(task_id: str):
     )
 
 
+#: /api/reason 单次最长执行时间：按"自测接口、优先级最高"的定位给到 1 天。
+#: 超过后 asyncio.wait_for 会抛 TimeoutError，按普通失败路径返回。
+REASON_IMMEDIATE_TIMEOUT_SECONDS = float(
+    os.environ.get("REASON_IMMEDIATE_TIMEOUT_SECONDS", str(24 * 3600))
+)
+
+
 @app.post("/api/reason", response_model=ReasonResponse)
 async def reason(req: ReasonRequest):
-    """同步兼容接口：内部依然走异步化路径（submit → 轮询 → 返回）。
+    """自测专用同步接口：**不进队列、立即执行**，优先级高于所有 queued / running 任务。
 
-    保持与历史版本相同的请求 / 响应体，供不方便改调用方的老客户端继续使用。
-    批量调用场景强烈建议切换到 /api/reason/submit + /api/reason/result/{taskId}，
-    避免长连接在中间代理超时导致 NoHttpResponseException。
+    - 不调用 submit_task / 不写 task:{id} / 不占用 WorkerPool 的 worker 槽位，
+      因此不会被 MAX_CONCURRENT_REASONING 限流，也不会被前面排队的任务阻塞；
+    - 直接在本请求协程内 await 业务执行器，同一套逻辑、同一套返回字段；
+    - 超时按 1 天算（REASON_IMMEDIATE_TIMEOUT_SECONDS），到点视为失败。
+
+    注意：本接口定位是"开发者自测 / 手动触发"。生产批量调用仍应使用
+    /api/reason/submit + /api/reason/result/{taskId} 的异步路径。
     """
-    client = _require_redis()
-    task = await _tq.submit_task(
-        client,
-        request_payload=req.model_dump(mode="json"),
-        ttl_seconds=REASON_TASK_TTL_SECONDS,
-    )
-    task_id = task["task_id"]
+    _require_redis()  # 仅做存活校验，verbose 日志等仍依赖 redis。
 
+    request_payload = req.model_dump(mode="json")
     try:
-        while True:
-            await asyncio.sleep(REASON_SYNC_POLL_INTERVAL)
-            current = await _tq.get_task(client, task_id)
-            if current is None:
-                # 任务 TTL 过期 / redis 丢失；避免死循环。
-                return ReasonResponse(
-                    data=None,
-                    status_code=500,
-                    message=f"任务丢失: task_id={task_id}",
-                )
-            status = current["status"]
-            if status == _tq.STATUS_DONE:
-                r = current["result"] or {}
-                return ReasonResponse(
-                    data=ReasonData(**r),
-                    status_code=200,
-                    message="success",
-                )
-            if status == _tq.STATUS_FAILED:
-                err = current.get("error") or "unknown"
-                return ReasonResponse(
-                    data=ReasonData(
-                        khObj="{}",
-                        answer=f"推理失败: {err}",
-                        think="",
-                        skillsResult={},
-                        policyId=req.policyId,
-                        sessionId=req.sessionId,
-                        logName=None,
-                    ),
-                    status_code=500,
-                    message=f"推理失败: {err}",
-                )
-            # 仍是 pending / running，继续轮询。
+        result = await asyncio.wait_for(
+            _reason_executor(request_payload),
+            timeout=REASON_IMMEDIATE_TIMEOUT_SECONDS,
+        )
+        return ReasonResponse(
+            data=ReasonData(**result),
+            status_code=200,
+            message="success",
+        )
     except asyncio.CancelledError:
-        # 客户端断开连接；任务本身仍在 worker 里跑，结果会留在 redis 上供后续取。
-        logger.info(f"/api/reason 客户端提前断开，task_id={task_id} 继续后台执行")
+        # 客户端主动断开：本接口没有把任务落到 redis，断了就是断了，不再兜底。
+        logger.info("/api/reason 客户端提前断开，立即执行路径随之取消")
         raise
+    except asyncio.TimeoutError:
+        logger.error(
+            f"/api/reason 立即执行超过 {REASON_IMMEDIATE_TIMEOUT_SECONDS}s，按失败返回"
+        )
+        return ReasonResponse(
+            data=ReasonData(
+                khObj="{}",
+                answer=f"推理失败: 超过 {int(REASON_IMMEDIATE_TIMEOUT_SECONDS)}s 超时上限",
+                think="",
+                skillsResult={},
+                policyId=req.policyId,
+                sessionId=req.sessionId,
+                logName=None,
+            ),
+            status_code=500,
+            message="推理超时",
+        )
+    except Exception as e:
+        logger.exception("/api/reason 立即执行失败")
+        return ReasonResponse(
+            data=ReasonData(
+                khObj="{}",
+                answer=f"推理失败: {type(e).__name__}: {e}",
+                think="",
+                skillsResult={},
+                policyId=req.policyId,
+                sessionId=req.sessionId,
+                logName=None,
+            ),
+            status_code=500,
+            message=f"推理失败: {type(e).__name__}: {e}",
+        )
 
 
 @app.get("/api/requestQueueStatus", response_model=QueueStatusResponse)
