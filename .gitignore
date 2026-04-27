@@ -100,6 +100,9 @@ runtime/output/
 # Verbose 模式日志（含归档 zip）
 verbose_logs/
 
+# redis_server 运行时数据（快照文件）
+redis_server/data/
+
 # 临时文件
 tmp/
 temp/

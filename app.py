@@ -5,11 +5,11 @@ import json
 import logging
 import asyncio
 import time
-from tkinter.constants import TRUE
+from contextlib import asynccontextmanager
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from extractor.builder import extract_from_api
@@ -19,6 +19,8 @@ from utils.verbose_logger import (
     VERBOSE_DEFAULT_ENABLED,
     log_event as _log_verbose_event,
 )
+from redis_server.client import RedisServerClient
+import task_queue as _tq
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,8 +29,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Page Know-How 单问题推理服务")
-
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 _PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
 _POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
@@ -36,70 +36,71 @@ _POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
 # policyId -> knowledge_dir 内存缓存
 _knowledge_cache: dict[str, str] = {}
 
+# ------------------------------------------------------------------ 任务队列配置
+#
+# 服务改造为"单 FastAPI 进程 + 内置 worker pool + 外置 redis_server"架构：
+# - 请求进来统一写入 redis_server 的 queue:reason:pending 队列；
+# - 本进程启动 MAX_CONCURRENT_REASONING 个 worker 从 BLPOP 拉任务执行；
+# - /api/reason/submit 立刻返回 task_id，客户端轮询 /api/reason/result/{taskId} 取结果；
+# - /api/reason 保留为"提交 + 内部轮询"同步包装，对外行为保持兼容。
+
 MAX_CONCURRENT_REASONING = int(os.environ.get("MAX_CONCURRENT_REASONING", "10"))
-_reasoning_semaphore: asyncio.Semaphore | None = None
+# 单条任务结果在 redis_server 里的寿命（秒）；超过即被清理，客户端需要重新提交。
+REASON_TASK_TTL_SECONDS = float(os.environ.get("REASON_TASK_TTL_SECONDS", str(7 * 24 * 3600)))
+# /api/reason 同步包装轮询任务状态的间隔（秒）。
+REASON_SYNC_POLL_INTERVAL = float(os.environ.get("REASON_SYNC_POLL_INTERVAL", "0.5"))
+REDIS_SERVER_URL = os.environ.get("REDIS_SERVER_URL", "http://mlp.paas.dc.servyou-it.com/redis-server")
+REDIS_SERVER_AUTH_TOKEN = os.environ.get("REDIS_SERVER_AUTH_TOKEN", "")
 
-# 请求登记表：request_id -> 元信息；dict 保序 ≈ 入队顺序（FIFO），
-# 与 asyncio.Semaphore 内部 _waiters 队列的唤醒顺序一致，因此可直接用作"执行顺序"。
-# 字段：
-#   question / policyId     —— 便于 requestQueueStatus 直接回显
-#   state                   —— "queued" | "running"
-#   enqueue_time            —— 进入 /api/reason 的 epoch 秒
-#   start_time              —— 实际拿到 semaphore 开始推理的 epoch 秒（queued 阶段为 None）
-_request_registry: "dict[int, dict]" = {}
-_request_seq: int = 0
-_registry_lock: asyncio.Lock | None = None
+# lifespan 内初始化；模块级暴露给路由处理函数。
+_redis_client: RedisServerClient | None = None
+_worker_pool: _tq.WorkerPool | None = None
 
 
-def _get_registry_lock() -> asyncio.Lock:
-    """懒初始化 registry 写锁，保证 request_id 单调自增且字典操作原子。"""
-    global _registry_lock
-    if _registry_lock is None:
-        _registry_lock = asyncio.Lock()
-    return _registry_lock
+def _require_redis() -> RedisServerClient:
+    """路由里统一入口：lifespan 还没跑完就别来。"""
+    if _redis_client is None:
+        raise HTTPException(status_code=503, detail="redis_server client not ready")
+    return _redis_client
 
 
-def _get_reasoning_semaphore() -> asyncio.Semaphore:
-    """懒初始化，确保在事件循环内创建 Semaphore"""
-    global _reasoning_semaphore
-    if _reasoning_semaphore is None:
-        _reasoning_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REASONING)
-        logger.info(f"全局推理并发上限: {MAX_CONCURRENT_REASONING}")
-    return _reasoning_semaphore
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    global _redis_client, _worker_pool
+    logger.info(f"[lifespan] 启动，REDIS_SERVER_URL={REDIS_SERVER_URL}")
+    _redis_client = RedisServerClient(
+        REDIS_SERVER_URL,
+        auth_token=REDIS_SERVER_AUTH_TOKEN,
+        timeout_seconds=15.0,
+    )
+    # 服务进程启动时探一次 health，失败就立刻抛错，避免 worker 陷入重复失败循环。
+    try:
+        h = await _redis_client.health()
+        logger.info(f"[lifespan] redis_server health={h.get('status')}")
+    except Exception as e:
+        logger.exception(f"[lifespan] redis_server 不可达，推理服务无法启动: {e}")
+        raise
+
+    _worker_pool = _tq.WorkerPool(
+        _redis_client,
+        executor=_reason_executor,
+        worker_count=MAX_CONCURRENT_REASONING,
+        task_ttl_seconds=REASON_TASK_TTL_SECONDS,
+    )
+    await _worker_pool.start()
+    try:
+        yield
+    finally:
+        logger.info("[lifespan] 关闭 worker pool + redis client")
+        if _worker_pool is not None:
+            await _worker_pool.stop()
+        if _redis_client is not None:
+            await _redis_client.close()
+        _worker_pool = None
+        _redis_client = None
 
 
-async def _register_request(question: str, policy_id: str) -> int:
-    """登记一个新请求为 queued，返回 request_id。"""
-    global _request_seq
-    lock = _get_registry_lock()
-    async with lock:
-        _request_seq += 1
-        rid = _request_seq
-        _request_registry[rid] = {
-            "question": question,
-            "policyId": policy_id,
-            "state": "queued",
-            "enqueue_time": time.time(),
-            "start_time": None,
-        }
-    return rid
-
-
-async def _mark_request_running(request_id: int) -> None:
-    """拿到 semaphore 后将该请求标记为 running。"""
-    lock = _get_registry_lock()
-    async with lock:
-        info = _request_registry.get(request_id)
-        if info is not None:
-            info["state"] = "running"
-            info["start_time"] = time.time()
-
-
-async def _unregister_request(request_id: int) -> None:
-    """请求结束（成功 / 失败 / 取消）时从登记表移除。"""
-    lock = _get_registry_lock()
-    async with lock:
-        _request_registry.pop(request_id, None)
+app = FastAPI(title="Page Know-How 单问题推理服务", lifespan=lifespan)
 
 
 def _load_policy_index() -> dict[str, str]:
@@ -313,11 +314,11 @@ class KhUpdateResponse(BaseModel):
 
 
 class QueueEntry(BaseModel):
-    requestId: int = Field(description="服务端为每个进入 /api/reason 的请求分配的单调递增编号，可用于跨接口追踪。")
+    taskId: str = Field(description="服务端为每个提交任务分配的 UUID；可用在 /api/reason/result/{taskId} 查询结果")
     question: str
     policyId: str
-    state: str = Field(description='"queued"=正在等待 semaphore；"running"=已拿到槽位、正在推理')
-    enqueueTime: float = Field(description="进入 /api/reason 的 epoch 秒（浮点）")
+    state: str = Field(description='"queued"=还在 redis 队列里等 worker；"running"=已被 worker 拉起正在推理')
+    enqueueTime: float = Field(description="进入 /api/reason(/submit) 的 epoch 秒（浮点）")
     startTime: float | None = Field(
         default=None,
         description="实际开始推理的 epoch 秒；queued 阶段为 null",
@@ -330,15 +331,54 @@ class QueueEntry(BaseModel):
 
 
 class QueueStatusData(BaseModel):
-    maxConcurrent: int = Field(description="服务端 MAX_CONCURRENT_REASONING 配置，即同时推理上限")
+    maxConcurrent: int = Field(description="内置 worker 数（对应环境变量 MAX_CONCURRENT_REASONING），即同时推理上限")
     runningCount: int
     queuedCount: int
-    running: list[QueueEntry] = Field(description="按进入服务先后排序的正在推理请求")
-    queued: list[QueueEntry] = Field(description="按入队先后排序的排队中请求（与 Semaphore FIFO 唤醒顺序一致）")
+    running: list[QueueEntry] = Field(description="按开始时间排序的正在推理任务")
+    queued: list[QueueEntry] = Field(description="按入队先后排序的排队中任务（与 redis 队列 FIFO 一致）")
 
 
 class QueueStatusResponse(BaseModel):
     data: QueueStatusData | None = None
+    status_code: int
+    message: str
+
+
+# ---------------------------------------------------- 异步化任务 submit / result
+
+
+class ReasonSubmitData(BaseModel):
+    taskId: str = Field(description="本次任务在服务端分配的 UUID；客户端据此轮询结果")
+    status: str = Field(default=_tq.STATUS_PENDING, description="提交成功后固定为 pending")
+    enqueueTime: float = Field(description="任务入队 epoch 秒")
+
+
+class ReasonSubmitResponse(BaseModel):
+    data: ReasonSubmitData | None = None
+    status_code: int
+    message: str
+
+
+class ReasonResultData(BaseModel):
+    taskId: str
+    status: str = Field(
+        description='任务状态：pending / running / done / failed'
+    )
+    enqueueTime: float
+    startTime: float | None = Field(default=None, description="worker 拉起时间；未开始时 null")
+    endTime: float | None = Field(default=None, description="结束时间；未完成时 null")
+    result: "ReasonData | None" = Field(
+        default=None,
+        description="status=done 时为最终结果；其他状态为 null",
+    )
+    error: str | None = Field(
+        default=None,
+        description="status=failed 时的错误摘要；其他状态为 null",
+    )
+
+
+class ReasonResultResponse(BaseModel):
+    data: ReasonResultData | None = None
     status_code: int
     message: str
 
@@ -673,154 +713,263 @@ async def kh_update(req: KhUpdateRequest):
         )
 
 
+# ---------------------------------------------------------------------- Executor
+
+
+async def _reason_executor(request_payload: dict) -> dict:
+    """WorkerPool 注入的业务执行器。
+
+    输入：submit 阶段落到 redis 的 ``request`` 字段（原 ReasonRequest 的 JSON 表示，
+    字段名为 camelCase，见 ReasonRequest 定义）。
+    输出：与老版本 ReasonData 字段一致的 dict，便于 result / 同步包装接口直接构造 ReasonData。
+
+    异常会被 WorkerPool 捕获并写入 task.error / status=failed，这里只管正常路径抛干净的异常。
+    """
+    policy_id = request_payload["policyId"]
+    question = request_payload["question"]
+    req_verbose = bool(request_payload.get("verbose", VERBOSE_DEFAULT_ENABLED))
+    req_session_id = request_payload.get("sessionId")
+
+    session_meta = {
+        "endpoint": "/api/reason/submit",
+        "policyId": policy_id,
+        "question": question,
+        "version": request_payload.get("version", "v1"),
+        "vendor": request_payload.get("vendor"),
+        "model": request_payload.get("model"),
+        "retrievalMode": request_payload.get("retrievalMode"),
+        "chunkSize": request_payload.get("chunkSize"),
+        "summaryBatchSize": request_payload.get("summaryBatchSize"),
+        "enableRelations": request_payload.get("enableRelations"),
+        "thinkMode": request_payload.get("thinkMode"),
+    }
+    with _open_verbose_session(
+        session_id=req_session_id,
+        meta=session_meta,
+        enabled=req_verbose,
+    ) as _session:
+        resp_session_id = _session.session_id if _session is not None else req_session_id
+        resp_log_name = _session.file_path.name if _session is not None else None
+
+        knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
+        if req_verbose:
+            _log_verbose_event(
+                "knowledge_ready",
+                policyId=policy_id,
+                knowledge_dir=knowledge_dir,
+            )
+
+        result = await asyncio.to_thread(
+            _run_reasoning, question, knowledge_dir,
+            version=request_payload.get("version", "v1"),
+            max_rounds=request_payload.get("maxRounds", 10),
+            vendor=request_payload.get("vendor", "aliyun"),
+            model=request_payload.get("model", "deepseek-v3.2"),
+            clean_answer=request_payload.get("cleanAnswer", False),
+            summary_batch_size=request_payload.get("summaryBatchSize", 3),
+            retrieval_mode=request_payload.get("retrievalMode", True),
+            check_pitfalls=request_payload.get("checkPitfalls", True),
+            chunk_size=request_payload.get("chunkSize", 3000),
+            enable_skills=request_payload.get("enableSkills", True),
+            summary_clean_answer=request_payload.get("summaryCleanAnswer", True),
+            answer_system_prompt=request_payload.get("answerSystemPrompt"),
+            think_mode=request_payload.get("thinkMode", True),
+            last_think=request_payload.get("lastThink", True),
+            enable_relations=request_payload.get("enableRelations", True),
+            relation_max_depth=request_payload.get("relationMaxDepth", 5),
+            relation_max_nodes=request_payload.get("relationMaxNodes", 999),
+            relation_workers=request_payload.get("relationWorkers", 8),
+            relations_expansion_mode=request_payload.get("relationsExpansionMode", "all"),
+            summary_pipeline_mode=request_payload.get("summaryPipelineMode", "layered"),
+            reduce_max_part_depth=request_payload.get("reduceMaxPartDepth", 4),
+        )
+
+        if req_verbose:
+            _log_verbose_event(
+                "reason_finished",
+                answer_preview=(result.get("answer") or "")[:200],
+                kh_obj=result.get("kh_obj", {}),
+            )
+
+        # 字段名对齐 ReasonData（camelCase）。result / 同步包装接口据此直接构造。
+        return {
+            "khObj": json.dumps(result["kh_obj"], ensure_ascii=False),
+            "answer": result["answer"],
+            "think": result.get("think", ""),
+            "skillsResult": result.get("skills_result", {}),
+            "policyId": policy_id,
+            "sessionId": resp_session_id,
+            "logName": resp_log_name,
+        }
+
+
+# ----------------------------------------------------------- 异步提交 / 结果查询
+
+
+def _task_to_result_data(task: dict) -> ReasonResultData:
+    r = task.get("result") or None
+    reason_data = ReasonData(**r) if r else None
+    return ReasonResultData(
+        taskId=task["task_id"],
+        status=task["status"],
+        enqueueTime=task["enqueue_time"],
+        startTime=task.get("start_time"),
+        endTime=task.get("end_time"),
+        result=reason_data,
+        error=task.get("error"),
+    )
+
+
+@app.post("/api/reason/submit", response_model=ReasonSubmitResponse)
+async def reason_submit(req: ReasonRequest):
+    """立刻返回 task_id 的异步提交接口；实际推理由 worker pool 异步完成。"""
+    client = _require_redis()
+    try:
+        task = await _tq.submit_task(
+            client,
+            request_payload=req.model_dump(mode="json"),
+            ttl_seconds=REASON_TASK_TTL_SECONDS,
+        )
+        return ReasonSubmitResponse(
+            data=ReasonSubmitData(
+                taskId=task["task_id"],
+                status=task["status"],
+                enqueueTime=task["enqueue_time"],
+            ),
+            status_code=200,
+            message="success",
+        )
+    except Exception as e:
+        logger.exception(f"/api/reason/submit 失败: {e}")
+        return ReasonSubmitResponse(
+            data=None,
+            status_code=500,
+            message=f"提交失败: {e}",
+        )
+
+
+@app.get("/api/reason/result/{task_id}", response_model=ReasonResultResponse)
+async def reason_result(task_id: str):
+    """按 task_id 查询任务状态 / 结果。调用方自行轮询（推荐 1~2s 一次）。
+
+    状态语义：
+      - pending：已入队、等待 worker；
+      - running：worker 已拉起、正在推理；
+      - done   ：推理完成，result 字段可读；
+      - failed ：推理失败，error 字段给出摘要；
+      - 任务不存在：task_id 无效或已过期（默认 24h 后回收）→ 返回 404。
+    """
+    client = _require_redis()
+    task = await _tq.get_task(client, task_id)
+    if task is None:
+        return ReasonResultResponse(
+            data=None,
+            status_code=404,
+            message=f"task_id={task_id} 不存在或已过期",
+        )
+    return ReasonResultResponse(
+        data=_task_to_result_data(task),
+        status_code=200,
+        message="success",
+    )
+
+
 @app.post("/api/reason", response_model=ReasonResponse)
 async def reason(req: ReasonRequest):
-    sem = _get_reasoning_semaphore()
-    # 先登记为 queued，再去抢 semaphore；这样在 /api/requestQueueStatus 中能看到排队中的请求。
-    # finally 里统一清理，覆盖正常返回、异常、以及 asyncio.CancelledError（客户端断开）。
-    request_id = await _register_request(req.question, req.policyId)
+    """同步兼容接口：内部依然走异步化路径（submit → 轮询 → 返回）。
+
+    保持与历史版本相同的请求 / 响应体，供不方便改调用方的老客户端继续使用。
+    批量调用场景强烈建议切换到 /api/reason/submit + /api/reason/result/{taskId}，
+    避免长连接在中间代理超时导致 NoHttpResponseException。
+    """
+    client = _require_redis()
+    task = await _tq.submit_task(
+        client,
+        request_payload=req.model_dump(mode="json"),
+        ttl_seconds=REASON_TASK_TTL_SECONDS,
+    )
+    task_id = task["task_id"]
+
     try:
-        async with sem:
-            await _mark_request_running(request_id)
-            # verbose 开启时：以 sessionId（未传则自动生成）新建独立日志文件，
-            # 完整记录本次请求涉及的所有智能体步骤；退出时自动触发归档。
-            session_meta = {
-                "endpoint": "/api/reason",
-                "policyId": req.policyId,
-                "question": req.question,
-                "version": req.version,
-                "vendor": req.vendor,
-                "model": req.model,
-                "retrievalMode": req.retrievalMode,
-                "chunkSize": req.chunkSize,
-                "summaryBatchSize": req.summaryBatchSize,
-                "enableRelations": req.enableRelations,
-                "thinkMode": req.thinkMode,
-            }
-            with _open_verbose_session(
-                session_id=req.sessionId,
-                meta=session_meta,
-                enabled=req.verbose,
-            ) as _session:
-                # verbose=True → _session 为真实 _Session 对象，取其 session_id / file_path 回显；
-                # verbose=False → _session 为 None，仅回显调用方原样的 sessionId，log_name 置空。
-                resp_session_id = _session.session_id if _session is not None else req.sessionId
-                resp_log_name = _session.file_path.name if _session is not None else None
-                try:
-                    knowledge_dir = await asyncio.to_thread(
-                        _get_or_extract_knowledge, req.policyId
-                    )
-                    if req.verbose:
-                        _log_verbose_event(
-                            "knowledge_ready",
-                            policyId=req.policyId,
-                            knowledge_dir=knowledge_dir,
-                        )
-                    result = await asyncio.to_thread(
-                        _run_reasoning, req.question, knowledge_dir,
-                        version=req.version,
-                        max_rounds=req.maxRounds,
-                        vendor=req.vendor,
-                        model=req.model,
-                        clean_answer=req.cleanAnswer,
-                        summary_batch_size=req.summaryBatchSize,
-                        retrieval_mode=req.retrievalMode,
-                        check_pitfalls=req.checkPitfalls,
-                        chunk_size=req.chunkSize,
-                        enable_skills=req.enableSkills,
-                        summary_clean_answer=req.summaryCleanAnswer,
-                        answer_system_prompt=req.answerSystemPrompt,
-                        think_mode=req.thinkMode,
-                        last_think=req.lastThink,
-                        enable_relations=req.enableRelations,
-                        relation_max_depth=req.relationMaxDepth,
-                        relation_max_nodes=req.relationMaxNodes,
-                        relation_workers=req.relationWorkers,
-                        relations_expansion_mode=req.relationsExpansionMode,
-                        summary_pipeline_mode=req.summaryPipelineMode,
-                        reduce_max_part_depth=req.reduceMaxPartDepth,
-                    )
-                    if req.verbose:
-                        _log_verbose_event(
-                            "reason_finished",
-                            answer_preview=(result.get("answer") or "")[:200],
-                            kh_obj=result.get("kh_obj", {}),
-                        )
-                    return ReasonResponse(
-                        data=ReasonData(
-                            khObj=json.dumps(result["kh_obj"], ensure_ascii=False),
-                            answer=result["answer"],
-                            think=result.get("think", ""),
-                            skillsResult=result.get("skills_result", {}),
-                            policyId=req.policyId,
-                            sessionId=resp_session_id,
-                            logName=resp_log_name,
-                        ),
-                        status_code=200,
-                        message="success",
-                    )
-                except Exception as e:
-                    logger.exception(f"推理失败: {e}")
-                    if req.verbose:
-                        _log_verbose_event("reason_error", error=repr(e))
-                    return ReasonResponse(
-                        data=ReasonData(
-                            khObj="{}",
-                            answer=f"推理失败: {str(e)}",
-                            think="",
-                            skillsResult={},
-                            policyId=req.policyId,
-                            sessionId=resp_session_id,
-                            logName=resp_log_name,
-                        ) if resp_log_name or resp_session_id else None,
-                        status_code=500,
-                        message=f"推理失败: {str(e)}",
-                    )
-    finally:
-        await _unregister_request(request_id)
+        while True:
+            await asyncio.sleep(REASON_SYNC_POLL_INTERVAL)
+            current = await _tq.get_task(client, task_id)
+            if current is None:
+                # 任务 TTL 过期 / redis 丢失；避免死循环。
+                return ReasonResponse(
+                    data=None,
+                    status_code=500,
+                    message=f"任务丢失: task_id={task_id}",
+                )
+            status = current["status"]
+            if status == _tq.STATUS_DONE:
+                r = current["result"] or {}
+                return ReasonResponse(
+                    data=ReasonData(**r),
+                    status_code=200,
+                    message="success",
+                )
+            if status == _tq.STATUS_FAILED:
+                err = current.get("error") or "unknown"
+                return ReasonResponse(
+                    data=ReasonData(
+                        khObj="{}",
+                        answer=f"推理失败: {err}",
+                        think="",
+                        skillsResult={},
+                        policyId=req.policyId,
+                        sessionId=req.sessionId,
+                        logName=None,
+                    ),
+                    status_code=500,
+                    message=f"推理失败: {err}",
+                )
+            # 仍是 pending / running，继续轮询。
+    except asyncio.CancelledError:
+        # 客户端断开连接；任务本身仍在 worker 里跑，结果会留在 redis 上供后续取。
+        logger.info(f"/api/reason 客户端提前断开，task_id={task_id} 继续后台执行")
+        raise
 
 
 @app.get("/api/requestQueueStatus", response_model=QueueStatusResponse)
 async def request_queue_status():
-    """查询当前 /api/reason 的请求队列状态。
+    """查询当前推理任务的队列状态（从 redis_server 实时读取）。
 
-    - running：已拿到 semaphore 槽位、正在推理的请求；
-    - queued ：已进入 /api/reason、但还在等待 semaphore 的请求；
-    两组都按进入服务的先后排序（即 request_id 升序，也与 asyncio.Semaphore 的 FIFO 唤醒顺序一致）。
+    - running：worker 已拉起、正在推理的任务；
+    - queued ：仍停留在 redis 队列 ``queue:reason:pending`` 里、还没 pop 的任务；
+    两组都按"先提交先排前"的顺序返回（running 按 start_time，queued 按入队顺序）。
     """
     try:
-        lock = _get_registry_lock()
+        client = _require_redis()
         now = time.time()
-        async with lock:
-            # 复制一份快照，避免后续构造 QueueEntry 时拿着锁做太多工作。
-            snapshot = sorted(_request_registry.items(), key=lambda kv: kv[0])
+        queued_tasks, running_tasks = await asyncio.gather(
+            _tq.list_queued_tasks(client),
+            _tq.list_running_tasks(client),
+        )
 
-        running: list[QueueEntry] = []
-        queued: list[QueueEntry] = []
-        for rid, info in snapshot:
-            enqueue_time = info["enqueue_time"]
-            start_time = info["start_time"]
-            state = info["state"]
+        def _to_entry(t: dict, state: str) -> QueueEntry:
+            enqueue_time = float(t["enqueue_time"])
+            start_time = t.get("start_time")
             if state == "running" and start_time is not None:
-                waiting = max(0.0, start_time - enqueue_time)
-                running_secs = max(0.0, now - start_time)
+                waiting = max(0.0, float(start_time) - enqueue_time)
+                running_secs = max(0.0, now - float(start_time))
             else:
                 waiting = max(0.0, now - enqueue_time)
                 running_secs = None
-            entry = QueueEntry(
-                requestId=rid,
-                question=info["question"],
-                policyId=info["policyId"],
+            req = t.get("request") or {}
+            return QueueEntry(
+                taskId=t["task_id"],
+                question=req.get("question", ""),
+                policyId=req.get("policyId", ""),
                 state=state,
                 enqueueTime=enqueue_time,
                 startTime=start_time,
                 waitingSeconds=round(waiting, 3),
                 runningSeconds=round(running_secs, 3) if running_secs is not None else None,
             )
-            if state == "running":
-                running.append(entry)
-            else:
-                queued.append(entry)
+
+        queued = [_to_entry(t, "queued") for t in queued_tasks]
+        running = [_to_entry(t, "running") for t in running_tasks]
 
         return QueueStatusResponse(
             data=QueueStatusData(
