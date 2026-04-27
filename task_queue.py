@@ -30,8 +30,28 @@ import time
 import uuid
 from typing import Any, Awaitable, Callable, Optional
 
+try:
+    # 用于在 worker 循环里区分"网关瞬时错误（504/502/连接超时）"和真业务异常。
+    from redis_server.client import RedisServerError
+except Exception:
+    # 降级：拿不到 RedisServerError 类型就让它退化成 Exception，循环仍然能跑。
+    RedisServerError = Exception  # type: ignore[assignment]
+
+import httpx
+
 
 logger = logging.getLogger(__name__)
+
+
+# 把"中间网关瞬时错误"归一化出来，便于 worker loop 单独处理：
+# - RedisServerError 包了 httpx 之上的业务判断（含 504/502/503 等 HTTP 错误）；
+# - httpx.TimeoutException 覆盖本地到网关这一段的网络超时；
+# - httpx.TransportError 覆盖连接/读写阶段的各种链路错误（DNS、连接重置等）。
+_TRANSIENT_NETWORK_ERRORS: tuple = (
+    RedisServerError,
+    httpx.TimeoutException,
+    httpx.TransportError,
+)
 
 
 # ------------------------------------------------- 协议常量（redis_server 侧 key）
@@ -212,8 +232,20 @@ class WorkerPool:
                 await self._run_one(worker_id, task_id)
             except asyncio.CancelledError:
                 break
+            except _TRANSIENT_NETWORK_ERRORS as e:
+                # 网关 504 / 连接重置 / 请求超时等"到 redis_server 链路"的瞬时错误：
+                # 典型场景是中间网关 proxy_read_timeout < blpop_timeout，
+                # 后端本身没事，下一轮重试即可。降成 warning，避免刷屏。
+                logger.warning(
+                    f"[WorkerPool] worker-{worker_id} BLPOP 网络瞬时错误（通常是网关超时），"
+                    f"0.5s 后重试: {e}"
+                )
+                try:
+                    await asyncio.sleep(0.5)
+                except asyncio.CancelledError:
+                    break
             except Exception as e:
-                # 单次循环异常不应打死 worker；退避 1s 重试，避免陷入爆炸循环。
+                # 其余异常当真故障处理：打完整堆栈 + 更长退避，避免陷入爆炸循环。
                 logger.exception(f"[WorkerPool] worker-{worker_id} 循环异常: {e}")
                 try:
                     await asyncio.sleep(1.0)

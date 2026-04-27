@@ -323,4 +323,5 @@ step 3  status=done → 读 data.result；status=failed → 读 data.error
 | `MAX_CONCURRENT_REASONING` | `10` | worker 数 = 推理并发上限 |
 | `REASON_TASK_TTL_SECONDS` | `86400` | 单条任务在 redis 存活秒数（即结果最长可被查到的时间） |
 | `REASON_SYNC_POLL_INTERVAL` | `0.5` | `/api/reason` 同步包装内部轮询间隔 |
+| `REASON_BLPOP_TIMEOUT_SECONDS` | `10` | worker 每轮 BLPOP 阻塞时长；**必须小于链路上最短的网关 `proxy_read_timeout`**，否则会吃 504 Gateway Timeout |
 | `VERBOSE_TRACE` | `false` | `verbose` 字段未显式传入时的默认值 |

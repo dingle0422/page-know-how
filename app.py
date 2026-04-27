@@ -49,6 +49,11 @@ MAX_CONCURRENT_REASONING = int(os.environ.get("MAX_CONCURRENT_REASONING", "10"))
 REASON_TASK_TTL_SECONDS = float(os.environ.get("REASON_TASK_TTL_SECONDS", str(7 * 24 * 3600)))
 # /api/reason 同步包装轮询任务状态的间隔（秒）。
 REASON_SYNC_POLL_INTERVAL = float(os.environ.get("REASON_SYNC_POLL_INTERVAL", "0.5"))
+# worker 每轮 BLPOP 的阻塞时长（秒）。
+# !!! 必须小于调用 redis_server 链路上最短的网关 proxy_read_timeout，
+# 否则网关会先一步返回 504 Gateway Timeout。常见 Nginx/Ingress 默认 30~60s，
+# 这里默认取 10s 留足余量；如果你的网关更激进，自行调小（但不要低于 2s）。
+REASON_BLPOP_TIMEOUT_SECONDS = float(os.environ.get("REASON_BLPOP_TIMEOUT_SECONDS", "10"))
 REDIS_SERVER_URL = os.environ.get("REDIS_SERVER_URL", "http://mlp.paas.dc.servyou-it.com/redis-server")
 REDIS_SERVER_AUTH_TOKEN = os.environ.get("REDIS_SERVER_AUTH_TOKEN", "")
 
@@ -86,6 +91,7 @@ async def lifespan(_app: FastAPI):
         executor=_reason_executor,
         worker_count=MAX_CONCURRENT_REASONING,
         task_ttl_seconds=REASON_TASK_TTL_SECONDS,
+        blpop_timeout_seconds=REASON_BLPOP_TIMEOUT_SECONDS,
     )
     await _worker_pool.start()
     try:

@@ -5,3 +5,4 @@ requests
 markdownify
 fastapi
 uvicorn
+httpx
