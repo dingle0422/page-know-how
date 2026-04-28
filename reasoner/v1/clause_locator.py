@@ -23,6 +23,8 @@ import logging
 import threading
 from typing import Optional
 
+from extractor.parser import normalize_clause_number
+
 logger = logging.getLogger(__name__)
 
 
@@ -126,7 +128,7 @@ class ClauseLocator:
         return {
             "policy_id": policy_id,
             "clause_id": clause_id,
-            "clause_number": raw.get("clauseNumber") or "",
+            "clause_number": normalize_clause_number(raw.get("clauseNumber")),
             "clause_full_name": raw.get("clauseName") or self._guess_full_name(raw),
             "heading_path": heading_path,
             "content": content_md,
@@ -175,7 +177,7 @@ class ClauseLocator:
         return {
             "policy_id": policy_id,
             "clause_id": clause_id,
-            "clause_number": raw.get("clauseNumber") or "",
+            "clause_number": normalize_clause_number(raw.get("clauseNumber")),
             "clause_full_name": full_name,
             "heading_path": [full_name] if full_name else [],
             "content": content_md,

@@ -28,8 +28,11 @@ def chat(
     - vendor="qwen3.5-122b-a10b" (默认): 直连 Qwen3.5-122B-A10B 自部署服务
       （OpenAI 兼容协议，无鉴权，可通过 enable_thinking 控制思考模式）
     - vendor="qwen3.5-27b": 直连 MLP 上的 Qwen3.5-27B 自部署服务
+    - vendor="deepseek-v4-flash" / "deepseek-v4-pro": MLP mudgate DeepSeek，
+      网关 http://…/mudgate/api/llm/deepseek/v1/chat/completions，
+      payload 内 model 分别为 deepseek-v4-flash、deepseek-v4-pro（与 vendor 同名）
     - vendor="servyou": 内网直连
-    - 其他: 走 mudgate 网关
+    - 其他: 走 mudgate 网关（path 中为 vendor 名称）
     """
     messages_payload = []
     if system:
@@ -66,6 +69,19 @@ def chat(
             "stream": False,
             "chat_template_kwargs": {"enable_thinking": enable_thinking},
         }
+    elif vendor in ("deepseek-v4-flash", "deepseek-v4-pro"):
+        model = vendor
+        URL = "http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/deepseek/v1/chat/completions"
+        app_id = "sk-0609aa6d08de4413a72e14b3fb8fbab1"
+        HEADERS = {"Content-Type": "application/json", "Authorization": app_id}
+        PAYLOAD = {
+            "appId": app_id,
+            "model": vendor,
+            "messages": messages_payload,
+            "stream": False,
+        }
+        if enable_thinking:
+            PAYLOAD["chat_template_kwargs"] = {"enable_thinking": True}
     else:
         if vendor == "servyou":
             URL = f"http://10.199.0.7:5000/api/llm/{vendor}/v1/chat/completions"

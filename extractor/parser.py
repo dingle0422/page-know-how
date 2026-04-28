@@ -417,6 +417,30 @@ def _convert_html_to_markdown(text: str, narrativize: bool = True) -> str:
     return md(str(soup), strip=['span', 'div', 'colgroup', 'col']).strip()
 
 
+# 与上游 clauseNumber / JSON number 对齐：可能为 "1.2.3" 或 "1 采购交易…" 等混排标题
+_CLAUSE_NUMBER_HEAD_RE = re.compile(r'^(\d+(?:\.\d+)*)')
+
+
+def normalize_clause_number(value: str | None) -> str:
+    """从条款编号字段中只保留层级数字前缀，供 path / 父子链推导。
+
+    - ``1.2.3``、``1.2.3 标题``、``1.2.3标题``（紧接非点数字符）→ ``1.2.3``
+    - ``前言`` → ``0``（与既有逻辑一致）
+    - 行首无法匹配 ``\\d+(\\.\\d+)*`` 时，返回去除首尾空白后的原串（兼容异常数据）
+    """
+    if value is None:
+        return ''
+    v = str(value).strip()
+    if not v:
+        return ''
+    if v == '前言':
+        return '0'
+    m = _CLAUSE_NUMBER_HEAD_RE.match(v)
+    if m:
+        return m.group(1)
+    return v
+
+
 def _derive_parent_number(number: str) -> str:
     """
     从层级编号推导其直接父级编号。
@@ -462,6 +486,7 @@ def parse_clause_json(filepath: str) -> list[Clause]:
 
     处理逻辑：
     - 从 response.clause_list 提取条款数组
+    - number 若含标题后缀（如 ``1 某章标题``），先 ``normalize_clause_number`` 再参与 path 推导
     - 将 content 字段中的 HTML（Quill 编辑器产出的表格等）转为 Markdown
     - content 中的编号前缀（如 "1.2.1.  "）已在原始数据中存在，保持原样
     - path 字段自动补全：原始 path 只含直接父级编号，自动构建完整祖先路径
@@ -473,13 +498,13 @@ def parse_clause_json(filepath: str) -> list[Clause]:
     if not clause_list:
         raise ValueError(f"JSON 文件中未找到 response.clause_list: {filepath}")
 
-    number_set: dict[str, dict] = {raw.get('number', ''): raw for raw in clause_list}
+    number_set: dict[str, dict] = {}
+    for raw in clause_list:
+        number_set[normalize_clause_number(raw.get('number', ''))] = raw
 
     result: list[Clause] = []
     for raw in clause_list:
-        number = raw.get('number', '')
-        if number == '前言':
-            number = '0'
+        number = normalize_clause_number(raw.get('number', ''))
         raw_path = raw.get('path', '')
 
         if raw_path:
@@ -841,9 +866,7 @@ def fetch_api_clauses(
     clauses: list[Clause] = []
 
     for raw in api_clauses:
-        number = raw.get('clauseNumber', '')
-        if number == '前言':
-            number = '0'
+        number = normalize_clause_number(raw.get('clauseNumber', ''))
 
         number_set[number] = raw
         raw_clause_map[number] = raw
