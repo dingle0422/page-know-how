@@ -380,6 +380,68 @@ class QueueStatusResponse(BaseModel):
     message: str
 
 
+# -------------------------------------------------- 手动清理超时 running 任务
+
+
+class CleanupStaleRunningRequest(BaseModel):
+    thresholdSeconds: float = Field(
+        default=3600.0,
+        ge=0.0,
+        description=(
+            "running_seconds（now - start_time）超过该阈值的任务视为超时需要清理；"
+            "默认 3600（1 小时）。应略大于业务正常 P99 推理耗时，避免误杀长尾任务"
+        ),
+    )
+    dryRun: bool = Field(
+        default=False,
+        description="True 时只返回命中候选，不写回 redis，便于先预览再决定是否执行真清理",
+    )
+
+
+class CleanupStaleRunningEntry(BaseModel):
+    taskId: str
+    policyId: str
+    question: str
+    runningSeconds: float = Field(description="截至扫描时的 running 耗时（秒）")
+    startTime: float | None = None
+    workerId: int | None = None
+    instanceId: str | None = Field(
+        default=None,
+        description="该 running 记录写入时的进程 INSTANCE_ID；null 表示来自改造前版本",
+    )
+    matchesCurrentInstance: bool = Field(
+        description=(
+            "该记录的 instance_id 是否等于当前进程 INSTANCE_ID。"
+            "True 代表可能是本进程 worker 真正还在跑的任务，清理后会让客户端"
+            "立刻看到 failed，但同名 worker 仍可能晚一步把结果写回 done/failed（覆盖掉本次清理）。"
+            "False 通常是历史进程残留的僵尸，清理是安全的。"
+        ),
+    )
+    cleaned: bool = Field(description="是否成功写回 failed；dryRun=true 时恒为 false")
+    skippedReason: str | None = Field(
+        default=None,
+        description="cleaned=False 时的跳过原因（例如扫描期间状态已变、写回异常等）",
+    )
+
+
+class CleanupStaleRunningData(BaseModel):
+    thresholdSeconds: float
+    dryRun: bool
+    instanceId: str = Field(description="当前服务进程的 INSTANCE_ID，供比对 matchesCurrentInstance")
+    matchedCount: int = Field(description="命中阈值的 running 任务数")
+    cleanedCount: int = Field(description="实际写回 failed 成功的任务数（dryRun 恒为 0）")
+    skippedCount: int = Field(description="命中但未清理的任务数（dryRun 下等于 matched；真清时通常为 race 跳过）")
+    tasks: list[CleanupStaleRunningEntry] = Field(
+        description="按 runningSeconds 降序排列（最可疑在前）的命中任务明细",
+    )
+
+
+class CleanupStaleRunningResponse(BaseModel):
+    data: CleanupStaleRunningData | None = None
+    status_code: int
+    message: str
+
+
 # ---------------------------------------------------- 异步化任务 submit / result
 
 
@@ -1037,6 +1099,100 @@ async def request_queue_status():
             data=None,
             status_code=500,
             message=f"查询请求队列状态失败: {str(e)}",
+        )
+
+
+@app.post(
+    "/api/reason/cleanupStaleRunning",
+    response_model=CleanupStaleRunningResponse,
+)
+async def cleanup_stale_running(req: CleanupStaleRunningRequest):
+    """手动清理 redis 中 running 耗时超过阈值的卡死任务。
+
+    用途
+    ----
+    - 服务**未重启**、某些 task 因下游长尾或逻辑卡死持续停在 running,
+      占满 ``runningCount`` 让新任务排不到 worker；
+    - 想让轮询 ``/api/reason/result/{taskId}`` 的客户端立刻感知到 failed。
+    - 启动期遗留的僵尸 running 由 lifespan 自动清理；本接口作为运行时兜底。
+
+    行为
+    ----
+    1. 扫描 redis 的 ``task:*``；
+    2. 挑出 ``status=running`` 且 ``now - start_time > thresholdSeconds`` 的任务；
+    3. 写回前做一次二次 GET 校验，若 worker 刚好完成已变 done/failed 则跳过;
+    4. 命中项改写为 ``status=failed``、``error="manually cleaned: running over <N>s"``、
+       ``end_time=now``，供客户端轮询立刻感知。
+
+    重要限制
+    --------
+    - 只动 redis，**不会** cancel 仍在跑的 worker 协程；若 worker 真在跑，
+      写回 done 的时间可能晚于本次清理，客户端可能看到 failed→done 跳变。
+    - 因此建议先用 ``dryRun=true`` 预览、对照 ``matchesCurrentInstance``:
+      False 的条目（上一代进程僵尸）清理是安全的；True 的条目是本进程 worker,
+      请结合 runningSeconds 判断是否真的卡死。
+    - 判据是时间阈值，与 ``instance_id`` 无关；与 lifespan 的启动清理互补。
+    """
+    try:
+        client = _require_redis()
+        entries = await _tq.cleanup_running_tasks_by_age(
+            client,
+            threshold_seconds=req.thresholdSeconds,
+            current_instance_id=INSTANCE_ID,
+            dry_run=req.dryRun,
+            ttl_seconds=REASON_TASK_TTL_SECONDS,
+        )
+        matched = len(entries)
+        cleaned = sum(1 for e in entries if e.get("cleaned"))
+        skipped = matched - cleaned
+
+        tasks_out: list[CleanupStaleRunningEntry] = []
+        for e in entries:
+            worker_id_raw = e.get("worker_id")
+            worker_id: int | None
+            try:
+                worker_id = int(worker_id_raw) if worker_id_raw is not None else None
+            except (TypeError, ValueError):
+                worker_id = None
+            tasks_out.append(
+                CleanupStaleRunningEntry(
+                    taskId=str(e.get("task_id", "")),
+                    policyId=str(e.get("policy_id", "")),
+                    question=str(e.get("question", "")),
+                    runningSeconds=float(e.get("running_seconds", 0.0)),
+                    startTime=e.get("start_time"),
+                    workerId=worker_id,
+                    instanceId=e.get("instance_id"),
+                    matchesCurrentInstance=bool(e.get("matches_current_instance")),
+                    cleaned=bool(e.get("cleaned")),
+                    skippedReason=e.get("skipped_reason"),
+                )
+            )
+
+        logger.info(
+            f"[/api/reason/cleanupStaleRunning] threshold={req.thresholdSeconds}s "
+            f"dry_run={req.dryRun} matched={matched} cleaned={cleaned} skipped={skipped}"
+        )
+
+        return CleanupStaleRunningResponse(
+            data=CleanupStaleRunningData(
+                thresholdSeconds=req.thresholdSeconds,
+                dryRun=req.dryRun,
+                instanceId=INSTANCE_ID,
+                matchedCount=matched,
+                cleanedCount=cleaned,
+                skippedCount=skipped,
+                tasks=tasks_out,
+            ),
+            status_code=200,
+            message="success",
+        )
+    except Exception as e:
+        logger.exception(f"清理超时 running 任务失败: {e}")
+        return CleanupStaleRunningResponse(
+            data=None,
+            status_code=500,
+            message=f"清理超时 running 任务失败: {str(e)}",
         )
 
 

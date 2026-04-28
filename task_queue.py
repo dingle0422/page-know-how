@@ -210,6 +210,140 @@ async def cleanup_stale_running_tasks(
     return cleaned
 
 
+async def cleanup_running_tasks_by_age(
+    client,
+    threshold_seconds: float,
+    *,
+    current_instance_id: str = "",
+    dry_run: bool = False,
+    ttl_seconds: float = DEFAULT_TASK_TTL_SECONDS,
+    error_message: Optional[str] = None,
+) -> list[dict]:
+    """按 running 耗时阈值清理任务：命中项改写为 failed。
+
+    与 ``cleanup_stale_running_tasks``（按 instance_id 匹配，专治"重启后的僵尸"）不同,
+    本函数的判据是"now - start_time > threshold_seconds"，**不区分** instance_id,
+    用于服务**未重启**、某些 task 因下游/逻辑卡死长时间停在 running 的运维场景。
+
+    parameters
+    ----------
+    threshold_seconds :
+        running_seconds（now - start_time）超过该阈值的 task 才会被视为超时。
+        负数会被当成 0（等价全部 running 都命中）。
+    current_instance_id :
+        可选。仅用于在返回 entry 里标注 ``matches_current_instance``，方便调用方
+        识别"这条可能是本进程真实在跑的"而谨慎处理；本函数**不会**因此跳过清理。
+    dry_run :
+        True 时只返回命中候选、不写回 redis，便于运维先预览再决定是否真清。
+    error_message :
+        写入被清理任务的 ``error`` 字段；默认带阈值信息，便于事后排查。
+    ttl_seconds :
+        写回时继续延续的 TTL。
+
+    返回
+    ----
+    list[dict]，按 running_seconds 降序（最可疑的在前），每条包含：
+      task_id / policy_id / question / running_seconds / start_time /
+      worker_id / instance_id / matches_current_instance / cleaned /
+      skipped_reason(可选)。
+
+    并发安全
+    --------
+    写回 failed 前做一次二次 GET，若期间 worker 正好写了 done/failed，则本次跳过,
+    缩窄"把已完成任务回写成 failed"的 race 窗口。
+    """
+    if threshold_seconds < 0:
+        threshold_seconds = 0.0
+    if error_message is None:
+        error_message = f"manually cleaned: running over {threshold_seconds:.0f}s"
+
+    keys = await client.keys(prefix=TASK_KEY_PREFIX)
+    if not keys:
+        return []
+
+    records = await asyncio.gather(*[
+        get_task(client, k[len(TASK_KEY_PREFIX):]) for k in keys
+    ])
+
+    now = _now()
+    candidates: list[tuple[dict, float]] = []
+    for record in records:
+        if not record:
+            continue
+        if record.get("status") != STATUS_RUNNING:
+            continue
+        start = record.get("start_time")
+        if start is None:
+            continue
+        try:
+            age = now - float(start)
+        except (TypeError, ValueError):
+            continue
+        if age < threshold_seconds:
+            continue
+        candidates.append((record, age))
+
+    # 最可疑（跑得最久）的排前面，便于调用方直观看到。
+    candidates.sort(key=lambda x: x[1], reverse=True)
+
+    result: list[dict] = []
+    for record, age in candidates:
+        task_id = record.get("task_id")
+        request_payload = record.get("request") or {}
+        entry: dict = {
+            "task_id": task_id or "",
+            "policy_id": request_payload.get("policyId", ""),
+            "question": request_payload.get("question", ""),
+            "running_seconds": round(age, 3),
+            "start_time": record.get("start_time"),
+            "worker_id": record.get("worker_id"),
+            "instance_id": record.get("instance_id"),
+            "matches_current_instance": bool(
+                current_instance_id
+                and record.get("instance_id") == current_instance_id
+            ),
+            "cleaned": False,
+        }
+
+        if dry_run or not task_id:
+            if not task_id:
+                entry["skipped_reason"] = "missing task_id"
+            result.append(entry)
+            continue
+
+        # 二次校验，减少与 worker 正常完成之间的 race。
+        latest = await get_task(client, task_id)
+        if not latest or latest.get("status") != STATUS_RUNNING:
+            entry["skipped_reason"] = "status changed during scan"
+            result.append(entry)
+            continue
+
+        latest["status"] = STATUS_FAILED
+        latest["result"] = None
+        latest["error"] = error_message
+        latest["end_time"] = _now()
+        try:
+            await client.set(
+                _task_key(task_id), latest, ttl_seconds=ttl_seconds
+            )
+            entry["cleaned"] = True
+        except Exception as e:
+            entry["skipped_reason"] = f"write back failed: {e}"
+            logger.warning(
+                f"[cleanup_running_tasks_by_age] task={task_id} 写回 failed 异常: {e}"
+            )
+        result.append(entry)
+
+    if not dry_run:
+        cleaned = sum(1 for e in result if e.get("cleaned"))
+        if cleaned:
+            logger.info(
+                f"[cleanup_running_tasks_by_age] 清理 {cleaned}/{len(result)} 条超时 running 任务 "
+                f"(threshold={threshold_seconds}s)"
+            )
+    return result
+
+
 # ------------------------------------------------------------------ WorkerPool
 
 
