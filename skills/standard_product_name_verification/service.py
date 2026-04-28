@@ -116,6 +116,9 @@ def verify_product_names(
 # 注入到 LLM prompt 时不再列出剩余低分候选，避免给 LLM "分情况讨论"的把手。
 _TOP1_CONFIDENT_THRESHOLD = 0.9
 _TOP1_LEADING_GAP = 0.3
+_RESULT_DISCLAIMER = (
+    "该结果仅作参考，当用户问题中的商品/服务名称与知识体系中的高度符合，则无需参考本结果"
+)
 
 
 def format_result(
@@ -152,9 +155,10 @@ def format_result(
         return (
             f"「{result.query}」标准商品名称已识别为：{best.standard_name}"
             f"（简称：{best.abbreviation or '无'}），"
-            f"匹配置信度 {best.confidence}（显著高于其余候选）。\n"
-            f"该归类为权威识别结果，应直接据此进行后续涉税判断，"
-            f"不要再使用「若属于X / 若属于Y」等句式对该商品的归类做二次猜测。"
+            # f"匹配置信度 {best.confidence}（显著高于其余候选）。\n"
+            # f"该归类为权威识别结果，应直接据此进行后续涉税判断，"
+            # f"不要再使用「若属于X / 若属于Y」等句式对该商品的归类做二次猜测。"
+            f"\n{_RESULT_DISCLAIMER}"
         )
 
     lines = [f"「{result.query}」在税收分类编码体系中的候选匹配："]
@@ -162,4 +166,5 @@ def format_result(
         lines.append(
             f"  - {c.standard_name}（{c.abbreviation}），匹配度 {c.confidence}"
         )
+    lines.append(_RESULT_DISCLAIMER)
     return "\n".join(lines)

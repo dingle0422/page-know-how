@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import asyncio
 import logging
@@ -455,31 +456,38 @@ class AgentGraph:
         return "\n".join(lines).rstrip()
 
     def _build_skill_context_for_summary(self, records: list[SkillRecord]) -> str:
-        """把 skill records 包装成可追加到 summary prompt 末尾的授权事实段。空 records → 空串。"""
+        """把 skill records 包装成可插入到 summary prompt 头部的参考事实段。空 records → 空串。
+
+        只给一个节标题；每条 skill 结果的适用范围/免责声明由各 skill 的 format_result
+        内部自行附带（见 e.g. standard_product_name_verification/service.py 中的
+        _RESULT_DISCLAIMER），避免在不同层级上重复同一句话。
+        """
         body = self._render_skill_records(records)
         if not body:
             return ""
-        return (
-            "\n\n## 外部 Skill 已确认的权威事实"
-            "（请在最终回答中以此为准；若与上文知识/摘要冲突，必须以本节为准重新推理并覆盖结论）\n"
-            + body
-        )
+        return "## 参考事实（外部 Skill 结果）\n" + body
 
     @staticmethod
     def _append_skill_context_to_prompt(prompt: str, skill_context: str) -> str:
-        """把 skill_context 插入到 prompt 的"---"分隔符之前（即输出要求之前），
-        让 skill 段与上下文知识/摘要并列作为输入事实，而非附加在输出指令之后。
+        """把 skill_context 插入到 prompt 的「用户问题」段之后、下一个小节标题之前，
+        让 Skill 结果作为"参考事实"紧跟在用户问题下方出现。
 
-        所有最终 summary/merge 模板都遵循 "{输入}\\n\\n---\\n\\n{输出要求}" 结构，
-        以最后一个 "---" 作为切分点；若意外缺失，退化为追加到末尾。
+        所有最终 summary/merge 模板都遵循
+            "## 用户问题\\n{question}\\n\\n{下一个 # 或 ## 小节}\\n...\\n---\\n{输出要求}"
+        结构，以"紧跟在 `## 用户问题` 段之后的第一个 heading"作为插入锚点；
+        若意外缺失锚点，退化为插入到最后一个 "---" 之前；仍失败则追加到末尾。
         """
         if not skill_context:
             return prompt
+        match = re.search(r"## 用户问题\n.+?\n\n(?=#)", prompt, flags=re.DOTALL)
+        if match:
+            insert_pos = match.end()
+            return prompt[:insert_pos] + skill_context + "\n\n" + prompt[insert_pos:]
         marker = "\n---\n"
         idx = prompt.rfind(marker)
         if idx < 0:
-            return prompt + skill_context
-        return prompt[:idx] + skill_context + prompt[idx:]
+            return prompt + "\n\n" + skill_context
+        return prompt[:idx] + "\n\n" + skill_context + prompt[idx:]
 
     def _judge_extra_skills(
         self, exclude: set[str], evidence: str | None = None
