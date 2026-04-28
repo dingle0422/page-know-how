@@ -279,7 +279,7 @@ class ReasonRequest(BaseModel):
     )
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
-        description="启用 verbose 模式：以当次请求的 session 编号为文件名，"
+        description="启用 verbose 模式：以当次请求的 taskId 为文件名，"
                     "完整记录该请求下根智能体 / 子智能体 / 汇总层每一步的 LLM 输入输出。"
                     "日志落盘在 <project>/verbose_logs/ 目录；当累计大小 ≥ 20MB 时，"
                     "自动打包为 archives/verbose_logs_<起始时间>__<结束时间>.zip 并清理原始文件。"
@@ -287,8 +287,8 @@ class ReasonRequest(BaseModel):
     )
     sessionId: str | None = Field(
         default=None,
-        description="可选：显式指定 verbose session 编号（便于跨服务日志串联）；"
-                    "不传则自动生成 sess-<随机>。仅在 verbose=True 时生效。",
+        description="兼容旧调用方的可选字段。当前 verbose 日志优先使用 taskId 命名，"
+                    "本字段不再作为响应字段返回。",
     )
 
 
@@ -311,17 +311,15 @@ class ReasonData(BaseModel):
         default_factory=dict,
         description="本次推理实际调用的 skill 结果：{skill_name: stdout}；未启用 skill 或未触发任何 skill 时为空 {}",
     )
-    sessionId: str | None = Field(
-        default=None,
-        description="本次请求的 verbose session id。verbose=True 时为真正用于落盘的 id"
-                    "（调用方传了 sessionId 就用调用方的，否则由服务端自动生成 sess-xxxxx）；"
-                    "verbose=False 时回显调用方传入的值（可能为 null）。"
+    taskId: str = Field(
+        description="本次推理任务 ID。异步 submit/result 路径下与 /api/reason/submit 返回的 taskId 一致；"
+                    "同步 /api/reason 路径下由服务端为本次调用即时生成。"
                     "配合 logName 可直接定位到 verbose_logs/ 下对应的 jsonl 日志文件",
     )
     logName: str | None = Field(
         default=None,
-        description="verbose=True 时，本次 session 对应的日志文件名，格式 "
-                    "<YYYYMMDD_HHMMSS>_<sessionId>.jsonl，位于服务端 verbose_logs/ 目录下。"
+        description="verbose=True 时，本次 taskId 对应的日志文件名，格式 "
+                    "<YYYYMMDD_HHMMSS>_<taskId>.jsonl，位于服务端 verbose_logs/ 目录下。"
                     "verbose=False 时为 null（没有落盘）",
     )
 
@@ -376,6 +374,29 @@ class QueueStatusData(BaseModel):
 
 class QueueStatusResponse(BaseModel):
     data: QueueStatusData | None = None
+    status_code: int
+    message: str
+
+
+class CleanQueueEntry(BaseModel):
+    taskId: str
+    removedFromQueue: int = Field(description="从 redis pending 队列中移除的同名 task_id 数量")
+    deletedTask: bool = Field(description="是否删除了对应 task:{taskId} 记录")
+    skippedReason: str | None = Field(
+        default=None,
+        description="未删除或清理异常时的原因；扫描期间被 worker 取走的任务会在这里说明",
+    )
+
+
+class CleanQueueData(BaseModel):
+    removedQueueItems: int = Field(description="实际从 pending 队列中移除的队列项数量")
+    deletedTaskCount: int = Field(description="成功删除 task:{taskId} 记录的任务数")
+    skippedCount: int = Field(description="扫描到但未完成删除的任务数")
+    tasks: list[CleanQueueEntry]
+
+
+class CleanQueueResponse(BaseModel):
+    data: CleanQueueData | None = None
     status_code: int
     message: str
 
@@ -819,17 +840,18 @@ async def _reason_executor(request_payload: dict) -> dict:
 
     输入：submit 阶段落到 redis 的 ``request`` 字段（原 ReasonRequest 的 JSON 表示，
     字段名为 camelCase，见 ReasonRequest 定义）。
-    输出：与老版本 ReasonData 字段一致的 dict，便于 result / 同步包装接口直接构造 ReasonData。
+    输出：与 ReasonData 字段一致的 dict，便于 result / 同步包装接口直接构造 ReasonData。
 
     异常会被 WorkerPool 捕获并写入 task.error / status=failed，这里只管正常路径抛干净的异常。
     """
     policy_id = request_payload["policyId"]
     question = request_payload["question"]
+    task_id = request_payload.get("taskId") or str(uuid.uuid4())
     req_verbose = bool(request_payload.get("verbose", VERBOSE_DEFAULT_ENABLED))
-    req_session_id = request_payload.get("sessionId")
 
     session_meta = {
         "endpoint": "/api/reason/submit",
+        "taskId": task_id,
         "policyId": policy_id,
         "question": question,
         "version": request_payload.get("version", "v1"),
@@ -842,11 +864,10 @@ async def _reason_executor(request_payload: dict) -> dict:
         "thinkMode": request_payload.get("thinkMode"),
     }
     with _open_verbose_session(
-        session_id=req_session_id,
+        session_id=task_id,
         meta=session_meta,
         enabled=req_verbose,
     ) as _session:
-        resp_session_id = _session.session_id if _session is not None else req_session_id
         resp_log_name = _session.file_path.name if _session is not None else None
 
         knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
@@ -896,7 +917,7 @@ async def _reason_executor(request_payload: dict) -> dict:
             "think": result.get("think", ""),
             "skillsResult": result.get("skills_result", {}),
             "policyId": policy_id,
-            "sessionId": resp_session_id,
+            "taskId": task_id,
             "logName": resp_log_name,
         }
 
@@ -906,6 +927,8 @@ async def _reason_executor(request_payload: dict) -> dict:
 
 def _task_to_result_data(task: dict) -> ReasonResultData:
     r = task.get("result") or None
+    if r and not r.get("taskId"):
+        r = {**r, "taskId": task["task_id"]}
     reason_data = ReasonData(**r) if r else None
     return ReasonResultData(
         taskId=task["task_id"],
@@ -994,6 +1017,7 @@ async def reason(req: ReasonRequest):
     _require_redis()  # 仅做存活校验，verbose 日志等仍依赖 redis。
 
     request_payload = req.model_dump(mode="json")
+    request_payload["taskId"] = str(uuid.uuid4())
     try:
         result = await asyncio.wait_for(
             _reason_executor(request_payload),
@@ -1019,7 +1043,7 @@ async def reason(req: ReasonRequest):
                 think="",
                 skillsResult={},
                 policyId=req.policyId,
-                sessionId=req.sessionId,
+                taskId=request_payload["taskId"],
                 logName=None,
             ),
             status_code=500,
@@ -1034,7 +1058,7 @@ async def reason(req: ReasonRequest):
                 think="",
                 skillsResult={},
                 policyId=req.policyId,
-                sessionId=req.sessionId,
+                taskId=request_payload["taskId"],
                 logName=None,
             ),
             status_code=500,
@@ -1099,6 +1123,57 @@ async def request_queue_status():
             data=None,
             status_code=500,
             message=f"查询请求队列状态失败: {str(e)}",
+        )
+
+
+@app.post("/api/cleanQueue", response_model=CleanQueueResponse)
+async def clean_queue():
+    """清除 redis 中所有仍在 pending 队列里的任务。
+
+    只处理还停留在 ``queue:reason:pending`` 的任务；已经被 worker 取走的 running 任务
+    不会被删除。如需清理卡住的 running 任务，使用 ``/api/reason/cleanupStaleRunning``。
+    """
+    try:
+        client = _require_redis()
+        entries = await _tq.clean_queued_tasks(client)
+        removed = sum(int(e.get("removed_from_queue") or 0) for e in entries)
+        deleted = sum(1 for e in entries if e.get("deleted_task"))
+        skipped = sum(
+            1
+            for e in entries
+            if not e.get("deleted_task") or e.get("skipped_reason")
+        )
+
+        tasks = [
+            CleanQueueEntry(
+                taskId=str(e.get("task_id", "")),
+                removedFromQueue=int(e.get("removed_from_queue") or 0),
+                deletedTask=bool(e.get("deleted_task")),
+                skippedReason=e.get("skipped_reason"),
+            )
+            for e in entries
+        ]
+
+        logger.info(
+            f"[/api/cleanQueue] removed_queue_items={removed} "
+            f"deleted_tasks={deleted} skipped={skipped}"
+        )
+        return CleanQueueResponse(
+            data=CleanQueueData(
+                removedQueueItems=removed,
+                deletedTaskCount=deleted,
+                skippedCount=skipped,
+                tasks=tasks,
+            ),
+            status_code=200,
+            message="success",
+        )
+    except Exception as e:
+        logger.exception(f"清理 pending 队列失败: {e}")
+        return CleanQueueResponse(
+            data=None,
+            status_code=500,
+            message=f"清理 pending 队列失败: {str(e)}",
         )
 
 

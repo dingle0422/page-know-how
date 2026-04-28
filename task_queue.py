@@ -94,6 +94,8 @@ async def submit_task(
     直接丢弃（见 ``WorkerPool._run_one``）。
     """
     task_id = str(uuid.uuid4())
+    request_payload = dict(request_payload)
+    request_payload["taskId"] = task_id
     record = {
         "task_id": task_id,
         "status": STATUS_PENDING,
@@ -130,6 +132,51 @@ async def list_queued_tasks(client) -> list[dict]:
         return []
     results = await asyncio.gather(*[get_task(client, tid) for tid in task_ids])
     return [r for r in results if r is not None]
+
+
+async def clean_queued_tasks(client) -> list[dict]:
+    """清除仍停留在 pending 队列里的任务。
+
+    只以 redis list 当前快照为候选；每个 task_id 先 LREM，只有实际从队列移除成功
+    才删除对应 task:{id} 记录。若扫描期间 task 已被 worker BLPOP 取走，LREM 会返回 0,
+    本函数会跳过删除 KV，避免误删已经 running 的任务记录。
+    """
+    task_ids = await client.lrange(QUEUE_REASON_PENDING, 0, -1)
+    if not task_ids:
+        return []
+
+    cleaned: list[dict] = []
+    for task_id in task_ids:
+        entry: dict = {
+            "task_id": str(task_id),
+            "removed_from_queue": 0,
+            "deleted_task": False,
+        }
+        if not isinstance(task_id, str):
+            entry["skipped_reason"] = "non-string task_id"
+            cleaned.append(entry)
+            continue
+
+        try:
+            removed = await client.lrem(QUEUE_REASON_PENDING, task_id, count=0)
+            entry["removed_from_queue"] = removed
+            if removed <= 0:
+                entry["skipped_reason"] = "not found in queue during cleanup"
+                cleaned.append(entry)
+                continue
+
+            entry["deleted_task"] = await client.delete(_task_key(task_id))
+        except Exception as e:
+            entry["skipped_reason"] = f"cleanup failed: {e}"
+            logger.warning(f"[clean_queued_tasks] task={task_id} 清理异常: {e}")
+        cleaned.append(entry)
+
+    total_removed = sum(int(e.get("removed_from_queue") or 0) for e in cleaned)
+    if total_removed:
+        logger.info(
+            f"[clean_queued_tasks] 从 {QUEUE_REASON_PENDING} 清除 {total_removed} 条队列项"
+        )
+    return cleaned
 
 
 async def list_running_tasks(client) -> list[dict]:

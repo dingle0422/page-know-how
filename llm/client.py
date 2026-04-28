@@ -2,6 +2,14 @@ import json
 import time
 import logging
 import requests
+import sys
+import os
+
+# 保证 utils 可以被正确导入（以兼容所有运行场景，比如从不同工作目录运行脚本）
+cur_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.abspath(os.path.join(cur_dir, ".."))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 from utils.helpers import retry
 from utils.verbose_logger import (
@@ -175,3 +183,7 @@ def chat(
             pass
 
     return content
+
+
+if __name__ == "__main__":
+    print(chat(messages="who are you", vendor = 'deepseek-v4-pro'))
