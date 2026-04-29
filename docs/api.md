@@ -165,7 +165,7 @@
 | `enableSkills` | bool | `true` | 开启 skill 评估 / double-check |
 | `checkPitfalls` | bool | `true` | 一层推理时让 LLM 同步产出易错点，注入总结阶段 |
 | `enableRelations` | bool | `true` | 关联条款展开（BFS 多跳拉 `clause.json`），v1 生效 |
-| `thinkMode` | bool | `true` | 使用 `*_AND_CLEAN_THINK` prompt，返回 `{analysis, concise_answer}` JSON；需 `summaryCleanAnswer=true`；v1 生效 |
+| `thinkMode` | bool | `true` | 使用 `*_AND_CLEAN_THINK` prompt，返回 `{analysis, answer}` JSON（兼容 `concise_answer`）；需 `summaryCleanAnswer=true`；v1 生效 |
 | `lastThink` | bool | `true` | 最终节点开启底层 LLM 的 `enable_thinking=True`，把推理轨迹回注到 `content` |
 | `summaryCleanAnswer` | bool | `true` | summary+clean 一体化，省一次串行 LLM |
 | `cleanAnswer` | bool | `false` | summary 后再追一轮 LLM 清洗（与 `summaryCleanAnswer` 相互排斥，优先级较低） |
@@ -192,7 +192,7 @@
 | --- | --- | --- |
 | `khObj` | string (JSON) | 知识点名称 → 章节编号的映射，已序列化为 JSON 字符串 |
 | `policyId` | string | 回显请求字段 |
-| `answer` | string | 面向用户的客服回答；`thinkMode=true` 时取 LLM JSON 输出的 `concise_answer` |
+| `answer` | string | 面向用户的客服回答；`thinkMode=true` 时取 LLM JSON 输出的 `answer`（兼容 `concise_answer`） |
 | `think` | string | `thinkMode=true` 时取 LLM JSON 输出的 `analysis`（完整客服回答 ≤500 字）；未开启时为 `""` |
 | `skillsResult` | object | `{skill_name: stdout}`；未触发 skill 时为 `{}` |
 | `sessionId` | string \| null | verbose session id；`verbose=false` 时回显请求的 sessionId（可为 null） |
