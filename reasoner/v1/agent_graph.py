@@ -34,6 +34,7 @@ from reasoner.v1.prompts import (
     CHUNK_REASONING_PROMPT,
     CHUNK_REASONING_WITH_PITFALLS_PROMPT,
     ALL_IN_ANSWER_PROMPT,
+    ALL_IN_ANSWER_SYSTEM_PROMPT,
     PURE_MODEL_REQUEST_PROMPT,
     PURE_MODEL_REFERENCE_EXTRACT_INSTRUCTIONS,
     PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS,
@@ -69,6 +70,47 @@ from skills import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_answer_from_analysis_answer_json(raw: str) -> str | None:
+    """从 LLM 输出的 analysis/answer JSON 中提取 answer 字段；解析失败返回 None。"""
+    if not raw or not raw.strip():
+        return None
+    stripped = raw.strip()
+    parsed: dict | None = None
+    try:
+        o = json.loads(stripped)
+        if isinstance(o, dict):
+            parsed = o
+    except (json.JSONDecodeError, ValueError):
+        pass
+    if parsed is None:
+        try:
+            import json5
+
+            o = json5.loads(stripped)
+            if isinstance(o, dict):
+                parsed = o
+        except Exception:
+            pass
+    if parsed is None:
+        mobj = re.search(r"\{.*\}", stripped, re.DOTALL)
+        if mobj:
+            try:
+                o = json.loads(mobj.group(0))
+                if isinstance(o, dict):
+                    parsed = o
+            except (json.JSONDecodeError, ValueError):
+                pass
+    if not parsed:
+        return None
+    ans = parsed.get("answer")
+    if isinstance(ans, str) and ans.strip():
+        return ans.strip()
+    legacy = parsed.get("concise_answer")
+    if isinstance(legacy, str) and legacy.strip():
+        return legacy.strip()
+    return None
 
 
 @dataclass
@@ -722,10 +764,13 @@ class AgentGraph:
             with step_scope("all_in_answer"):
                 answer = chat(
                     prompt, vendor=self.vendor, model=self.model,
-                    system=self.answer_system_prompt,
+                    system=self.answer_system_prompt + "\n\n" + ALL_IN_ANSWER_SYSTEM_PROMPT,
                     enable_thinking=self.last_think,
                 )
             answer = self._postprocess_final_chat(answer, "all_in_answer").strip()
+            extracted = _extract_answer_from_analysis_answer_json(answer)
+            if extracted:
+                return extracted
             if not answer:
                 logger.warning("[AllInAnswer] LLM 返回空，沿用 final summary 原文")
                 return final_summary
