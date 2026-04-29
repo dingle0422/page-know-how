@@ -345,6 +345,9 @@ class AgentGraph:
     def _start_pure_model_request_async(self) -> None:
         """推理流程启动时向 deepseek-v4-pro 并行发起一次纯模型作答。
 
+        底层 chat 开启 enable_thinking=True（利于模型推理质量）；思考轨迹不入「参考回答」——
+        `_get_pure_model_reference` 内对返回值做 split_think_block，仅缓存正文。
+
         开关关闭 / 已经启动过 → 直接返回（幂等）。异常只打日志不抛出——下游取值时
         会走超时/失败降级路径，保证主推理链路不会因外部模型故障而失败。
         """
@@ -369,6 +372,7 @@ class AgentGraph:
                         vendor=self.pure_model_vendor,
                         model=self.pure_model_vendor,
                         system=SUMMARY_SYSTEM_PROMPT,
+                        enable_thinking=True,
                     )
             except Exception as e:
                 logger.error(f"[PureModel] 外部模型调用失败: {e}")
