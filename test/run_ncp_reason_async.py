@@ -307,8 +307,13 @@ def poll_one(
             try:
                 body = resp.json()
             except Exception:
+                last_status = f"non_json_http_{resp.status_code}"
                 out["error"] = f"response not JSON: {resp.text[:300]}"
-                break
+                if time.time() >= deadline:
+                    out["status"] = "failed"
+                    break
+                time.sleep(poll_interval)
+                continue
             out["poll_biz_status"] = body.get("status_code")
             out["poll_biz_message"] = body.get("message", "")
             if body.get("status_code") == 404:
@@ -319,6 +324,7 @@ def poll_one(
                 # 503 等临时错误：继续重试
                 last_status = f"biz={body.get('status_code')}"
             else:
+                out["error"] = ""
                 data = body.get("data") or {}
                 status = data.get("status", "") or ""
                 out["status"] = status
