@@ -342,7 +342,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--retrieval-mode", action="store_true", default=True)
     p.add_argument("--check-pitfalls", action="store_true", default=True)
     p.add_argument("--chunk-size", type=int, default=3000)
-    p.add_argument("--version", default="v1", choices=["v0", "v1"])
+    p.add_argument("--version", default="v1", choices=["v0", "v1", "v2"])
     p.add_argument("--enable-skills", action="store_true", default=True)
     p.add_argument("--summary-clean-answer", action="store_true", default=True)
     p.add_argument("--think-mode", action="store_true", default=True)

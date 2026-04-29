@@ -41,6 +41,8 @@ def _import_engine(version: str):
     """根据版本号动态导入 engine 模块"""
     if version == "v0":
         from reasoner.v0.engine import run_single_question, run_reasoning
+    elif version == "v2":
+        from reasoner.v2.engine import run_single_question, run_reasoning
     else:
         from reasoner.v1.engine import run_single_question, run_reasoning
     return run_single_question, run_reasoning
@@ -90,7 +92,7 @@ def cmd_reason(args):
         enable_skills=enable_skills,
         last_think=args.last_think,
     )
-    if version == "v1":
+    if version in ("v1", "v2"):
         common_kwargs["chunk_size"] = args.chunk_size
         common_kwargs["summary_clean_answer"] = args.summary_clean_answer
         common_kwargs["think_mode"] = args.think_mode
@@ -104,13 +106,13 @@ def cmd_reason(args):
         common_kwargs["reduce_max_part_depth"] = args.reduce_max_part_depth
     else:
         if args.summary_clean_answer:
-            print("警告：--summary-clean-answer 仅在 --version v1 下生效，本次将被忽略")
+            print("警告：--summary-clean-answer 仅在 --version v1/v2 下生效，本次将被忽略")
         if args.think_mode:
-            print("警告：--think-mode 仅在 --version v1 下生效，本次将被忽略")
+            print("警告：--think-mode 仅在 --version v1/v2 下生效，本次将被忽略")
         if args.answer_system_prompt:
-            print("警告：--answer-system-prompt 仅在 --version v1 下生效，本次将被忽略")
+            print("警告：--answer-system-prompt 仅在 --version v1/v2 下生效，本次将被忽略")
         if args.enable_relations:
-            print("警告：--enable-relations 仅在 --version v1 下生效，本次将被忽略")
+            print("警告：--enable-relations 仅在 --version v1/v2 下生效，本次将被忽略")
 
     verbose_trace = getattr(args, "verbose_trace", False)
     session_id = getattr(args, "session_id", None)
@@ -235,8 +237,8 @@ def main():
              "每个块并行推理后汇总。默认 0 表示不启用（使用原有 ReactAgent 探索模式）"
     )
     reason_parser.add_argument(
-        "--version", default="v1", choices=["v0", "v1"],
-        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树，v1探索太激进建议开启召回模式, 默认 v1）"
+        "--version", default="v1", choices=["v0", "v1", "v2"],
+        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt, 默认 v1）"
     )
     reason_parser.add_argument(
         "--disable-skills", action="store_true", default=False,

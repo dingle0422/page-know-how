@@ -183,7 +183,7 @@ class ReasonRequest(BaseModel):
     )
     version: str = Field(
         default="v1",
-        description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树，默认 v1）",
+        description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt，默认 v1）",
     )
     enableSkills: bool = Field(
         default=True,
@@ -200,7 +200,7 @@ class ReasonRequest(BaseModel):
         description="最终作答阶段的 system prompt 自定义内容："
                     "若不传或传空字符串，则使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT 默认版本；"
                     "中间提炼层仍固定使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。"
-                    "仅在 version=v1 下生效",
+                    "仅在 version=v1/v2 下生效",
     )
     lastThink: bool = Field(
         default=True,
@@ -225,7 +225,7 @@ class ReasonRequest(BaseModel):
                     "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
                     "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
                     "中间提炼 prompt 始终保持原样不动。"
-                    "需配合 summaryCleanAnswer=True 使用；仅在 version=v1 下生效",
+                    "需配合 summaryCleanAnswer=True 使用；仅在 version=v1/v2 下生效",
     )
     enableRelations: bool = Field(
         default=True,
@@ -233,7 +233,7 @@ class ReasonRequest(BaseModel):
                     "clause.json 中的预展开 references 时，按 LLM 多跳并发拉取外部条款，"
                     "在 chunk 模式下切分为派生 chunk 后续与原 chunk 一并进入流式 batch summary；"
                     "在 standard / retrieval 模式下 inline 追加到对应 fragment 末尾。"
-                    "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取。仅在 version=v1 下生效。",
+                    "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取。仅在 version=v1/v2 下生效。",
     )
     relationMaxDepth: int = Field(
         default=5,
@@ -683,6 +683,8 @@ def _split_analysis_concise_answer(raw: str, think_mode: bool) -> tuple[str, str
 def _import_agent_graph(version: str):
     if version == "v0":
         from reasoner.v0.agent_graph import AgentGraph
+    elif version == "v2":
+        from reasoner.v2.agent_graph import AgentGraph
     else:
         from reasoner.v1.agent_graph import AgentGraph
     return AgentGraph
@@ -716,7 +718,7 @@ def _run_reasoning(
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
     extra_kwargs = {}
-    if version == "v1":
+    if version in ("v1", "v2"):
         extra_kwargs["summary_clean_answer"] = summary_clean_answer
         extra_kwargs["answer_system_prompt"] = answer_system_prompt
         extra_kwargs["think_mode"] = think_mode
@@ -729,13 +731,13 @@ def _run_reasoning(
         extra_kwargs["reduce_max_part_depth"] = reduce_max_part_depth
     else:
         if summary_clean_answer:
-            logger.warning("summaryCleanAnswer 仅在 version=v1 下生效，本次将被忽略")
+            logger.warning("summaryCleanAnswer 仅在 version=v1/v2 下生效，本次将被忽略")
         if answer_system_prompt:
-            logger.warning("answerSystemPrompt 仅在 version=v1 下生效，本次将被忽略")
+            logger.warning("answerSystemPrompt 仅在 version=v1/v2 下生效，本次将被忽略")
         if think_mode:
-            logger.warning("thinkMode 仅在 version=v1 下生效，本次将被忽略")
+            logger.warning("thinkMode 仅在 version=v1/v2 下生效，本次将被忽略")
         if enable_relations:
-            logger.warning("enableRelations 仅在 version=v1 下生效，本次将被忽略")
+            logger.warning("enableRelations 仅在 version=v1/v2 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
