@@ -277,6 +277,16 @@ class ReasonRequest(BaseModel):
                     "调大可减少 frozen 数量、让 final merge 入口更接近 batch_size；"
                     "调小则相反。summaryPipelineMode='layered' 时本字段忽略。",
     )
+    pureModelResult: bool = Field(
+        default=False,
+        description="开启后在推理流程初始节点并行向 deepseek-v4-pro 发起一次纯大模型原生作答"
+                    "（system=SUMMARY_SYSTEM_PROMPT，要求 ≤500 字 + 分「判断逻辑 / 关键证据 / 有效期限」三段），"
+                    "并在 batch summary / final summary 阶段把该回答以「参考回答」小节形式注入到"
+                    "用户问题下方，供推理模型在知识体系中摘取支撑 / 修正 / 冲突证据；"
+                    "final 阶段会把冲突信息以「疑点」方式呈现给用户但不暴露外部模型来源。"
+                    "外部请求 60s 内未返回 / 失败时自动降级为「无外部参考」。"
+                    "submit / reason 两个入口均生效；仅在 version=v1/v2 下生效。",
+    )
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
         description="启用 verbose 模式：以当次请求的 taskId 为文件名，"
@@ -714,6 +724,7 @@ def _run_reasoning(
     relations_expansion_mode: str = "all",
     summary_pipeline_mode: str = "layered",
     reduce_max_part_depth: int = 5,
+    pure_model_result: bool = False,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
@@ -729,6 +740,7 @@ def _run_reasoning(
         extra_kwargs["relations_expansion_mode"] = relations_expansion_mode
         extra_kwargs["summary_pipeline_mode"] = summary_pipeline_mode
         extra_kwargs["reduce_max_part_depth"] = reduce_max_part_depth
+        extra_kwargs["pure_model_result"] = pure_model_result
     else:
         if summary_clean_answer:
             logger.warning("summaryCleanAnswer 仅在 version=v1/v2 下生效，本次将被忽略")
@@ -738,6 +750,8 @@ def _run_reasoning(
             logger.warning("thinkMode 仅在 version=v1/v2 下生效，本次将被忽略")
         if enable_relations:
             logger.warning("enableRelations 仅在 version=v1/v2 下生效，本次将被忽略")
+        if pure_model_result:
+            logger.warning("pureModelResult 仅在 version=v1/v2 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
@@ -864,6 +878,7 @@ async def _reason_executor(request_payload: dict) -> dict:
         "summaryBatchSize": request_payload.get("summaryBatchSize"),
         "enableRelations": request_payload.get("enableRelations"),
         "thinkMode": request_payload.get("thinkMode"),
+        "pureModelResult": request_payload.get("pureModelResult"),
     }
     with _open_verbose_session(
         session_id=task_id,
@@ -903,6 +918,7 @@ async def _reason_executor(request_payload: dict) -> dict:
             relations_expansion_mode=request_payload.get("relationsExpansionMode", "all"),
             summary_pipeline_mode=request_payload.get("summaryPipelineMode", "layered"),
             reduce_max_part_depth=request_payload.get("reduceMaxPartDepth", 4),
+            pure_model_result=request_payload.get("pureModelResult", False),
         )
 
         if req_verbose:

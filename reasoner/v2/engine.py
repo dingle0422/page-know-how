@@ -109,6 +109,7 @@ def _process_single_question(
     relations_expansion_mode: str = "all",
     summary_pipeline_mode: str = "layered",
     reduce_max_part_depth: int = 5,
+    pure_model_result: bool = False,
 ) -> dict:
     """处理单个问题并返回结果字典，供串行和并行模式共用。
     original_index: 问题在原始输入文件中的数据行索引（0-based）。
@@ -143,6 +144,7 @@ def _process_single_question(
             relations_expansion_mode=relations_expansion_mode,
             summary_pipeline_mode=summary_pipeline_mode,
             reduce_max_part_depth=reduce_max_part_depth,
+            pure_model_result=pure_model_result,
         )
         result = graph.run()
         answer = result["answer"]
@@ -198,6 +200,7 @@ def run_single_question(
     relations_expansion_mode: str = "all",
     summary_pipeline_mode: str = "layered",
     reduce_max_part_depth: int = 5,
+    pure_model_result: bool = False,
 ) -> dict:
     """
     对单个问题执行推理，直接返回结果字典，同时打印答案到终端。
@@ -233,6 +236,7 @@ def run_single_question(
         relations_expansion_mode=relations_expansion_mode,
         summary_pipeline_mode=summary_pipeline_mode,
         reduce_max_part_depth=reduce_max_part_depth,
+        pure_model_result=pure_model_result,
     )
     result = graph.run()
     answer = result["answer"]
@@ -282,6 +286,7 @@ def _run_sequential(
     relations_expansion_mode: str = "all",
     summary_pipeline_mode: str = "layered",
     reduce_max_part_depth: int = 5,
+    pure_model_result: bool = False,
 ) -> None:
     """串行逐个处理待推理问题。"""
     for original_index, display_pos, question in pending:
@@ -300,6 +305,7 @@ def _run_sequential(
             relations_expansion_mode=relations_expansion_mode,
             summary_pipeline_mode=summary_pipeline_mode,
             reduce_max_part_depth=reduce_max_part_depth,
+            pure_model_result=pure_model_result,
         )
         results.append(result_dict)
         _flush_results(results, output_path)
@@ -333,6 +339,7 @@ def _run_parallel(
     relations_expansion_mode: str = "all",
     summary_pipeline_mode: str = "layered",
     reduce_max_part_depth: int = 5,
+    pure_model_result: bool = False,
 ) -> None:
     """并行处理待推理问题，线程安全地收集结果并实时落盘。"""
     lock = threading.Lock()
@@ -357,6 +364,7 @@ def _run_parallel(
                 relations_expansion_mode=relations_expansion_mode,
                 summary_pipeline_mode=summary_pipeline_mode,
                 reduce_max_part_depth=reduce_max_part_depth,
+                pure_model_result=pure_model_result,
             ): (original_index, question)
             for original_index, display_pos, question in pending
         }
@@ -414,6 +422,7 @@ def run_reasoning(
     relations_expansion_mode: str = "all",
     summary_pipeline_mode: str = "layered",
     reduce_max_part_depth: int = 5,
+    pure_model_result: bool = False,
 ) -> str:
     """
     推理引擎主入口。
@@ -477,6 +486,7 @@ def run_reasoning(
             relations_expansion_mode=relations_expansion_mode,
             summary_pipeline_mode=summary_pipeline_mode,
             reduce_max_part_depth=reduce_max_part_depth,
+            pure_model_result=pure_model_result,
         )
     else:
         _run_parallel(
@@ -494,6 +504,7 @@ def run_reasoning(
             relations_expansion_mode=relations_expansion_mode,
             summary_pipeline_mode=summary_pipeline_mode,
             reduce_max_part_depth=reduce_max_part_depth,
+            pure_model_result=pure_model_result,
         )
 
     total_elapsed = round(time.time() - total_start, 1)

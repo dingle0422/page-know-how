@@ -104,6 +104,7 @@ def cmd_reason(args):
         common_kwargs["relations_expansion_mode"] = args.relations_expansion_mode
         common_kwargs["summary_pipeline_mode"] = args.summary_pipeline_mode
         common_kwargs["reduce_max_part_depth"] = args.reduce_max_part_depth
+        common_kwargs["pure_model_result"] = args.pure_model_result
     else:
         if args.summary_clean_answer:
             print("警告：--summary-clean-answer 仅在 --version v1/v2 下生效，本次将被忽略")
@@ -113,6 +114,8 @@ def cmd_reason(args):
             print("警告：--answer-system-prompt 仅在 --version v1/v2 下生效，本次将被忽略")
         if args.enable_relations:
             print("警告：--enable-relations 仅在 --version v1/v2 下生效，本次将被忽略")
+        if args.pure_model_result:
+            print("警告：--pure-model-result 仅在 --version v1/v2 下生效，本次将被忽略")
 
     verbose_trace = getattr(args, "verbose_trace", False)
     session_id = getattr(args, "session_id", None)
@@ -325,6 +328,14 @@ def main():
         help="reduce_queue 模式下单 part 经过的最大中间 BATCH_SUMMARY 次数。"
              "命中上限的 part 不再参与凑批，转入 frozen 列表直接保留到 final merge。"
              "--summary-pipeline-mode=layered 时本字段忽略。默认 4"
+    )
+    reason_parser.add_argument(
+        "--pure-model-result", action="store_true", default=False,
+        help="在推理流程初始节点并行向 deepseek-v4-pro 发起一次纯大模型原生作答，"
+             "并在 batch summary / final summary 阶段把该回答注入到用户问题下方，"
+             "作为「参考回答」供推理模型对照支撑 / 修正 / 冲突证据提取；final 阶段"
+             "将冲突信息以「疑点」方式呈现。仅在 --version v1/v2 下生效；"
+             "外部请求 60s 内未返回会自动降级为「无外部参考」。默认关闭"
     )
     from utils.verbose_logger import VERBOSE_DEFAULT_ENABLED as _VT_DEFAULT
     reason_parser.add_argument(

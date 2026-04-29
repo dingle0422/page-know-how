@@ -18,6 +18,7 @@ from reasoner.v1.prompts import (
     SUMMARY_AND_CLEAN_THINK_PROMPT,
     SUMMARY_EXTRACT_SYSTEM_PROMPT,
     SUMMARY_ANSWER_SYSTEM_PROMPT,
+    SUMMARY_SYSTEM_PROMPT,
     CLEAN_ANSWER_PROMPT,
     BATCH_SUMMARY_PROMPT,
     BATCH_MERGE_PROMPT,
@@ -33,6 +34,9 @@ from reasoner.v1.prompts import (
     CHUNK_REASONING_PROMPT,
     CHUNK_REASONING_WITH_PITFALLS_PROMPT,
     ALL_IN_ANSWER_PROMPT,
+    PURE_MODEL_REQUEST_PROMPT,
+    PURE_MODEL_REFERENCE_EXTRACT_INSTRUCTIONS,
+    PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS,
 )
 from reasoner.v1.chunk_builder import (
     build_knowledge_chunks,
@@ -124,6 +128,7 @@ class AgentGraph:
         reduce_max_part_depth: int = 5,
         page_knowledge_dir: str | None = None,
         policy_index_path: str | None = None,
+        pure_model_result: bool = False,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -188,6 +193,20 @@ class AgentGraph:
         self._chunk_reasoning_results: list[dict] = []
         self._chunk_slots: list[_OrderedSlot] = []  # 流式调度产物，trace 阶段引用
         self._reduce_pipeline: ReducePipeline | None = None  # reduce_queue 模式下保留以便 trace 阶段拿轨迹
+
+        # ---------- 外部大模型原生回答（pure_model_result 开关） ----------
+        # 开启时：推理流程启动（run() 入口）就向 deepseek-v4-pro 并行发起一次裸模型作答，
+        # 在 batch summary / final summary 阶段阻塞等待该结果（最多 PURE_MODEL_WAIT_TIMEOUT
+        # 秒），命中则以「## 参考回答」小节形式注入到 user prompt 紧随问题之后，并给对应
+        # system prompt 追加 PURE_MODEL_REFERENCE_*_INSTRUCTIONS 以约束参考策略。
+        # 关闭时（默认）：任何注入点均返回空串，完整保持原有行为。
+        self.pure_model_result = bool(pure_model_result)
+        self.pure_model_vendor = "deepseek-v4-pro"
+        self.pure_model_wait_timeout_seconds = 60.0
+        self._pure_model_executor: ThreadPoolExecutor | None = None
+        self._pure_model_future = None
+        self._pure_model_reference: str | None = None
+        self._pure_model_lock = threading.Lock()
 
         # ---------- 关联展开（可选） ----------
         self.enable_relations = enable_relations
@@ -303,8 +322,12 @@ class AgentGraph:
             )
 
     def _shutdown_relation_executors(self) -> None:
-        """关联展开相关线程池在推理结束时统一释放。重复调用幂等。"""
-        for attr in ("_relation_eval_executor", "_relation_dispatch_executor"):
+        """关联展开相关线程池在推理结束时统一释放。重复调用幂等。
+
+        pure_model 线程池在本函数内一并释放（在此收口而不是新开函数，让外部的
+        推理收尾路径只用记住一个 shutdown 入口）。
+        """
+        for attr in ("_relation_eval_executor", "_relation_dispatch_executor", "_pure_model_executor"):
             ex = getattr(self, attr, None)
             if ex is not None:
                 try:
@@ -312,6 +335,150 @@ class AgentGraph:
                 except Exception:
                     pass
                 setattr(self, attr, None)
+
+    # ============================= 外部大模型原生回答 =============================
+
+    def _start_pure_model_request_async(self) -> None:
+        """推理流程启动时向 deepseek-v4-pro 并行发起一次纯模型作答。
+
+        开关关闭 / 已经启动过 → 直接返回（幂等）。异常只打日志不抛出——下游取值时
+        会走超时/失败降级路径，保证主推理链路不会因外部模型故障而失败。
+        """
+        if not self.pure_model_result:
+            return
+        if self._pure_model_future is not None:
+            return
+        prompt = PURE_MODEL_REQUEST_PROMPT.format(question=self.question)
+        logger.info(
+            f"[PureModel] 启动 {self.pure_model_vendor} 并行作答，"
+            f"prompt 长度: {len(prompt)} 字符"
+        )
+        self._pure_model_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="pure-model",
+        )
+
+        def _run() -> str:
+            try:
+                with step_scope("pure_model_reasoning"):
+                    return chat(
+                        prompt,
+                        vendor=self.pure_model_vendor,
+                        model=self.pure_model_vendor,
+                        system=SUMMARY_SYSTEM_PROMPT,
+                    )
+            except Exception as e:
+                logger.error(f"[PureModel] 外部模型调用失败: {e}")
+                return ""
+
+        self._pure_model_future = self._pure_model_executor.submit(_run)
+
+    def _get_pure_model_reference(self) -> str:
+        """batch summary / final summary 阶段阻塞取值。
+
+        - 开关关闭：直接返回空串
+        - 首次调用：最多等 pure_model_wait_timeout_seconds 秒；超时 / 失败 / 空回复
+          视为"无外部参考"，缓存空串防止后续节点重复阻塞
+        - 再次调用：直接返回缓存值（pure-model 回答只对同一请求生效一次）
+        """
+        if not self.pure_model_result:
+            return ""
+        with self._pure_model_lock:
+            if self._pure_model_reference is not None:
+                return self._pure_model_reference
+            fut = self._pure_model_future
+            if fut is None:
+                self._pure_model_reference = ""
+                return ""
+            try:
+                text = fut.result(timeout=self.pure_model_wait_timeout_seconds)
+            except Exception as e:
+                logger.warning(
+                    f"[PureModel] 等待外部模型回答失败/超时 "
+                    f"({self.pure_model_wait_timeout_seconds}s 上限): {e}，"
+                    f"本次退化为'无外部参考'"
+                )
+                text = ""
+            # 底层 chat() 若模型走 thinking 模式可能前缀带 <think>…</think>，
+            # 参考块要展示给后续 LLM，统一剥掉思考块只留正式作答正文。
+            _, body = split_think_block(text or "")
+            cleaned = (body or "").strip()
+            if cleaned:
+                preview = cleaned[:200].replace("\n", " ")
+                logger.info(
+                    f"[PureModel] 外部模型回答就绪（{len(cleaned)} 字符）: "
+                    f"{preview}{'…' if len(cleaned) > 200 else ''}"
+                )
+            else:
+                logger.warning("[PureModel] 外部模型回答为空，本次退化为'无外部参考'")
+            self._pure_model_reference = cleaned
+            return cleaned
+
+    @staticmethod
+    def _append_pure_model_reference_to_prompt(prompt: str, reference: str) -> str:
+        """把外部模型回答以「## 参考回答」小节形式插入到 `## 用户问题\\n{question}`
+        紧随其后（下一个 `#`/`##` 小节之前）。
+
+        锚点策略与 _append_skill_context_to_prompt 完全同构（皆以"用户问题段尾部、
+        下个 heading 之前"为插入位置），两者叠加时 skill_context 先插入 → reference
+        紧随其后，最终 prompt 呈现顺序为：用户问题 → Skill 参考事实 → 外部参考回答 →
+        后续知识 / 输出要求段。
+        """
+        if not reference:
+            return prompt
+        block = "## 参考回答\n" + reference
+        match = re.search(r"## 用户问题\n.+?\n\n(?=#)", prompt, flags=re.DOTALL)
+        if match:
+            insert_pos = match.end()
+            return prompt[:insert_pos] + block + "\n\n" + prompt[insert_pos:]
+        marker = "\n---\n"
+        idx = prompt.rfind(marker)
+        if idx < 0:
+            return prompt + "\n\n" + block
+        return prompt[:idx] + "\n\n" + block + prompt[idx:]
+
+    def _inject_pure_model_reference(self, prompt: str) -> str:
+        """封装"取外部回答 + 按需注入 user prompt"的一站式入口。关闭/无回答时原样返回。"""
+        ref = self._get_pure_model_reference()
+        if not ref:
+            return prompt
+        return self._append_pure_model_reference_to_prompt(prompt, ref)
+
+    def _bake_pure_model_reference_into_template(self, template: str) -> str:
+        """把「## 参考回答」块预先烘焙进 prompt 模板，再交给后续 `.format(...)` 渲染。
+
+        专供 ReducePipeline 使用：pipeline 在内部按 `intermediate_prompt.format(...)`
+        统一渲染，不方便把"渲染后再注入"的 hook 接进去；因此这里在模板层就把参考
+        块插到 `## 用户问题\\n{question}` 后、下一个 `#` 小节前。为了让 `.format()`
+        能完整保留参考块原文，参考文本中的花括号会被转义（`{` → `{{`，`}` → `}}`）。
+
+        pure_model 关闭 / 无回答：原样返回模板，不做任何修改。
+        """
+        ref = self._get_pure_model_reference()
+        if not ref:
+            return template
+        ref_escaped = ref.replace("{", "{{").replace("}", "}}")
+        block = "## 参考回答\n" + ref_escaped + "\n\n"
+        anchor = re.compile(r"(?<=## 用户问题\n\{question\}\n\n)(?=#)")
+        m = anchor.search(template)
+        if m:
+            return template[: m.start()] + block + template[m.start():]
+        marker = "\n---\n"
+        idx = template.rfind(marker)
+        if idx < 0:
+            return template + "\n\n" + block
+        return template[:idx] + "\n\n" + block + template[idx:]
+
+    def _augment_system_for_extract(self, base_system: str) -> str:
+        """batch summary 中间阶段：若外部参考可用则在 system prompt 末尾追加 EXTRACT 指令。"""
+        if not self.pure_model_result or not self._get_pure_model_reference():
+            return base_system
+        return base_system + "\n\n" + PURE_MODEL_REFERENCE_EXTRACT_INSTRUCTIONS
+
+    def _augment_system_for_answer(self, base_system: str) -> str:
+        """final summary 阶段：若外部参考可用则在 system prompt 末尾追加 ANSWER 指令。"""
+        if not self.pure_model_result or not self._get_pure_model_reference():
+            return base_system
+        return base_system + "\n\n" + PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS
 
     def _run_skill_evaluation(self) -> None:
         """在独立线程中跑 evaluator 的 asyncio 事件循环"""
@@ -649,6 +816,9 @@ class AgentGraph:
 
     def run(self) -> dict:
         with agent_scope(agent_id="graph-root"):
+            # 外部大模型并行作答尽可能早启动，与 skill 判定 / 主推理同步并发，
+            # 以便在后续 batch summary / final summary 阶段直接就绪。
+            self._start_pure_model_request_async()
             return self._run_impl()
 
     def _run_impl(self) -> dict:
@@ -1180,9 +1350,14 @@ class AgentGraph:
                 summaries, layer=0, skill_context=skill_ctx,
             )
 
+        intermediate_prompt = self._bake_pure_model_reference_into_template(
+            BATCH_SUMMARY_PROMPT
+        )
+        intermediate_system = self._augment_system_for_extract(SUMMARY_EXTRACT_SYSTEM_PROMPT)
         pipeline = ReducePipeline(
             batch_size=self.summary_batch_size,
-            intermediate_prompt=BATCH_SUMMARY_PROMPT,
+            intermediate_prompt=intermediate_prompt,
+            intermediate_system_prompt=intermediate_system,
             final_merge_callable=_final_merge,
             question=self.question,
             vendor=self.vendor,
@@ -1421,6 +1596,8 @@ class AgentGraph:
             question=self.question,
             batch_content=batch_content,
         )
+        prompt = self._inject_pure_model_reference(prompt)
+        system_prompt = self._augment_system_for_extract(SUMMARY_EXTRACT_SYSTEM_PROMPT)
         logger.info(
             f"[StreamingBatch] 第 {batch_index} 批 prompt 长度: {len(prompt)} 字符 "
             f"({len(parts)} 个 parts)"
@@ -1429,7 +1606,7 @@ class AgentGraph:
             with step_scope(f"streaming_batch_summary#{batch_index}"):
                 return chat(
                     prompt, vendor=self.vendor, model=self.model,
-                    system=SUMMARY_EXTRACT_SYSTEM_PROMPT,
+                    system=system_prompt,
                 )
         except Exception as e:
             logger.error(f"[StreamingBatch] 第 {batch_index} 批失败: {e}")
@@ -2006,8 +2183,10 @@ class AgentGraph:
             agent_results=agent_results_text,
         )
         prompt = self._append_skill_context_to_prompt(prompt, skill_context)
+        prompt = self._inject_pure_model_reference(prompt)
+        system_prompt = self._augment_system_for_answer(self.answer_system_prompt)
 
-        logger.info(f"[Summary·{mode_label}] system prompt 长度: {len(self.answer_system_prompt)} 字符")
+        logger.info(f"[Summary·{mode_label}] system prompt 长度: {len(system_prompt)} 字符")
         logger.info(f"[Summary·{mode_label}] user prompt 长度: {len(prompt)} 字符")
         logger.info(f"[Summary·{mode_label}] user prompt 内容:\n{prompt}")
 
@@ -2016,7 +2195,7 @@ class AgentGraph:
                 with step_scope("final_summary"):
                     raw = chat(
                         prompt, vendor=self.vendor, model=self.model,
-                        system=self.answer_system_prompt,
+                        system=system_prompt,
                         enable_thinking=self.last_think,
                     )
                 return self._postprocess_final_chat(raw, "final_summary")
@@ -2042,17 +2221,22 @@ class AgentGraph:
         intermediate_prompt: str,
         final_merge: Callable[[list[str]], str],
         logger_label: str,
+        intermediate_system_prompt: str | None = None,
     ) -> str:
         """退化场景的 reduce_queue：parts 已经全部就位，按完成顺序入队 → 凑批 → 回灌 → final merge。
 
         与 chunk 模式相比，本路径没有"动态产出"，但仍享受统一架构 + 后续中间 batch 之间
         的回灌并发性。standard / retrieval 两个入口共享本 helper，区别只在
         intermediate_prompt 与 final_merge 的具体实现。
+
+        intermediate_system_prompt：调用方可显式覆盖 ReducePipeline 的默认
+        `SUMMARY_EXTRACT_SYSTEM_PROMPT`，用于在 pure_model 开关启用时把 EXTRACT
+        指令追加进来。None 时保持 pipeline 内置默认。
         """
         if not parts:
             return final_merge([])
 
-        pipeline = ReducePipeline(
+        pipeline_kwargs = dict(
             batch_size=self.summary_batch_size,
             intermediate_prompt=intermediate_prompt,
             final_merge_callable=lambda rps: final_merge([p.text for p in rps]),
@@ -2062,6 +2246,9 @@ class AgentGraph:
             max_part_depth=self.reduce_max_part_depth,
             logger_label=logger_label,
         )
+        if intermediate_system_prompt is not None:
+            pipeline_kwargs["intermediate_system_prompt"] = intermediate_system_prompt
+        pipeline = ReducePipeline(**pipeline_kwargs)
         # 这里 parts 已就绪，没有"未完成生产者"，直接全部 submit_part 即可
         for i, text in enumerate(parts, 1):
             pipeline.submit_part(ReducePart(
@@ -2084,14 +2271,19 @@ class AgentGraph:
             self.summary_pipeline_mode == "reduce_queue"
             and self.summary_batch_size > 0
         ):
+            intermediate_prompt = self._bake_pure_model_reference_into_template(
+                BATCH_SUMMARY_PROMPT
+            )
+            intermediate_system = self._augment_system_for_extract(SUMMARY_EXTRACT_SYSTEM_PROMPT)
             return self._reduce_queue_run_over_parts(
                 parts=agent_parts,
                 source_label_prefix="agent",
-                intermediate_prompt=BATCH_SUMMARY_PROMPT,
+                intermediate_prompt=intermediate_prompt,
                 final_merge=lambda summaries: self._batch_final_merge(
                     summaries, layer=0, skill_context=skill_context,
                 ),
                 logger_label="ReduceQueue·Standard",
+                intermediate_system_prompt=intermediate_system,
             )
         return self._recursive_batch_reduce(agent_parts, layer=1, skill_context=skill_context)
 
@@ -2120,6 +2312,8 @@ class AgentGraph:
                 question=self.question,
                 batch_content=batch_content,
             )
+            prompt = self._inject_pure_model_reference(prompt)
+            system_prompt = self._augment_system_for_extract(SUMMARY_EXTRACT_SYSTEM_PROMPT)
             logger.info(
                 f"[BatchSummary] 第 {layer} 层 第 {batch_index}/{total_batches} 批 "
                 f"prompt 长度: {len(prompt)} 字符"
@@ -2127,7 +2321,7 @@ class AgentGraph:
             try:
                 with step_scope(f"batch_summary·L{layer}·b{batch_index}"):
                     return chat(prompt, vendor=self.vendor, model=self.model,
-                                system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
+                                system=system_prompt)
             except Exception as e:
                 logger.error(f"[BatchSummary] 第 {layer} 层 第 {batch_index} 批失败: {e}")
                 return f"（第 {batch_index} 批压缩失败）\n原始内容:\n{batch_content}"
@@ -2172,6 +2366,8 @@ class AgentGraph:
             batch_summaries=numbered,
         )
         merge_prompt = self._append_skill_context_to_prompt(merge_prompt, skill_context)
+        merge_prompt = self._inject_pure_model_reference(merge_prompt)
+        system_prompt = self._augment_system_for_answer(self.answer_system_prompt)
 
         logger.info(
             f"[BatchMerge] 第 {layer} 层（最终合并·{mode_label}）："
@@ -2183,7 +2379,7 @@ class AgentGraph:
             try:
                 with step_scope(f"batch_final_merge·L{layer}"):
                     raw = chat(merge_prompt, vendor=self.vendor, model=self.model,
-                               system=self.answer_system_prompt,
+                               system=system_prompt,
                                enable_thinking=self.last_think)
                 return self._postprocess_final_chat(raw, f"batch_final_merge·L{layer}")
             except Exception as e:
@@ -2213,6 +2409,8 @@ class AgentGraph:
             organized_knowledge=knowledge_text,
         )
         prompt = self._append_skill_context_to_prompt(prompt, skill_context)
+        prompt = self._inject_pure_model_reference(prompt)
+        system_prompt = self._augment_system_for_answer(self.answer_system_prompt)
 
         logger.info(f"[RetrievalSummary·{mode_label}] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[RetrievalSummary·{mode_label}] prompt 内容:\n{prompt}")
@@ -2221,7 +2419,7 @@ class AgentGraph:
             try:
                 with step_scope("retrieval_final_summary"):
                     raw = chat(prompt, vendor=self.vendor, model=self.model,
-                               system=self.answer_system_prompt,
+                               system=system_prompt,
                                enable_thinking=self.last_think)
                 return self._postprocess_final_chat(raw, "retrieval_final_summary")
             except Exception as e:
@@ -2239,14 +2437,19 @@ class AgentGraph:
             self.summary_pipeline_mode == "reduce_queue"
             and self.summary_batch_size > 0
         ):
+            intermediate_prompt = self._bake_pure_model_reference_into_template(
+                RETRIEVAL_BATCH_SUMMARY_PROMPT
+            )
+            intermediate_system = self._augment_system_for_extract(SUMMARY_EXTRACT_SYSTEM_PROMPT)
             return self._reduce_queue_run_over_parts(
                 parts=organized_parts,
                 source_label_prefix="frag",
-                intermediate_prompt=RETRIEVAL_BATCH_SUMMARY_PROMPT,
+                intermediate_prompt=intermediate_prompt,
                 final_merge=lambda summaries: self._retrieval_batch_final_merge(
                     summaries, layer=0, skill_context=skill_context,
                 ),
                 logger_label="ReduceQueue·Retrieval",
+                intermediate_system_prompt=intermediate_system,
             )
         return self._retrieval_recursive_batch_reduce(organized_parts, layer=1, skill_context=skill_context)
 
@@ -2275,6 +2478,8 @@ class AgentGraph:
                 question=self.question,
                 batch_content=batch_content,
             )
+            prompt = self._inject_pure_model_reference(prompt)
+            system_prompt = self._augment_system_for_extract(SUMMARY_EXTRACT_SYSTEM_PROMPT)
             logger.info(
                 f"[RetrievalBatch] 第 {layer} 层 第 {batch_index}/{total_batches} 批 "
                 f"prompt 长度: {len(prompt)} 字符"
@@ -2282,7 +2487,7 @@ class AgentGraph:
             try:
                 with step_scope(f"retrieval_batch_summary·L{layer}·b{batch_index}"):
                     return chat(prompt, vendor=self.vendor, model=self.model,
-                                system=SUMMARY_EXTRACT_SYSTEM_PROMPT)
+                                system=system_prompt)
             except Exception as e:
                 logger.error(f"[RetrievalBatch] 第 {layer} 层 第 {batch_index} 批失败: {e}")
                 return f"（第 {batch_index} 批压缩失败）\n原始内容:\n{batch_content}"
@@ -2325,6 +2530,8 @@ class AgentGraph:
             batch_summaries=numbered,
         )
         merge_prompt = self._append_skill_context_to_prompt(merge_prompt, skill_context)
+        merge_prompt = self._inject_pure_model_reference(merge_prompt)
+        system_prompt = self._augment_system_for_answer(self.answer_system_prompt)
 
         logger.info(
             f"[RetrievalBatchMerge] 第 {layer} 层（最终合并·{mode_label}）："
@@ -2336,7 +2543,7 @@ class AgentGraph:
             try:
                 with step_scope(f"retrieval_batch_final_merge·L{layer}"):
                     raw = chat(merge_prompt, vendor=self.vendor, model=self.model,
-                               system=self.answer_system_prompt,
+                               system=system_prompt,
                                enable_thinking=self.last_think)
                 return self._postprocess_final_chat(raw, f"retrieval_batch_final_merge·L{layer}")
             except Exception as e:
