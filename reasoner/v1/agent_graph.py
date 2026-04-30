@@ -4,7 +4,7 @@ import json
 import asyncio
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -210,17 +210,35 @@ class AgentGraph:
         # last_think 只改 chat_template_kwargs.enable_thinking（开启推理轨迹）。
         self.last_think = bool(last_think)
         # 最终作答阶段的 system prompt：调用方（CLI/HTTP）可自定义；
-        # 未传入或传入空字符串时回退到默认的 SUMMARY_ANSWER_SYSTEM_PROMPT。
+        # 仅作用于【最终总结/作答】节点（_all_in_answer / _final_summary /
+        # _batch_final_merge / _retrieval_final_summary / _retrieval_batch_final_merge）；
         # 中间提炼层始终使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。
+        #
+        # 拼接策略（避免调用方覆盖掉内置的财税推理范式）：
+        #   - 未传 / 传空：直接使用默认 SUMMARY_ANSWER_SYSTEM_PROMPT。
+        #   - 传入非空：在 SUMMARY_ANSWER_SYSTEM_PROMPT 之前以「## 最高行为准则」标题挂上，
+        #     并把默认部分放在「## 默认作答规范」标题下，二者用大标题显式区分；
+        #     语义上自定义部分优先级最高（与默认冲突时以自定义为准）。
         custom = (answer_system_prompt or "").strip() if answer_system_prompt is not None else ""
-        self.answer_system_prompt = custom if custom else SUMMARY_ANSWER_SYSTEM_PROMPT
         if custom:
+            self.answer_system_prompt = (
+                "## 最高行为准则\n"
+                "（以下规则由调用方在本次请求中传入，优先级高于下方默认规范；"
+                "若与默认规范冲突，以本节为准）\n\n"
+                f"{custom}\n\n"
+                "## 默认作答规范\n"
+                f"{SUMMARY_ANSWER_SYSTEM_PROMPT}"
+            )
             logger.info(
-                f"[AnswerSystemPrompt] 使用调用方自定义版本，长度: {len(self.answer_system_prompt)} 字符"
+                f"[AnswerSystemPrompt] 检测到调用方自定义版本（{len(custom)} 字符），"
+                f"已与默认 SUMMARY_ANSWER_SYSTEM_PROMPT 按【最高行为准则 + 默认作答规范】结构拼接，"
+                f"最终长度: {len(self.answer_system_prompt)} 字符"
             )
         else:
+            self.answer_system_prompt = SUMMARY_ANSWER_SYSTEM_PROMPT
             logger.info(
-                f"[AnswerSystemPrompt] 使用默认 SUMMARY_ANSWER_SYSTEM_PROMPT，长度: {len(self.answer_system_prompt)} 字符"
+                f"[AnswerSystemPrompt] 使用默认 SUMMARY_ANSWER_SYSTEM_PROMPT，"
+                f"长度: {len(self.answer_system_prompt)} 字符"
             )
         self.registry = ExploredRegistry()
         self.pitfalls_registry = PitfallsRegistry()
@@ -764,7 +782,11 @@ class AgentGraph:
             with step_scope("all_in_answer"):
                 answer = chat(
                     prompt, vendor=self.vendor, model=self.model,
-                    system=self.answer_system_prompt + "\n\n" + ALL_IN_ANSWER_SYSTEM_PROMPT,
+                    system=(
+                        self.answer_system_prompt
+                        + "\n\n## 输出格式约束\n"
+                        + ALL_IN_ANSWER_SYSTEM_PROMPT
+                    ),
                     enable_thinking=self.last_think,
                 )
             answer = self._postprocess_final_chat(answer, "all_in_answer").strip()
@@ -946,6 +968,17 @@ class AgentGraph:
 
     # ========================= Chunk 模式 =========================
 
+    @staticmethod
+    def _join_chunk_side_futures(
+        skill_future: Future | None,
+        precheck_future: Future | None,
+    ) -> None:
+        """等待 chunk 并行侧任务完成（与 Thread.join 等价，供 finally 兜底）。"""
+        if skill_future is not None:
+            skill_future.result()
+        if precheck_future is not None:
+            precheck_future.result()
+
     def _run_chunk_mode(self) -> dict:
         """Chunk 模式：程序化分块 -> 并行推理（可选关联展开 + 流式调度）-> 分批汇总。
 
@@ -988,23 +1021,22 @@ class AgentGraph:
         for chunk in chunks:
             self._chunk_directories.extend(chunk.directories)
 
-        skill_thread: threading.Thread | None = None
-        if self.enable_skills:
-            skill_thread = threading.Thread(
-                target=self._run_skill_evaluation,
-                name="skill-eval",
-                daemon=True,
+        # 使用 ThreadPoolExecutor.submit（与 verbose_logger 的 copy_context patch 对齐），
+        # 使 Phase-0 skill / HighlightPrecheck 与主会话共用 ContextVar（verbose trace 等）。
+        side_workers = (1 if self.enable_skills else 0) + (
+            1 if self.highlight_precheck is not None else 0
+        )
+        side_pool: ThreadPoolExecutor | None = None
+        skill_future: Future | None = None
+        precheck_future: Future | None = None
+        if side_workers > 0:
+            side_pool = ThreadPoolExecutor(
+                max_workers=side_workers, thread_name_prefix="chunk-side",
             )
-            skill_thread.start()
-
-        precheck_thread: threading.Thread | None = None
-        if self.highlight_precheck is not None:
-            precheck_thread = threading.Thread(
-                target=self._run_highlight_precheck,
-                name="highlight-precheck",
-                daemon=True,
-            )
-            precheck_thread.start()
+            if self.enable_skills:
+                skill_future = side_pool.submit(self._run_skill_evaluation)
+            if self.highlight_precheck is not None:
+                precheck_future = side_pool.submit(self._run_highlight_precheck)
 
         # 三种走法：
         #   (A) reduce_queue 模式且 batch_size > 0：走统一 ReducePipeline，
@@ -1025,67 +1057,51 @@ class AgentGraph:
                 "回退到 layered"
             )
 
-        if use_reduce_queue:
-            # ReducePipeline 自己管 final merge，且会在 final merge 触发时 join skill_thread；
-            # HighlightPrecheck 的 orphan 注入也下沉到 pipeline 内部（需要在 wait_and_finalize
-            # 收口之前完成 part 投递），以保持与分批压缩的顺序一致。
-            try:
-                answer = self._chunk_reduce_queue_pipeline(
-                    chunks,
-                    skill_thread=skill_thread,
-                    precheck_thread=precheck_thread,
-                )
-            finally:
-                # 兜底 join，避免 final merge 路径异常时 skill_thread / precheck_thread 悬挂
-                if skill_thread is not None and skill_thread.is_alive():
-                    skill_thread.join()
-                if precheck_thread is not None and precheck_thread.is_alive():
-                    precheck_thread.join()
-        else:
-            try:
-                if self.enable_relations and self.relation_crawler is not None:
-                    batch_outputs, ordered_parts = self._chunk_streaming_pipeline(chunks)
-                else:
-                    ordered_parts = self._chunk_reason_phase(chunks)
-                    batch_outputs = None
-            finally:
-                if skill_thread is not None:
-                    skill_thread.join()
-                # 必须先 join precheck 才能保证 RelationRegistry 稳定、
-                # _build_chunk_orphan_part 能看到完整的 orphan 集合。
-                if precheck_thread is not None:
-                    precheck_thread.join()
-
-            if self.enable_skills and self.skill_registry:
-                done_records_snapshot = self.skill_registry.get_all()
+        try:
+            if use_reduce_queue:
+                # ReducePipeline 自己管 final merge，且会在 final merge 触发时 join skill；
+                # HighlightPrecheck 的 orphan 注入也下沉到 pipeline 内部（需要在 wait_and_finalize
+                # 收口之前完成 part 投递），以保持与分批压缩的顺序一致。
+                try:
+                    answer = self._chunk_reduce_queue_pipeline(
+                        chunks,
+                        skill_future=skill_future,
+                        precheck_future=precheck_future,
+                    )
+                finally:
+                    self._join_chunk_side_futures(skill_future, precheck_future)
             else:
-                done_records_snapshot = []
-            summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
+                try:
+                    if self.enable_relations and self.relation_crawler is not None:
+                        batch_outputs, ordered_parts = self._chunk_streaming_pipeline(chunks)
+                    else:
+                        ordered_parts = self._chunk_reason_phase(chunks)
+                        batch_outputs = None
+                finally:
+                    self._join_chunk_side_futures(skill_future, precheck_future)
 
-            # 把 HighlightPrecheck 主动判定命中、但未被任何 chunk slot 收纳的 RelationFragment
-            # 作为额外 part 追加到 summary 递归入口：
-            #   - 若 batch_outputs 非空（走过流式 BATCH_SUMMARY），追加到 batch_outputs 尾部，
-            #     随后与其他 batch 摘要一起进 _recursive_batch_reduce(layer=2)：总数 ≤ batch_size
-            #     时 orphan 原文直进 final merge 的 prompt，否则再过一轮 BATCH_SUMMARY。
-            #   - 若未过流式 BATCH_SUMMARY（summary_batch_size==0 等路径），直接追加到
-            #     ordered_parts，由 _chunk_finalize_summary 决定 final merge 时的处理。
-            orphan_part = self._build_chunk_orphan_part()
-            if orphan_part:
+                if self.enable_skills and self.skill_registry:
+                    done_records_snapshot = self.skill_registry.get_all()
+                else:
+                    done_records_snapshot = []
+                summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
+
+                orphan_part = self._build_chunk_orphan_part()
+                if orphan_part:
+                    if batch_outputs is not None:
+                        batch_outputs.append(orphan_part)
+                    else:
+                        ordered_parts.append(orphan_part)
+
                 if batch_outputs is not None:
-                    batch_outputs.append(orphan_part)
+                    answer = self._recursive_batch_reduce(
+                        batch_outputs, layer=2, skill_context=summary_skill_context,
+                    )
                 else:
-                    ordered_parts.append(orphan_part)
-
-            if batch_outputs is not None:
-                # 流式调度已经把 ordered_parts 凑批跑完 BATCH_SUMMARY，
-                # 此处只剩"对 batch_outputs 做 final merge"。
-                # 把 batch_outputs 喂回 _recursive_batch_reduce，逻辑会自动判断
-                # 是否需要再压一层（>batch_size 时递归，否则直接 final merge）。
-                answer = self._recursive_batch_reduce(
-                    batch_outputs, layer=2, skill_context=summary_skill_context,
-                )
-            else:
-                answer = self._chunk_finalize_summary(ordered_parts, summary_skill_context)
+                    answer = self._chunk_finalize_summary(ordered_parts, summary_skill_context)
+        finally:
+            if side_pool is not None:
+                side_pool.shutdown(wait=True)
 
         if self.summary_clean_answer:
             logger.info(
@@ -1359,8 +1375,8 @@ class AgentGraph:
     def _chunk_reduce_queue_pipeline(
         self,
         chunks: list[KnowledgeChunk],
-        skill_thread: threading.Thread | None,
-        precheck_thread: threading.Thread | None = None,
+        skill_future: Future | None,
+        precheck_future: Future | None = None,
     ) -> str:
         """reduce_queue 模式的 chunk 入口：复用 chunk LLM / RelationCrawler / 派生 chunk LLM
         三相生产侧逻辑，但用 ReducePipeline 接管所有 batch summary 调度。
@@ -1386,9 +1402,9 @@ class AgentGraph:
         has_relations = self.enable_relations and self.relation_crawler is not None
 
         def _final_merge(parts: list[ReducePart]) -> str:
-            # final merge 内部 join skill 线程，确保 skill_context 完整
-            if skill_thread is not None:
-                skill_thread.join()
+            # final merge 内部等待 skill，确保 skill_context 完整
+            if skill_future is not None:
+                skill_future.result()
             if self.enable_skills and self.skill_registry:
                 done_records = self.skill_registry.get_all()
             else:
@@ -1419,7 +1435,7 @@ class AgentGraph:
         # HighlightPrecheck 的 orphan 注入：在 pipeline 收口前以"独立生产者"的方式投递，
         # 为其保留一个 producer slot（在任意 chunk producer_done 前就 inc，避免
         # active_producers 提前归零被 _is_settled_locked 误判为已收口）。
-        orphan_reserved = precheck_thread is not None
+        orphan_reserved = precheck_future is not None
         if orphan_reserved:
             pipeline.producer_inc(1)
 
@@ -1434,8 +1450,8 @@ class AgentGraph:
             if orphan_reserved:
                 def _inject_orphan():
                     try:
-                        if precheck_thread is not None:
-                            precheck_thread.join()
+                        if precheck_future is not None:
+                            precheck_future.result()
                         orphan_text = self._build_chunk_orphan_part()
                         if orphan_text:
                             pipeline.submit_part(ReducePart(

@@ -281,7 +281,8 @@ def main():
         "--answer-system-prompt", default=None,
         help="最终作答阶段的 system prompt 自定义内容（仅 v1 生效）。"
              "不传或传空字符串则使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT 默认版本；"
-             "中间提炼层仍固定使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响"
+             "中间提炼层（SUMMARY_EXTRACT_SYSTEM_PROMPT / BATCH_REDUCE_SYSTEM_PROMPT）"
+             "不受此参数影响"
     )
     reason_parser.add_argument(
         "--enable-relations", action="store_true", default=False,

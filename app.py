@@ -182,7 +182,7 @@ class ReasonRequest(BaseModel):
         description="知识分块模式的字符数上限，0 表示不启用（web 默认 3000 启用 chunk 模式）",
     )
     version: str = Field(
-        default="v1",
+        default="v2",
         description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt，默认 v1）",
     )
     enableSkills: bool = Field(
@@ -198,8 +198,13 @@ class ReasonRequest(BaseModel):
     answerSystemPrompt: str | None = Field(
         default=None,
         description="最终作答阶段的 system prompt 自定义内容："
-                    "若不传或传空字符串，则使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT 默认版本；"
-                    "中间提炼层仍固定使用 SUMMARY_EXTRACT_SYSTEM_PROMPT，不受此参数影响。"
+                    "仅作用于【最终总结/作答】节点（all_in_answer / final_summary / "
+                    "batch_final_merge / retrieval_final_summary / retrieval_batch_final_merge），"
+                    "不会影响中间提炼层（SUMMARY_EXTRACT_SYSTEM_PROMPT / BATCH_REDUCE_SYSTEM_PROMPT）。"
+                    "拼接方式：不传或传空字符串时直接使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT；"
+                    "传入非空内容时不会覆盖默认 prompt，而是按"
+                    "「## 最高行为准则\\n{自定义}\\n\\n## 默认作答规范\\n{SUMMARY_ANSWER_SYSTEM_PROMPT}」"
+                    "结构拼接（自定义部分优先级最高，与默认冲突时以自定义为准）。"
                     "仅在 version=v1/v2 下生效",
     )
     lastThink: bool = Field(

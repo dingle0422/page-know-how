@@ -36,7 +36,7 @@ from typing import Callable, Optional
 
 from llm.client import chat
 from utils.verbose_logger import step_scope
-from reasoner.v2.prompts import SUMMARY_EXTRACT_SYSTEM_PROMPT, BATCH_SUMMARY_SYSTEM_PROMPT
+from reasoner.v2.prompts import BATCH_REDUCE_SYSTEM_PROMPT, BATCH_SUMMARY_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class ReducePipeline:
         model: str,
         max_part_depth: int = 5,
         bs_workers: int = 5,
-        intermediate_system_prompt: str = SUMMARY_EXTRACT_SYSTEM_PROMPT + "\n\n" + BATCH_SUMMARY_SYSTEM_PROMPT,
+        intermediate_system_prompt: str = BATCH_REDUCE_SYSTEM_PROMPT + "\n\n" + BATCH_SUMMARY_SYSTEM_PROMPT,
         logger_label: str = "ReduceQueue",
     ):
         if batch_size <= 0:

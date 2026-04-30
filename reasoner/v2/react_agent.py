@@ -220,10 +220,9 @@ class ReactAgent:
                         self.evidence.extend(assessment.get("evidence", []))
                         self.relevant_dirs.append(current_dir)
                         conclusion = assessment.get("conclusion", "")
-                        summary = assessment.get("summary", "")
                         if conclusion:
                             self.content_conclusion = conclusion
-                        self.reasoning_parts.append(f"[CONTENT_ASSESS] 发现相关内容: {summary}")
+                        self.reasoning_parts.append(f"[CONTENT_ASSESS] 发现相关内容: {conclusion}")
                         self.trace.append(TraceStep(
                             directory=current_dir,
                             action="CONTENT_ASSESS",
