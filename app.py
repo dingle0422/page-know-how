@@ -283,7 +283,7 @@ class ReasonRequest(BaseModel):
                     "调小则相反。summaryPipelineMode='layered' 时本字段忽略。",
     )
     pureModelResult: bool = Field(
-        default=True,
+        default=False,
         description="开启后在推理流程初始节点并行向 deepseek-v4-pro 发起一次纯大模型原生作答"
                     "（system=SUMMARY_SYSTEM_PROMPT，要求 ≤500 字 + 分「判断逻辑 / 关键证据 / 有效期限」三段），"
                     "并在 batch summary / final summary 阶段把该回答以「参考回答」小节形式注入到"
