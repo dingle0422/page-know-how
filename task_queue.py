@@ -10,7 +10,8 @@
 
 协议约定（必须与调用方一致）
 -----------------------------
-- 队列 key : ``queue:reason:pending``，存入内容为 task_id 字符串；
+- 待执行队列 key : ``queue:reason:pending``，存入内容为 task_id 字符串；
+- 运行中索引 key : ``queue:reason:running``，存入 worker 已拉起但未结束的 task_id；
 - 任务 key : ``task:{task_id}``，存入 JSON，字段见 ``submit_task`` 返回值
   （status / request / enqueue_time / start_time / end_time / result / error / worker_id）。
 
@@ -57,6 +58,7 @@ _TRANSIENT_NETWORK_ERRORS: tuple = (
 # ------------------------------------------------- 协议常量（redis_server 侧 key）
 
 QUEUE_REASON_PENDING = "queue:reason:pending"
+QUEUE_REASON_RUNNING = "queue:reason:running"
 TASK_KEY_PREFIX = "task:"
 
 # 任务状态枚举（字符串形式，便于直接 JSON 存取 / 跨语言调用方读取）
@@ -196,6 +198,22 @@ async def get_task(client, task_id: str) -> Optional[dict]:
     return value if exists else None
 
 
+async def _add_running_task(client, task_id: str) -> None:
+    """把 task_id 加入 running 索引；失败只记 warning，不中断实际执行。"""
+    try:
+        await client.rpush(QUEUE_REASON_RUNNING, task_id)
+    except Exception as e:
+        logger.warning(f"[running_index] task={task_id} 加入 running 索引失败: {e}")
+
+
+async def _remove_running_task(client, task_id: str) -> None:
+    """从 running 索引删除 task_id 的全部残留项；失败只记 warning。"""
+    try:
+        await client.lrem(QUEUE_REASON_RUNNING, task_id, count=0)
+    except Exception as e:
+        logger.warning(f"[running_index] task={task_id} 移除 running 索引失败: {e}")
+
+
 async def list_queued_tasks(client) -> list[dict]:
     """LRANGE 队列 + 并发 GET 每个 task:{id}，构造待执行任务列表。
 
@@ -255,18 +273,44 @@ async def clean_queued_tasks(client) -> list[dict]:
 
 
 async def list_running_tasks(client) -> list[dict]:
-    """扫描 task:* 前缀 + 过滤 status=running。
+    """读取 running 索引 + GET 少量候选记录。
 
-    当前规模（最多 MAX_CONCURRENT_REASONING 个在跑 + 过去 24h 的历史）
-    直接全扫没问题；如果将来量级上去需要单独维护一个 running 集合。
+    旧实现会 ``keys("task:")`` 扫所有历史 task，再逐条 GET 后过滤 running。
+    由于 task TTL 默认 7 天，历史任务一多，/api/requestQueueStatus 会越来越慢。
+    现在改为只读 ``queue:reason:running``，规模理论上不超过 worker_count；
+    若索引里残留已完成/过期任务，本函数会顺手 LREM 自愈。
     """
-    keys = await client.keys(prefix=TASK_KEY_PREFIX)
-    if not keys:
+    task_ids = await client.lrange(QUEUE_REASON_RUNNING, 0, -1)
+    if not task_ids:
         return []
-    tasks = await asyncio.gather(*[
-        get_task(client, k[len(TASK_KEY_PREFIX):]) for k in keys
-    ])
-    running = [t for t in tasks if t and t.get("status") == STATUS_RUNNING]
+
+    # list 不是 set，极端情况下可能有重复残留；保持顺序去重，避免重复 GET。
+    seen: set[str] = set()
+    unique_task_ids: list[str] = []
+    stale_task_ids: list[str] = []
+    for task_id in task_ids:
+        if not isinstance(task_id, str):
+            continue
+        if task_id in seen:
+            stale_task_ids.append(task_id)
+            continue
+        seen.add(task_id)
+        unique_task_ids.append(task_id)
+
+    records = await asyncio.gather(*[get_task(client, tid) for tid in unique_task_ids])
+    running: list[dict] = []
+    for task_id, record in zip(unique_task_ids, records):
+        if record and record.get("status") == STATUS_RUNNING:
+            running.append(record)
+        else:
+            stale_task_ids.append(task_id)
+
+    if stale_task_ids:
+        await asyncio.gather(
+            *[_remove_running_task(client, tid) for tid in stale_task_ids],
+            return_exceptions=True,
+        )
+
     running.sort(key=lambda x: x.get("start_time") or 0)
     return running
 
@@ -317,6 +361,7 @@ async def cleanup_stale_running_tasks(
         record["end_time"] = _now()
         try:
             await client.set(_task_key(task_id), record, ttl_seconds=ttl_seconds)
+            await _remove_running_task(client, task_id)
             cleaned += 1
         except Exception as e:
             # 单条清理失败不影响其它条，只记 warning 继续扫。
@@ -448,6 +493,7 @@ async def cleanup_running_tasks_by_age(
             await client.set(
                 _task_key(task_id), latest, ttl_seconds=ttl_seconds
             )
+            await _remove_running_task(client, task_id)
             entry["cleaned"] = True
         except Exception as e:
             entry["skipped_reason"] = f"write back failed: {e}"
@@ -613,6 +659,7 @@ class WorkerPool:
         await self.client.set(
             _task_key(task_id), record, ttl_seconds=self.task_ttl_seconds
         )
+        await _add_running_task(self.client, task_id)
 
         timeout = self.executor_timeout_seconds
         try:
@@ -646,3 +693,4 @@ class WorkerPool:
         await self.client.set(
             _task_key(task_id), record, ttl_seconds=self.task_ttl_seconds
         )
+        await _remove_running_task(self.client, task_id)
