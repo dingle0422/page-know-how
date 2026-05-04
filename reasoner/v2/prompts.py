@@ -615,25 +615,112 @@ BATCH_MERGE_AND_CLEAN_PROMPT = """\
 请直接输出最终面向用户的回答（纯文本，不需要 JSON 格式，不要任何前后说明文字）。
 """
 
-# ====================== (C) v1 新增区：最终总结 + JSON(analysis/answer) 输出格式版 ======================
+# ====================== (C) v1 新增区：最终总结 + JSON(think/answer) 输出格式版 ======================
 # 覆盖范围：所有【最终节点】的 *_AND_CLEAN_PROMPT，包括：
 #   - 非分批：SUMMARY_AND_CLEAN / RETRIEVAL_SUMMARY_AND_CLEAN
-#   - 分批  ：BATCH_MERGE_AND_CLEAN / RETRIEVAL_BATCH_MERGE_AND_CLEAN（chunk 模式最终也落到这里）
-# 中间提炼 prompt（BATCH_SUMMARY / RETRIEVAL_BATCH_SUMMARY / CHUNK_REASONING_*）保持原样不动。
+#   - 分批  ：BATCH_MERGE_AND_CLEAN / RETRIEVAL_BATCH_MERGE_AND_CLEAN（chunk 模式最终也落到这里)
+# 中间提炼 prompt（BATCH_SUMMARY / RETRIEVAL_BATCH_SUMMARY / CHUNK_REASONING_*）保持原样不动，
+# 那里的 `analysis` 字段语义是"对单块知识的相关性提炼摘要"，与最终客服回答语义不同，故保留。
 #
 # 强制最终输出采用 JSON 结构（可被 json.loads 直接解析），包含且仅包含两个字段：
 #   {
-#     "analysis": "完整面向用户的客服回答（承担原 *_AND_CLEAN_PROMPT 的 answer 角色）",
-#     "answer":   "基于分析内容给出回答用户的最终答案"
+#     "think":  "基于用户问题和参考信息的严谨且全面的推理思考逻辑（自我反思，不面向用户表述）",
+#     "answer": "基于 think 内容给出回答用户的完整答案，要求逻辑完整、内容全面、无遗漏的前提下对 think 内容稍作精简（面向用户表述）"
 #   }
+# 历史字段名 `analysis` 已停用；下游服务层兼容旧字段以平滑过渡。
+# 注：早期版本中 think 承担"客服正文"角色、answer 仅作回声；现行版本中 think 是面向自身的推理草稿，
+# answer 才是真正交付给用户的完整答复，下游需以 answer 为准。
+#
+# ===== 输出格式段共享常量 =====
+# 每个 *_THINK_PROMPT 都由"通用 BODY + 输出格式段"拼成，便于在 HTML 兜底时直接整段替换格式段、
+# 而内容/呈现段（用户问题、各批摘要、内容层面、呈现层面）保持 100% 一致，避免重复维护。
+# 命名约定：
+#   _THINK_OUTPUT_FORMAT_*_BLOCK_USER    → 用于 user prompt（受 .format 处理，含 {{ }} 转义、markdown 加粗、12-16 编号）
+#   _THINK_OUTPUT_FORMAT_*_BLOCK_SYSTEM  → 用于 system prompt（不经过 .format 处理，单大括号、无 markdown）
+# 每对常量按 JSON / HTML 各一份，满足首轮 JSON 与 HTML 兜底重试两条链路。
+
+_THINK_OUTPUT_FORMAT_JSON_BLOCK_USER = """\
+**输出格式（必须严格遵守）：**
+12. 严格按照以下 **JSON** 格式输出，**整段输出必须是一个可被 `json.loads` 直接解析的合法 JSON 对象**，不得有任何前后多余文本
+13. 不要使用 markdown 代码块包裹（不要写 ```json 或 ``` ），也不要在 JSON 之外输出任何解释、说明、寒暄文字
+14. JSON 必须只包含且仅包含下列两个字段：`think`、`answer`，不得新增、改名、嵌套或缺漏
+15. 字符串值内部如需换行，请使用 `\\n` 进行转义；如需双引号，请使用 `\\"` 转义
+16. 严格按以下结构与字段顺序填充：
+
+{{
+  "think": "基于用户问题和参考信息的严谨且全面的推理思考逻辑; 若存在信息缺失，则需详细列举并阐述可能的情况；必须严格遵守上文【内容层面 / 呈现层面 / 输出格式】的全部要求；如需分点/换行用 \\n 表示（自我反思，不面向用户表述）",
+  "answer": "基于 think 内容给出回答用户的完整答案，要求逻辑完整、内容全面、无遗漏的前提下对 think 内容稍作精简（面向用户表述）"
+}}
+"""
+
+_THINK_OUTPUT_FORMAT_HTML_BLOCK_USER = """\
+**输出格式（必须严格遵守）：**
+12. 严格按照以下 **HTML 双标签** 格式输出，整段输出必须**仅**包含 `<think>...</think>` 与 `<answer>...</answer>` 两个标签，不得有任何前后多余文本、解释、说明、寒暄文字、markdown 围栏
+13. **禁止**输出 JSON、JSON 围栏（如 ```json）、双引号字段名等任何 JSON 残留；本次仅输出 HTML 双标签
+14. 必须依次出现且只出现 `<think>...</think>` 与 `<answer>...</answer>` 两个标签，不得新增、改名、嵌套或缺漏
+15. 标签内部的换行直接换行即可，无需任何转义；如需出现 `<` `>` 字符请避免与标签冲突
+16. 严格按以下结构填充：
+
+<think>基于用户问题和参考信息的严谨且全面的推理思考逻辑; 若存在信息缺失，则需详细列举并阐述可能的情况；必须严格遵守上文【内容层面 / 呈现层面 / 输出格式】的全部要求；如需分点/换行直接换行即可（自我反思，不面向用户表述）</think>
+<answer>基于 think 内容给出回答用户的完整答案，要求逻辑完整、内容全面、无遗漏的前提下对 think 内容稍作精简（面向用户表述）</answer>
+"""
+
+_THINK_OUTPUT_FORMAT_JSON_BLOCK_SYSTEM = """\
+输出格式（必须严格遵守）：
+12. 严格按照以下 JSON 格式输出，整段输出必须是一个可被 json.loads 直接解析的合法 JSON 对象，不得有任何前后多余文本。
+13. 不要使用 markdown 代码块包裹，也不要在 JSON 之外输出任何解释、说明、寒暄文字。
+14. JSON 必须只包含且仅包含下列两个字段：think、answer，不得新增、改名、嵌套或缺漏。
+15. 字符串值内部如需换行，请使用 \\n 进行转义；如需双引号，请使用 \\" 转义。
+16. 严格按以下结构与字段顺序填充：
+{
+  "think": "基于用户问题和参考信息的严谨且全面的推理思考逻辑; 若存在信息缺失，则需详细列举并阐述可能的情况；必须严格遵守上文【内容层面 / 呈现层面 / 输出格式】的全部要求；如需分点/换行用 \\n 表示（自我反思，不面向用户表述）",
+  "answer": "基于 think 内容给出回答用户的完整答案，要求逻辑完整、内容全面、无遗漏的前提下对 think 内容稍作精简（面向用户表述）"
+}
+"""
+
+_THINK_OUTPUT_FORMAT_HTML_BLOCK_SYSTEM = """\
+输出格式（必须严格遵守）：
+12. 严格按照以下 HTML 双标签格式输出，整段输出必须仅包含 <think>...</think> 与 <answer>...</answer> 两个标签，不得有任何前后多余文本、解释、说明、寒暄文字、markdown 围栏。
+13. 禁止输出 JSON、JSON 围栏（如 ```json）、双引号字段名等任何 JSON 残留；本次仅输出 HTML 双标签。
+14. 必须依次出现且只出现 <think>...</think> 与 <answer>...</answer> 两个标签，不得新增、改名、嵌套或缺漏。
+15. 标签内部的换行直接换行即可，无需任何转义；如需出现 < > 字符请避免与标签冲突。
+16. 严格按以下结构填充：
+<think>基于用户问题和参考信息的严谨且全面的推理思考逻辑; 若存在信息缺失，则需详细列举并阐述可能的情况；必须严格遵守上文【内容层面 / 呈现层面 / 输出格式】的全部要求；如需分点/换行直接换行即可（自我反思，不面向用户表述）</think>
+<answer>基于 think 内容给出回答用户的完整答案，要求逻辑完整、内容全面、无遗漏的前提下对 think 内容稍作精简（面向用户表述）</answer>
+"""
+
+# ALL_IN_ANSWER 专用格式段（其 think/answer 描述基于【处理逻辑 / 输出要求 / 输出格式】，而非【内容层面 / 呈现层面 / 输出格式】，故单独维护）
+_ALL_IN_ANSWER_OUTPUT_FORMAT_JSON_BLOCK_SYSTEM = """\
+## 输出格式（必须严格遵守）
+- 严格按照以下 JSON 格式输出，整段输出必须是一个可被 json.loads 直接解析的合法 JSON 对象，不得有任何前后多余文本。
+- 不要使用 markdown 代码块包裹，也不要在 JSON 之外输出任何解释、说明、寒暄文字。
+- JSON 必须只包含且仅包含下列两个字段：think、answer，不得新增、改名、嵌套或缺漏。
+- 字符串值内部如需换行，请使用 \\n 进行转义；如需双引号，请使用 \\" 转义。
+- 严格按以下结构与字段顺序填充：
+{
+  "think": "基于用户问题、当前最终回答与新增 skill 结果的严谨且全面的推理思考逻辑; 若存在信息缺失或冲突，则需详细列举并阐述可能的情况；必须严格遵守上文【处理逻辑 / 输出要求 / 输出格式】的全部要求（不露 skill 流程）；如需分点/换行用 \\n 表示（自我反思，不面向用户表述）",
+  "answer": "基于 think 内容给出回答用户的完整答案，要求逻辑完整、内容全面、无遗漏的前提下对 think 内容稍作精简（面向用户表述）"
+}
+"""
+
+_ALL_IN_ANSWER_OUTPUT_FORMAT_HTML_BLOCK_SYSTEM = """\
+## 输出格式（必须严格遵守）
+- 严格按照以下 HTML 双标签格式输出，整段输出必须仅包含 <think>...</think> 与 <answer>...</answer> 两个标签，不得有任何前后多余文本、解释、说明、寒暄文字、markdown 围栏。
+- 禁止输出 JSON、JSON 围栏（如 ```json）、双引号字段名等任何 JSON 残留；本次仅输出 HTML 双标签。
+- 必须依次出现且只出现 <think>...</think> 与 <answer>...</answer> 两个标签，不得新增、改名、嵌套或缺漏。
+- 标签内部的换行直接换行即可，无需任何转义；如需出现 < > 字符请避免与标签冲突。
+- 严格按以下结构填充：
+<think>基于用户问题、当前最终回答与新增 skill 结果的严谨且全面的推理思考逻辑; 若存在信息缺失或冲突，则需详细列举并阐述可能的情况；必须严格遵守上文【处理逻辑 / 输出要求 / 输出格式】的全部要求（不露 skill 流程）；如需分点/换行直接换行即可（自我反思，不面向用户表述）</think>
+<answer>基于 think 内容给出回答用户的完整答案，要求逻辑完整、内容全面、无遗漏的前提下对 think 内容稍作精简（面向用户表述）</answer>
+"""
 
 
-RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT = """\
+_RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_BODY = """\
 你是一位专业的财税咨询客服。下面是针对用户问题，从知识目录中按层级召回的知识原文经过分批提炼后得到的多份摘要。
 请你**一步到位**地完成两件事：
 （1）综合所有批次摘要，得出对用户问题的最终结论；
 （2）将该结论直接清洗为面向用户的客服回答。
-不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出 JSON 最终结果。
+不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出最终结果。
 
 ## 用户问题
 {question}
@@ -646,7 +733,7 @@ RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT = """\
 ### 输出要求
 
 **内容层面：**
-1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写。（注意：以你自身内化知识的口吻进行推理，不要透露你参考了外部知识的事实）
+1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写，但必须以你自身内化知识的口吻进行表述，禁止透露你有参考知识的事实
 2. 严禁引入问题和知识中没有提及过的对象、术语、概念、法条编号等
 3. 结论必须有具体知识原文作为支撑；如附带"易错点提醒"且与问题相关，请保留并融入回答
 4. 如果各批摘要合起来仍不足以完全回答问题，明确指出哪些部分缺乏支撑，不要编造
@@ -657,25 +744,21 @@ RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT = """\
 7. 剔除批次编号、摘要标题（如"### 摘要 1"）、章节路径标签（如【XXX > YYY】）、检索/推理/覆盖度等内部细节
 8. 如有多个要点，用简洁的分点呈现；语言流畅、结构清晰
 
-**输出格式（必须严格遵守）：**
-12. 严格按照以下 **JSON** 格式输出，**整段输出必须是一个可被 `json.loads` 直接解析的合法 JSON 对象**，不得有任何前后多余文本
-13. 不要使用 markdown 代码块包裹（不要写 ```json 或 ``` ），也不要在 JSON 之外输出任何解释、说明、寒暄文字
-14. JSON 必须只包含且仅包含下列两个字段：`analysis`、`answer`，不得新增、改名、嵌套或缺漏
-15. 字符串值内部如需换行，请使用 `\\n` 进行转义；如需双引号，请使用 `\\"` 转义
-16. 严格按以下结构与字段顺序填充：
-
-{{
-  "analysis": "基于用户问题和参考信息的严谨且全面的推理思考逻辑;若需视情况而论，则详细列举并阐述逻辑；必须严格遵守上文【内容层面 / 呈现层面】的全部要求（客服口吻、内部细节脱敏等）；如需分点/换行用 \\n 表示",
-  "answer": "基于分析内容给出回答用户的最终答案"
-}}
 """
 
-RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT = """\
+RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT = (
+    _RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_JSON_BLOCK_USER
+)
+RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT = (
+    _RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_HTML_BLOCK_USER
+)
+
+_RETRIEVAL_SUMMARY_AND_CLEAN_THINK_BODY = """\
 你是一位专业的财税咨询客服。以下是从知识目录中按层级召回的与用户问题相关的原始知识片段。
 请你**一步到位**地完成两件事：
 （1）基于这些知识原文得出对用户问题的最终结论；
 （2）将该结论直接清洗为面向用户的客服回答。
-不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出 JSON 最终结果。
+不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出最终结果。
 
 ## 用户问题
 {question}
@@ -689,7 +772,7 @@ RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT = """\
 ### 输出要求
 
 **内容层面：**
-1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写。（注意：以你自身内化知识的口吻进行推理，不要透露你参考了外部知识的事实）
+1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写，但必须以你自身内化知识的口吻进行表述，禁止透露你有参考知识的事实
 2. 严禁引入问题和知识中没有提及过的对象、术语、概念、法条编号等
 3. 结论必须有具体知识原文作为支撑；如附带"易错点提醒"且与问题相关，请保留并融入回答
 4. 如果召回的知识仍不足以完全回答问题，明确指出哪些部分缺乏支撑，不要编造
@@ -700,25 +783,21 @@ RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT = """\
 7. 剔除章节路径标签（如【XXX > YYY】）、检索/推理/覆盖度等内部细节
 8. 如有多个要点，用简洁的分点呈现；语言流畅、结构清晰
 
-**输出格式（必须严格遵守）：**
-12. 严格按照以下 **JSON** 格式输出，**整段输出必须是一个可被 `json.loads` 直接解析的合法 JSON 对象**，不得有任何前后多余文本
-13. 不要使用 markdown 代码块包裹（不要写 ```json 或 ``` ），也不要在 JSON 之外输出任何解释、说明、寒暄文字
-14. JSON 必须只包含且仅包含下列两个字段：`analysis`、`answer`，不得新增、改名、嵌套或缺漏
-15. 字符串值内部如需换行，请使用 `\\n` 进行转义；如需双引号，请使用 `\\"` 转义
-16. 严格按以下结构与字段顺序填充：
-
-{{
-  "analysis": "基于用户问题和参考信息的严谨且全面的推理思考逻辑;若需视情况而论，则详细列举并阐述逻辑；必须严格遵守上文【内容层面 / 呈现层面】的全部要求（客服口吻、内部细节脱敏等）；如需分点/换行用 \\n 表示",
-  "answer": "基于分析内容给出回答用户的最终答案"
-}}
 """
 
-SUMMARY_AND_CLEAN_THINK_PROMPT = """\
+RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT = (
+    _RETRIEVAL_SUMMARY_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_JSON_BLOCK_USER
+)
+RETRIEVAL_SUMMARY_AND_CLEAN_THINK_HTML_PROMPT = (
+    _RETRIEVAL_SUMMARY_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_HTML_BLOCK_USER
+)
+
+_SUMMARY_AND_CLEAN_THINK_BODY = """\
 你是一位专业的财税咨询客服。多个子智能体已经完成了对知识目录的渐进式探索，下面是所有子智能体的探索结果。
 请你**一步到位**地完成两件事：
 （1）综合所有证据得出对用户问题的最终结论；
 （2）将该结论直接清洗为面向用户的客服回答。
-不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出 JSON 最终结果。
+不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出最终结果。
 
 ## 用户问题
 {question}
@@ -732,7 +811,7 @@ SUMMARY_AND_CLEAN_THINK_PROMPT = """\
 ### 输出要求
 
 **内容层面：**
-1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写。（注意：以你自身内化知识的口吻进行推理，不要透露你参考了外部知识的事实）
+1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写，但必须以你自身内化知识的口吻进行表述，禁止透露你有参考知识的事实
 2. 严禁引入问题和知识中没有提及过的对象、术语、概念、法条编号等
 3. 结论必须有具体证据支撑；如附带"易错点提醒"且与问题相关，请保留并融入回答
 4. 如果证据仍不足以完全回答问题，明确指出哪些部分缺乏支撑，不要编造
@@ -743,25 +822,21 @@ SUMMARY_AND_CLEAN_THINK_PROMPT = """\
 7. 剔除子智能体编号（如 agent_id）、探索目录、章节路径标签（如【XXX > YYY】）、检索/推理/覆盖度等内部细节
 8. 如有多个要点，用简洁的分点呈现；语言流畅、结构清晰
 
-**输出格式（必须严格遵守）：**
-12. 严格按照以下 **JSON** 格式输出，**整段输出必须是一个可被 `json.loads` 直接解析的合法 JSON 对象**，不得有任何前后多余文本
-13. 不要使用 markdown 代码块包裹（不要写 ```json 或 ``` ），也不要在 JSON 之外输出任何解释、说明、寒暄文字
-14. JSON 必须只包含且仅包含下列两个字段：`analysis`、`answer`，不得新增、改名、嵌套或缺漏
-15. 字符串值内部如需换行，请使用 `\\n` 进行转义；如需双引号，请使用 `\\"` 转义
-16. 严格按以下结构与字段顺序填充：
-
-{{
-  "analysis": "基于用户问题和参考信息的严谨且全面的推理思考逻辑;若需视情况而论，则详细列举并阐述逻辑；必须严格遵守上文【内容层面 / 呈现层面】的全部要求（客服口吻、内部细节脱敏等）；如需分点/换行用 \\n 表示",
-  "answer": "基于分析内容给出回答用户的最终答案"
-}}
 """
 
-BATCH_MERGE_AND_CLEAN_THINK_PROMPT = """\
+SUMMARY_AND_CLEAN_THINK_PROMPT = (
+    _SUMMARY_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_JSON_BLOCK_USER
+)
+SUMMARY_AND_CLEAN_THINK_HTML_PROMPT = (
+    _SUMMARY_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_HTML_BLOCK_USER
+)
+
+_BATCH_MERGE_AND_CLEAN_THINK_BODY = """\
 你是一位专业的财税咨询客服。多批子智能体探索结果已经分别完成了压缩提炼，下面是各批次的摘要。
 请你**一步到位**地完成两件事：
 （1）综合所有批次摘要得出对用户问题的最终结论；
 （2）将该结论直接清洗为面向用户的客服回答。
-不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出 JSON 最终结果。
+不需要输出中间的"汇总稿"，只需按下方【输出要求】中"输出格式"子段给出最终结果。
 
 ## 用户问题
 {question}
@@ -774,7 +849,7 @@ BATCH_MERGE_AND_CLEAN_THINK_PROMPT = """\
 ### 输出要求
 
 **内容层面：**
-1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写。（注意：以你自身内化知识的口吻进行推理，不要透露你参考了外部知识的事实）
+1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写，但必须以你自身内化知识的口吻进行表述，禁止透露你有参考知识的事实
 2. 严禁引入问题和知识中没有提及过的对象、术语、概念、法条编号等
 3. 结论必须有具体证据支撑；如附带"易错点提醒"且与问题相关，请保留并融入回答
 4. 如果各批摘要合起来仍不足以完全回答问题，明确指出哪些部分缺乏支撑，不要编造
@@ -785,18 +860,14 @@ BATCH_MERGE_AND_CLEAN_THINK_PROMPT = """\
 7. 剔除批次编号、摘要标题（如"### 摘要 1"）、子智能体编号、章节路径标签（如【XXX > YYY】）、检索/推理/覆盖度等内部细节
 8. 如有多个要点，用简洁的分点呈现；语言流畅、结构清晰
 
-**输出格式（必须严格遵守）：**
-12. 严格按照以下 **JSON** 格式输出，**整段输出必须是一个可被 `json.loads` 直接解析的合法 JSON 对象**，不得有任何前后多余文本
-13. 不要使用 markdown 代码块包裹（不要写 ```json 或 ``` ），也不要在 JSON 之外输出任何解释、说明、寒暄文字
-14. JSON 必须只包含且仅包含下列两个字段：`analysis`、`answer`，不得新增、改名、嵌套或缺漏
-15. 字符串值内部如需换行，请使用 `\\n` 进行转义；如需双引号，请使用 `\\"` 转义
-16. 严格按以下结构与字段顺序填充：
-
-{{
-  "analysis": "基于用户问题和参考信息的严谨且全面的推理思考逻辑;若需视情况而论，则详细列举并阐述逻辑；必须严格遵守上文【内容层面 / 呈现层面】的全部要求（客服口吻、内部细节脱敏等）；如需分点/换行用 \\n 表示",
-  "answer": "基于分析内容给出回答用户的最终答案"
-}}
 """
+
+BATCH_MERGE_AND_CLEAN_THINK_PROMPT = (
+    _BATCH_MERGE_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_JSON_BLOCK_USER
+)
+BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT = (
+    _BATCH_MERGE_AND_CLEAN_THINK_BODY + _THINK_OUTPUT_FORMAT_HTML_BLOCK_USER
+)
 
 # ====================== (B) v1 覆盖区：标准模式 — 统一 EXPLORE 导航 Prompt ======================
 
@@ -1148,8 +1219,7 @@ CHUNK_REASONING_PROMPT = """\
 ## 知识内容（第 {chunk_index}/{total_chunks} 块）
 {chunk_content}
 
-请只输出符合 system prompt 中 schema 的合法 JSON，不要输出其他内容。
-"""
+请只输出符合 system prompt 中 schema 的合法 JSON schema，不要输出其他内容。"""
 
 CHUNK_REASONING_WITH_PITFALLS_PROMPT = CHUNK_REASONING_PROMPT
 
@@ -1175,15 +1245,15 @@ BATCH_SUMMARY_PROMPT = """\
 {batch_content}
 """
 
-BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT = """\
+_BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_BODY = """\
 你是一位专业的财税咨询客服。你将收到针对用户问题的多批摘要。
 请你一步到位地完成两件事：
 （1）综合所有批次摘要得出对用户问题的最终结论；
 （2）将该结论直接清洗为面向用户的客服回答。
-不需要输出中间的"汇总稿"，只需按下方输出格式给出 JSON 最终结果。
+不需要输出中间的"汇总稿"，只需按下方输出格式给出最终结果。
 
 内容层面：
-1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写。（注意：以你自身内化知识的口吻进行推理，不要透露你参考了外部知识的事实）
+1. 对知识的引用原则上必须 100% 直接摘录知识原文，不要自行归纳改写，但必须以你自身内化知识的口吻进行表述，禁止透露你有参考知识的事实。
 2. 严禁引入问题和知识中没有提及过的对象、术语、概念、法条编号等。
 3. 结论必须有具体证据支撑；如附带"易错点提醒"且与问题相关，请保留并融入回答。
 4. 如果各批摘要合起来仍不足以完全回答问题，明确指出哪些部分缺乏支撑，不要编造。
@@ -1194,27 +1264,33 @@ BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT = """\
 7. 剔除批次编号、摘要标题（如"### 摘要 1"）、子智能体编号、章节路径标签（如【XXX > YYY】）、检索/推理/覆盖度等内部细节。
 8. 如有多个要点，用简洁的分点呈现；语言流畅、结构清晰。
 
-输出格式（必须严格遵守）：
-12. 严格按照以下 JSON 格式输出，整段输出必须是一个可被 json.loads 直接解析的合法 JSON 对象，不得有任何前后多余文本。
-13. 不要使用 markdown 代码块包裹，也不要在 JSON 之外输出任何解释、说明、寒暄文字。
-14. JSON 必须只包含且仅包含下列两个字段：analysis、answer，不得新增、改名、嵌套或缺漏。
-15. 字符串值内部如需换行，请使用 \\n 进行转义；如需双引号，请使用 \\" 转义。
-16. 严格按以下结构与字段顺序填充：
-{
-  "analysis": "完整面向用户的客服回答正文；必须严格遵守上文全部要求（客服口吻、内部细节脱敏等）；如需分点/换行用 \\n 表示",
-  "answer": "基于分析内容给出回答用户的最终答案"
-}
 """
 
-BATCH_MERGE_AND_CLEAN_THINK_PROMPT = """\
+BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT = (
+    _BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_BODY + _THINK_OUTPUT_FORMAT_JSON_BLOCK_SYSTEM
+)
+BATCH_MERGE_AND_CLEAN_THINK_HTML_SYSTEM_PROMPT = (
+    _BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_BODY + _THINK_OUTPUT_FORMAT_HTML_BLOCK_SYSTEM
+)
+
+# user prompt 仅承载占位符与短尾部提示；JSON / HTML 两版仅末尾提示语不同。
+_BATCH_MERGE_AND_CLEAN_THINK_USER_BODY = """\
 ## 用户问题
 {question}
 
 ## 各批次摘要
 {batch_summaries}
 
-请只输出符合 system prompt 中 schema 的合法 JSON，不要输出其他内容。
 """
+
+BATCH_MERGE_AND_CLEAN_THINK_PROMPT = (
+    _BATCH_MERGE_AND_CLEAN_THINK_USER_BODY
+    + "请只输出符合 system prompt 中 schema 的合法 JSON，不要输出其他内容。\n"
+)
+BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT = (
+    _BATCH_MERGE_AND_CLEAN_THINK_USER_BODY
+    + "请只输出符合 system prompt 中 schema 的 HTML 双标签 `<think>...</think><answer>...</answer>`，不要输出其他内容。\n"
+)
 
 HIGHLIGHT_PRECHECK_SYSTEM_PROMPT = """\
 你是税务知识关联展开的第一道筛选官。你将收到当前知识包里的外链关键词清单。
@@ -1247,10 +1323,9 @@ HIGHLIGHT_PRECHECK_PROMPT = """\
 
 {candidate_block}
 
-请只输出符合 system prompt 中 schema 的合法 JSON，不要输出其他内容。
-"""
+请只输出符合 system prompt 中 schema 的合法 JSON schema，不要输出其他内容。"""
 
-ALL_IN_ANSWER_SYSTEM_PROMPT = """\
+_ALL_IN_ANSWER_SYSTEM_BODY = """\
 # 你正在为税务问答系统做最终一轮答案修订。你将收到已经清洗合并好的最终回答（草稿）与 final summary 之后才补充执行的 extra skill 结果。
 请把这些 extra skill 结果作为参考事实，对草稿做最小必要的修订，并得到面向用户的最终结论。
 
@@ -1259,24 +1334,22 @@ ALL_IN_ANSWER_SYSTEM_PROMPT = """\
 2. 不确定性收敛：若草稿中存在"可能""一般""通常"等不确定性措辞，且 skill 结果给出明确数据，可参考 skill 结果将不确定表述收敛为更确定的结论；但如果用户问题中的商品/服务名称等信息与草稿所依据的知识体系已高度契合，则无需勉强套用 skill 数据。
 3. 如果 skill 结果与草稿中的某个信息存在冲突：不强制以任意一方为准。若草稿中的知识/摘要对用户问题有清晰对应，优先保留草稿结论；若草稿在该事实点上模糊或依据较弱、而 skill 结果明确针对同一事实，可参考 skill 结果做相应调整。
 4. 如果 skill 结果与草稿不冲突：可酌情将 skill 结果中的事实自然地融入草稿，补全缺失信息；若草稿已清楚回答问题，也可保持原样。
-5. 如果 skill 结果中没有任何对草稿有补全、收敛或修正价值的信息：保持草稿结论不变（analysis 中说明「无需修订」即可）。
+5. 如果 skill 结果中没有任何对草稿有补全、收敛或修正价值的信息：保持草稿结论不变（think 中说明「无需修订」即可）。
 
 ## 输出要求
 - 不要保留"根据 skill 结果""经校验""新增 skill 显示"之类暴露内部流程的元描述。
 
-## 输出格式（必须严格遵守）
-- 严格按照以下 JSON 格式输出，整段输出必须是一个可被 json.loads 直接解析的合法 JSON 对象，不得有任何前后多余文本。
-- 不要使用 markdown 代码块包裹，也不要在 JSON 之外输出任何解释、说明、寒暄文字。
-- JSON 必须只包含且仅包含下列两个字段：analysis、answer，不得新增、改名、嵌套或缺漏。
-- 字符串值内部如需换行，请使用 \\n 进行转义；如需双引号，请使用 \\" 转义。
-- 严格按以下结构与字段顺序填充：
-{
-  "analysis": "完整面向用户的客服回答正文或修订说明；必须严格遵守上文【处理逻辑 / 输出要求】（不露 skill 流程、如需分点/换行用 \\n）",
-  "answer": "基于分析内容给出回答用户的最终答案"
-}
 """
 
-ALL_IN_ANSWER_PROMPT = """\
+ALL_IN_ANSWER_SYSTEM_PROMPT = (
+    _ALL_IN_ANSWER_SYSTEM_BODY + _ALL_IN_ANSWER_OUTPUT_FORMAT_JSON_BLOCK_SYSTEM
+)
+ALL_IN_ANSWER_HTML_SYSTEM_PROMPT = (
+    _ALL_IN_ANSWER_SYSTEM_BODY + _ALL_IN_ANSWER_OUTPUT_FORMAT_HTML_BLOCK_SYSTEM
+)
+
+# user prompt 仅承载占位符与短尾部提示；JSON / HTML 两版仅末尾提示语不同。
+_ALL_IN_ANSWER_USER_BODY = """\
 ==== 用户问题 ====
 {question}
 
@@ -1286,5 +1359,13 @@ ALL_IN_ANSWER_PROMPT = """\
 ==== 新增的 Skill 结果（仅本轮新跑出来的参考事实，未被草稿吸收） ====
 {skill_context}
 
-请只输出符合 system prompt 中 schema 的合法 JSON，不要输出其他内容。
 """
+
+ALL_IN_ANSWER_PROMPT = (
+    _ALL_IN_ANSWER_USER_BODY
+    + "请只输出符合 system prompt 中 schema 的合法 JSON，不要输出其他内容。\n"
+)
+ALL_IN_ANSWER_HTML_PROMPT = (
+    _ALL_IN_ANSWER_USER_BODY
+    + "请只输出符合 system prompt 中 schema 的 HTML 双标签 `<think>...</think><answer>...</answer>`，不要输出其他内容。\n"
+)

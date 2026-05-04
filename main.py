@@ -202,17 +202,17 @@ def main():
         help="结果输出文件路径（.xlsx）。若文件已存在则自动断点续跑，跳过已成功的问题"
     )
     reason_parser.add_argument(
-        "--max-rounds", "-r", type=int, default=5,
-        help="每个子智能体的最大 ReAct 轮次（默认 5）"
+        "--max-rounds", "-r", type=int, default=10,
+        help="每个子智能体的最大 ReAct 轮次（默认 10，与 app.py 对齐）"
     )
     reason_parser.add_argument(
-        "--vendor", default="qwen3.5-122b-a10b",
+        "--vendor", default="aliyun",
         # choices=["aliyun", "servyou", "qwen3.5-122b-a10b", "qwen3.5-27b"],
-        help="LLM 供应商（默认 qwen3.5-122b-a10b 直连）"
+        help="LLM 供应商（默认 aliyun，与 app.py 对齐）"
     )
     reason_parser.add_argument(
-        "--model", default="Qwen3.5-122B-A10B",
-        help="LLM 模型名称（默认 Qwen3.5-122B-A10B）"
+        "--model", default="deepseek-v3.2",
+        help="LLM 模型名称（默认 deepseek-v3.2，与 app.py 对齐）"
     )
     reason_parser.add_argument(
         "--max-workers", "-w", type=int, default=1,
@@ -223,50 +223,56 @@ def main():
         help="启用答案清洗：在 summary 后追加一轮 LLM 调用，以咨询客服口吻输出精简结论"
     )
     reason_parser.add_argument(
-        "--summary-batch-size", type=int, default=0,
-        help="分批并行压缩总结：指定每批包含的证据条数（如 3），启用后自动激活分层总结模式。默认 0 表示不分批"
+        "--summary-batch-size", type=int, default=3,
+        help="分批并行压缩总结：指定每批包含的证据条数（如 3），启用后自动激活分层总结模式。"
+             "默认 3，与 app.py 对齐；置 0 关闭分批"
     )
     reason_parser.add_argument(
-        "--retrieval-mode", action="store_true", default=False,
-        help="启用召回模式：子智能体仅做相关性判定并收集原始知识，避免探索阶段信息畸变"
+        "--retrieval-mode", action=argparse.BooleanOptionalAction, default=True,
+        help="启用召回模式：子智能体仅做相关性判定并收集原始知识，避免探索阶段信息畸变。"
+             "默认开启，与 app.py 对齐；可显式 --no-retrieval-mode 关闭"
     )
     reason_parser.add_argument(
-        "--check-pitfalls", action="store_true", default=False,
-        help="启用易错点检查：在总结后追加一轮 LLM 调用，基于探索中收集的易错点对答案做逐条校验"
+        "--check-pitfalls", action=argparse.BooleanOptionalAction, default=True,
+        help="启用易错点收集：第一层推理时让 LLM 同步产出易错点并注入证据。"
+             "默认开启，与 app.py 对齐；可显式 --no-check-pitfalls 关闭"
     )
     reason_parser.add_argument(
-        "--chunk-size", type=int, default=0,
+        "--chunk-size", type=int, default=3000,
         help="启用知识分块模式：按指定字符数上限对知识目录树进行程序化分块，"
-             "每个块并行推理后汇总。默认 0 表示不启用（使用原有 ReactAgent 探索模式）"
+             "每个块并行推理后汇总。默认 3000，与 app.py 对齐；置 0 关闭并回退到 ReactAgent 探索模式"
     )
     reason_parser.add_argument(
-        "--version", default="v1", choices=["v0", "v1", "v2"],
-        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt, 默认 v1）"
+        "--version", default="v2", choices=["v0", "v1", "v2"],
+        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt）。"
+             "默认 v2，与 app.py 对齐"
     )
     reason_parser.add_argument(
         "--disable-skills", action="store_true", default=False,
         help="关闭 skill 功能：默认开启，会在推理前对问题做 skill 评估，并在 summary 后做 skill double-check 优化答案"
     )
     reason_parser.add_argument(
-        "--summary-clean-answer", action="store_true", default=False,
-        help="启用 summary+clean 一体化（仅 v1 生效，与所有 summary 模式兼容："
+        "--summary-clean-answer", action=argparse.BooleanOptionalAction, default=True,
+        help="启用 summary+clean 一体化（仅 v1/v2 生效，与所有 summary 模式兼容："
              "标准/召回 × 单次/分批 × chunk）。在最终 summary 或 batch_merge 阶段"
              "直接输出面向用户的客服话术答案，跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟。"
-             "开启后即覆盖原 --clean-answer 的清洗效果，无需再额外开 --clean-answer"
+             "开启后即覆盖原 --clean-answer 的清洗效果，无需再额外开 --clean-answer。"
+             "默认开启，与 app.py 对齐；可显式 --no-summary-clean-answer 关闭"
     )
     reason_parser.add_argument(
-        "--think-mode", action="store_true", default=True,
-        help="启用 think 模式（仅 v1 生效，需配合 --summary-clean-answer 使用）："
+        "--think-mode", action=argparse.BooleanOptionalAction, default=True,
+        help="启用 think 模式（仅 v1/v2 生效，需配合 --summary-clean-answer 使用）："
              "在【所有最终节点】的 summary+clean 阶段，改用 *_AND_CLEAN_THINK 版 prompt，"
              "要求模型严格按 JSON {\"analysis\": \"...\", \"answer\": \"...\"} 输出。"
              "字段语义：analysis=完整客服回答（≤500 字等），answer=基于分析内容给出回答用户的最终答案；"
              "解析后映射到响应体 think<-analysis、answer<-answer。"
              "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
              "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
-             "中间提炼 prompt 始终保持原样不动"
+             "中间提炼 prompt 始终保持原样不动。"
+             "默认开启，与 app.py 对齐；可显式 --no-think-mode 关闭"
     )
     reason_parser.add_argument(
-        "--last-think", action="store_true", default=False,
+        "--last-think", action=argparse.BooleanOptionalAction, default=True,
         help="在【全流程最后一步总结/清洗】阶段打开底层 LLM 的 enable_thinking=True，"
              "让模型返回推理轨迹（qwen3.5/3.6 会把 <think>...</think> 写进 content；"
              "deepseek-reasoner / deepseek-v3.2 等会返回到 message.reasoning_content，"
@@ -275,7 +281,8 @@ def main():
              "batch_final_merge / retrieval_final_summary / retrieval_batch_final_merge / "
              "clean_answer），中间 batch/chunk/探索阶段都不受影响。"
              "与 --think-mode 正交：think-mode 只改 prompt 模板（要求 JSON 输出结构），"
-             "last-think 只改 chat_template_kwargs.enable_thinking（开启模型推理轨迹）"
+             "last-think 只改 chat_template_kwargs.enable_thinking（开启模型推理轨迹）。"
+             "默认开启，与 app.py 对齐；可显式 --no-last-think 关闭"
     )
     reason_parser.add_argument(
         "--answer-system-prompt", default=None,
@@ -285,20 +292,22 @@ def main():
              "不受此参数影响"
     )
     reason_parser.add_argument(
-        "--enable-relations", action="store_true", default=False,
-        help="启用关联条款展开（仅 v1 生效）：当 chunk/子智能体命中相关知识且其目录包含 "
+        "--enable-relations", action=argparse.BooleanOptionalAction, default=True,
+        help="启用关联条款展开（仅 v1/v2 生效）：当 chunk/子智能体命中相关知识且其目录包含 "
              "clause.json 中的预展开 references 时，按 LLM 多跳并发拉取外部条款；"
              "chunk 模式下切分为派生 chunk 与原 chunk 一并进入流式 batch summary，"
              "standard/retrieval 模式下 inline 追加到对应 fragment 末尾。"
-             "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取"
+             "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取。"
+             "默认开启，与 app.py 对齐；可显式 --no-enable-relations 关闭"
     )
     reason_parser.add_argument(
         "--relation-max-depth", type=int, default=5,
-        help="关联展开最大跳深（含首跳）。--enable-relations=False 时忽略。默认 5"
+        help="关联展开最大跳深（含首跳）。--enable-relations=False 时忽略。默认 5（与 app.py 对齐）"
     )
     reason_parser.add_argument(
-        "--relation-max-nodes", type=int, default=50,
-        help="单次 chunk/子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展。默认 50"
+        "--relation-max-nodes", type=int, default=999,
+        help="单次 chunk/子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展。"
+             "默认 999，与 app.py 对齐"
     )
     reason_parser.add_argument(
         "--relation-workers", type=int, default=8,
@@ -315,12 +324,12 @@ def main():
              "采样波动影响（同一问题多次跑可能命中数不一致）"
     )
     reason_parser.add_argument(
-        "--summary-pipeline-mode", default="reduce_queue", choices=["layered", "reduce_queue"],
+        "--summary-pipeline-mode", default="layered", choices=["layered", "reduce_queue"],
         help="batch summary 流水线模式（--summary-batch-size > 0 时生效）：\n"
-             "'layered'：chunk + 关联展开走 _chunk_streaming_pipeline 的"
+             "'layered'（默认，与 app.py 对齐）：chunk + 关联展开走 _chunk_streaming_pipeline 的"
              "'按 slot 顺序流式 batch + 后续递归压缩按层同步'；其他入口走 "
              "_recursive_batch_reduce 同步分层。\n"
-             "'reduce_queue'（默认）：所有压缩任务统一进 ReducePipeline，凑批+回灌，"
+             "'reduce_queue'：所有压缩任务统一进 ReducePipeline，凑批+回灌，"
              "无层间同步点。chunk 数大、batch 长尾差异显著时可见明显加速；"
              "代价是早 flush 的 part 经过更多次中间压缩"
     )
@@ -331,12 +340,13 @@ def main():
              "--summary-pipeline-mode=layered 时本字段忽略。默认 4"
     )
     reason_parser.add_argument(
-        "--pure-model-result", action="store_true", default=False,
+        "--pure-model-result", action=argparse.BooleanOptionalAction, default=True,
         help="在推理流程初始节点并行向 deepseek-v4-pro 发起一次纯大模型原生作答，"
              "并在 batch summary / final summary 阶段把该回答注入到用户问题下方，"
              "作为「参考回答」供推理模型对照支撑 / 修正 / 冲突证据提取；final 阶段"
              "将冲突信息以「疑点」方式呈现。仅在 --version v1/v2 下生效；"
-             "外部请求 60s 内未返回会自动降级为「无外部参考」。默认关闭"
+             "外部请求 60s 内未返回会自动降级为「无外部参考」。"
+             "默认开启，与 app.py 对齐；可显式 --no-pure-model-result 关闭"
     )
     from utils.verbose_logger import VERBOSE_DEFAULT_ENABLED as _VT_DEFAULT
     reason_parser.add_argument(

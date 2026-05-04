@@ -1,0 +1,68 @@
+---
+pid: 14584
+cwd: "C:\\Users\\bill\\Desktop\\page-know-how"
+command: "$env:PYTHONIOENCODING='utf-8'; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; & \"C:\\Users\\bill\\anaconda3\\python.exe\" .\\_tmp_pipeline_test.py"
+started_at: 2026-05-04T14:13:03.550Z
+running_for_ms: 175376   
+---
+PATH 上的 bash 指向 WSL bash (C:\Windows\system32\bash.EXE)，无法处理 Windows 临时目录，将继续探测 git-bash 等替代方案
+Skill 执行失败 (exit=1): python -m skills.standard_product_name_verification "自产农产品"
+stderr: Traceback (most recent call last):
+  File "C:\Users\bill\AppData\Local\Programs\Python\Python37-32\lib\runpy.py", line 183, in _run_module_as_main
+    mod_name, mod_spec, code = _get_module_details(mod_name, _Error)
+  File "C:\Users\bill\AppData\Local\Programs\Python\Python37-32\lib\runpy.py", li
+[Evaluator] skill=standard_product_name_verification 第1次执行失败 (exit=1)，触发重试让 LLM 重新生成命令 | 失败命令: python -m skills.standard_product_name_verification "自产农产品" | stderr: Traceback (most recent call last):
+  File "C:\Users\bill\AppData\Local\Programs\Python\Python37-32\lib\runpy.py", line 183, in _run_module_as_main
+    mod_name, mod_spec, code = _get_module_details(
+[Evaluator] skill=standard_product_name_verification 第1次重试生成命令与上次完全一致，放弃重试
+PATH 上的 bash 指向 WSL bash (C:\Windows\system32\bash.EXE)，无法处理 Windows 临时目录，将继续探测 git-bash 等替代方案
+Skill 执行失败 (exit=1): python -m skills.standard_product_name_verification "自产农产品"
+stderr: Traceback (most recent call last):
+  File "C:\Users\bill\AppData\Local\Programs\Python\Python37-32\lib\runpy.py", line 183, in _run_module_as_main
+    mod_name, mod_spec, code = _get_module_details(mod_name, _Error)
+  File "C:\Users\bill\AppData\Local\Programs\Python\Python37-32\lib\runpy.py", li
+[Evaluator] skill=standard_product_name_verification 第1次执行失败 (exit=1)，触发重试让 LLM 重新生成命令 | 失败命令: python -m skills.standard_product_name_verification "自产农产品" | stderr: Traceback (most recent call last):
+  File "C:\Users\bill\AppData\Local\Programs\Python\Python37-32\lib\runpy.py", line 183, in _run_module_as_main
+    mod_name, mod_spec, code = _get_module_details(
+[Evaluator] skill=standard_product_name_verification 第1次重试生成命令与上次完全一致，放弃重试
+PARAMS: app.py-aligned defaults (chunk_size=3000, summary_batch_size=3, retrieval_mode=True, summary_pipeline_mode=layered, think_mode=True, last_think=True, summary_clean_answer=True, pure_model_result=True, enable_relations=True, max_rounds=10)
+
+================ deepseek pipeline result ================
+final_label=batch_final_merge·L2
+n_chat_calls (1=JSON ok, 2=HTML retry triggered)=1
+result type=str len=227
+json.loads succeeded, keys=['think', 'answer']
+think_len=122 answer_len=78
+app._split_analysis_concise_answer: think_len=122 answer_len=78
+  think head 200: 您好！关于自产农产品销售开票时税率栏的选择，正确的操作是：在数电票系统中，需使用特定业务模块，选择‘自产农产品销售’标签，并在开具时税率栏选‘免税’。如果开票时税率栏错误选择了‘0%’，那么这张发票应作废或红冲，重新开具税率栏为‘免税’的发票。
+  answer head 200: 自产农产品销售开票时，税率栏应选择‘免税’。在数电票系统中，需通过特定业务模块并选择‘自产农产品销售’标签进行开具。若误选‘0%’，发票需作废或红冲后重开。
+================ END deepseek ================
+
+================ qwen3.6 pipeline result ================
+final_label=batch_final_merge·L2
+n_chat_calls (1=JSON ok, 2=HTML retry triggered)=1
+result type=str len=1429
+json.loads succeeded, keys=['think', 'answer']
+think_len=733 answer_len=639
+app._split_analysis_concise_answer: think_len=733 answer_len=639
+  think head 200: 您好！关于自产农产品销售开票时税率栏的选择，主要分为两种常见情况，具体如下：
+
+1.  **常规销售（享受免税政策）：**
+    *   **税率栏选择：** 您应选择**“免税”**。
+    *   **操作要点：** 在开票系统中，必须通过**“特定业务模块”**开具，并选择**“自产农产品销售”**标签。只有正确选择此标签，税率栏才会显示为“免税”。
+    *   **重要提醒：**
+
+  answer head 200: 您好！自产农产品销售开票税率栏的选择，主要取决于您是否享受免税政策：
+
+1.  **常规情况（享受免税）：**
+    *   **税率栏应选：** **“免税”**。
+    *   **操作关键：** 开票时必须进入**“特定业务模块”**，并选择**“自产农产品销售”**标签。这能确保发票左上角正确生成该标识。
+    *   **特别注意：**
+        *   **绝不能选“0%”
+================ END qwen3.6 ================
+
+---
+exit_code: 0
+elapsed_ms: 180214
+ended_at: 2026-05-04T14:16:03.764Z
+---

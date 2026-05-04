@@ -24,12 +24,32 @@ class RedisServerError(RuntimeError):
 
 
 class RedisServerClient:
+    """异步客户端。**内部维护两个独立的 httpx 连接池**：
+
+    - ``_client``：服务于普通短请求（set / get / rpush / lrange / lpop / lrem ...），
+      pool 超时较短（默认 2s），让 /api/reason/submit、/api/requestQueueStatus
+      等路径在链路抖动时**快速失败**而不是卡 15 秒，便于上层重试或返回 503。
+    - ``_long_poll_client``：服务于 ``blpop`` 长轮询（每次最长占用一个连接 ~timeout 秒）。
+      worker 池里 N 个 worker 会持续把这个 pool 占住，把它独立出来后**就不会挨饿短请求**。
+
+    背景：之前所有调用共享同一个 client，10 个 worker 长期占着 BLPOP 连接 + 偶发的
+    底层 RemoteProtocolError/ReadError 会让 httpcore 池状态错乱，submit/queue_status
+    等接口随后开始稳定 ``httpx.PoolTimeout``。拆双 pool + 短 pool timeout 同时根治
+    挨饿与卡住两类症状。
+    """
+
     def __init__(
         self,
         base_url: str,
         auth_token: str = "",
         timeout_seconds: float = 10.0,
         connect_timeout_seconds: float = 3.0,
+        *,
+        pool_timeout_seconds: float = 2.0,
+        max_connections: int = 64,
+        max_keepalive_connections: int = 32,
+        keepalive_expiry_seconds: float = 30.0,
+        long_poll_max_connections: int = 32,
     ) -> None:
         # 注意：不走 httpx 的 base_url 机制。httpx 在 base_url 带 path 前缀时，
         # 用户侧传入 "/xxx" 会导致 path 被当成绝对路径、吃掉 base_url 的前缀
@@ -39,13 +59,43 @@ class RedisServerClient:
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
         headers = {"X-Auth-Token": auth_token} if auth_token else {}
+
+        # 短请求 client：set/get/rpush/lrange/... 都走它。
+        # pool 超时刻意设短：链路抖出 PoolTimeout 让上层立即知道并重试，
+        # 而不是把整条 HTTP 请求卡满 timeout_seconds（默认 10~15s）才返回 500。
         self._timeout = httpx.Timeout(
             timeout=timeout_seconds,
             connect=connect_timeout_seconds,
+            pool=pool_timeout_seconds,
         )
         self._client = httpx.AsyncClient(
             headers=headers,
             timeout=self._timeout,
+            limits=httpx.Limits(
+                max_connections=max_connections,
+                max_keepalive_connections=max_keepalive_connections,
+                keepalive_expiry=keepalive_expiry_seconds,
+            ),
+        )
+
+        # 长轮询专用 client：BLPOP 调用每次会占一个连接长达 ~blpop_timeout+5s,
+        # 单独走一个池子，确保即便 worker 把池子占满，也不会挨饿短请求 client。
+        # pool 超时默认放宽（≈ 短请求池超时 + 1 个 BLPOP 周期），
+        # 避免 worker 启动瞬间彼此抢同一个连接时偶发地误报 PoolTimeout。
+        self._long_poll_timeout = httpx.Timeout(
+            timeout=timeout_seconds,
+            connect=connect_timeout_seconds,
+            pool=max(pool_timeout_seconds, timeout_seconds + 5.0),
+        )
+        self._long_poll_client = httpx.AsyncClient(
+            headers=headers,
+            timeout=self._long_poll_timeout,
+            limits=httpx.Limits(
+                max_connections=long_poll_max_connections,
+                # 长轮询连接周转慢，keepalive 池跟总池一样大即可，避免反复重建。
+                max_keepalive_connections=long_poll_max_connections,
+                keepalive_expiry=keepalive_expiry_seconds,
+            ),
         )
 
     async def __aenter__(self) -> "RedisServerClient":
@@ -55,7 +105,9 @@ class RedisServerClient:
         await self.close()
 
     async def close(self) -> None:
+        # 两个 client 都要关。aclose 内部已经做幂等，先后顺序无所谓。
         await self._client.aclose()
+        await self._long_poll_client.aclose()
 
     # ----------------------------------------------------------- 内部工具
 
@@ -67,16 +119,34 @@ class RedisServerClient:
         json: Any = None,
         params: Optional[dict] = None,
         timeout: Optional[float] = None,
+        client: Optional[httpx.AsyncClient] = None,
     ) -> dict:
+        """统一的请求出口。
+
+        ``client`` 显式指定走哪个连接池——短请求传 None（默认 ``self._client``）,
+        BLPOP 等长轮询调用传 ``self._long_poll_client``，避免它们相互挨饿。
+        """
+        target_client = client if client is not None else self._client
+        # 自定义 timeout 时，pool / connect 字段沿用所属 client 的设置，
+        # 避免一刀切超时把网关延迟正常的请求误判为失败。
+        base_timeout = (
+            self._long_poll_timeout
+            if target_client is self._long_poll_client
+            else self._timeout
+        )
         kwargs: dict[str, Any] = {}
         if json is not None:
             kwargs["json"] = json
         if params is not None:
             kwargs["params"] = params
         if timeout is not None:
-            kwargs["timeout"] = httpx.Timeout(timeout=timeout, connect=self._timeout.connect)
+            kwargs["timeout"] = httpx.Timeout(
+                timeout=timeout,
+                connect=base_timeout.connect,
+                pool=base_timeout.pool,
+            )
         url = self.base_url + path
-        resp = await self._client.request(method, url, **kwargs)
+        resp = await target_client.request(method, url, **kwargs)
         if resp.status_code >= 400:
             raise RedisServerError(
                 f"{method} {url} http={resp.status_code} body={resp.text[:500]}"
@@ -154,12 +224,16 @@ class RedisServerClient:
 
         客户端 HTTP 超时在服务端阻塞时长之上 + 5s 冗余，
         避免因 client 超时导致服务端仍在 wait 的假失败。
+
+        显式走 ``_long_poll_client``：BLPOP 会长期占住一个连接，必须与短请求池
+        分开，否则 worker 把池子占满后 set/get/rpush 等接口会全部 PoolTimeout。
         """
         http_timeout = max(5.0, float(timeout_seconds)) + 5.0
         data = await self._request(
             "POST", "/queue/blpop",
             json={"queue": queue, "timeout_seconds": timeout_seconds},
             timeout=http_timeout,
+            client=self._long_poll_client,
         )
         return data.get("value"), bool(data.get("ok"))
 

@@ -598,12 +598,16 @@ def _build_kh_obj_from_headings(headings: list[str]) -> dict[str, str]:
     return kh_map
 
 
-# think_mode 下模型应输出形如 {"analysis": "...", "answer": "..."} 的合法 JSON，
-# 兼容旧字段 concise_answer；响应体映射：think <- analysis，answer <- answer（或 concise_answer）。
-# markdown 代码块（```json ... ```）剥离用：捕获中间净 JSON 主体。
+# think_mode 下模型应输出形如 {"think": "...", "answer": "..."} 的合法 JSON，
+# 历史字段名 `analysis`、`concise_answer` 仍兼容；响应体映射：
+#   think  <- think（缺失时回落到 analysis）
+#   answer <- answer（缺失时回落到 concise_answer）
+# 模型未严格遵守 JSON 格式时，agent_graph 会先发起一次 HTML 标签格式重试再 coercion 兜底，
+# 因此本函数会按顺序尝试 JSON / HTML / coercion 三种形态。
 _JSON_CODEBLOCK_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
-# 在原文里搜首个 { ... } 主体（贪婪到最末一个 }），用于模型在前后混入了说明文字时兜底。
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
+_HTML_THINK_BLOCK_RE = re.compile(r"<think>(?P<body>.*?)</think>", re.DOTALL | re.IGNORECASE)
+_HTML_ANSWER_BLOCK_RE = re.compile(r"<answer>(?P<body>.*?)</answer>", re.DOTALL | re.IGNORECASE)
 
 
 def _try_parse_json_obj(text: str) -> dict | None:
@@ -625,78 +629,130 @@ def _try_parse_json_obj(text: str) -> dict | None:
         return None
 
 
-def _split_analysis_concise_answer(raw: str, think_mode: bool) -> tuple[str, str]:
-    """解析模型在 think_mode 下输出的 JSON（字段 analysis + answer；兼容旧 concise_answer）。
+def _try_parse_think_answer_dict(raw: str) -> dict | None:
+    """尝试把 raw 解析为 {think, answer} dict（兼容 analysis/concise_answer 旧字段）。
 
-    返回 (think_text, answer_text)，分别对应 ReasonData.think / ReasonData.answer：
-        think   <- analysis
-        answer  <- answer（若无则用 concise_answer）
-
-    解析策略（按顺序尝试，命中即停）：
-      1. think_mode=False 或 raw 为空：直接 ("", raw or "")
-      2. raw 原样 json.loads → 失败再 json5.loads（容忍非严格 JSON）
-      3. 剥离 ```json ... ``` 代码块外壳后再尝试 step 2
-      4. 用正则截取 raw 中首个 {...} 主体后再尝试 step 2
-      5. 仍失败：视为不遵循 JSON 格式 → ("", raw)，并打 WARNING
-
-    解析成功（拿到 dict）后字段缺失兜底：
-      - 同时有 analysis 与 answer（或 concise_answer）→ 分别映射
-      - 只有其一 → 缺失侧填空字符串并打 WARNING
-      - 都无 → ("", raw) 并打 WARNING
+    顺序：原文 json/json5 → 剥 ```json``` 围栏 → 抓首个 {...} 子串。
+    任意一关命中即返回；都失败返回 None。
     """
-    if not think_mode or not raw:
-        return "", raw or ""
-
+    if not raw:
+        return None
     raw_stripped = raw.strip()
-
     parsed = _try_parse_json_obj(raw_stripped)
-
     if parsed is None:
         cb_match = _JSON_CODEBLOCK_RE.search(raw_stripped)
         if cb_match:
             parsed = _try_parse_json_obj(cb_match.group(1).strip())
-
     if parsed is None:
         obj_match = _JSON_OBJECT_RE.search(raw_stripped)
         if obj_match:
             parsed = _try_parse_json_obj(obj_match.group(0))
+    return parsed
 
-    if parsed is None:
-        logger.warning(
-            "[ThinkMode] 模型输出无法解析为 JSON({analysis, answer} / 兼容 concise_answer) "
-            "(json/json5/codeblock/regex 全部失败)，"
-            "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
-        )
-        return "", raw
 
-    analysis_val = parsed.get("analysis", "")
-    if "answer" in parsed:
-        answer_val = parsed["answer"]
-    elif "concise_answer" in parsed:
-        answer_val = parsed["concise_answer"]
-    else:
-        answer_val = ""
-    analysis_text = analysis_val.strip() if isinstance(analysis_val, str) else ""
-    answer_text = answer_val.strip() if isinstance(answer_val, str) else ""
-
-    if not analysis_text and not answer_text:
-        logger.warning(
-            "[ThinkMode] 模型 JSON 中未提取到任何有效字段 "
-            f"(实际字段={list(parsed.keys())})，"
-            "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
-        )
-        return "", raw
-
-    if not analysis_text:
-        logger.warning(
-            "[ThinkMode] 模型 JSON 缺少 analysis 字段，think 字段将返回空字符串"
-        )
+def _try_parse_think_answer_html(raw: str) -> dict | None:
+    """尝试把 raw 解析为 HTML 标签版 {think, answer}：
+    - 必须有 <answer>...</answer>；
+    - <think>...</think> 可选（无则 think 为空字符串，由调用方按字段缺失规则兜底）。
+    """
+    if not raw:
+        return None
+    am = _HTML_ANSWER_BLOCK_RE.search(raw)
+    if not am:
+        return None
+    answer_text = (am.group("body") or "").strip()
     if not answer_text:
-        logger.warning(
-            "[ThinkMode] 模型 JSON 缺少 answer（且无 concise_answer），answer 字段将返回空字符串"
-        )
+        return None
+    tm = _HTML_THINK_BLOCK_RE.search(raw)
+    think_text = (tm.group("body") or "").strip() if tm else ""
+    return {"think": think_text, "answer": answer_text}
 
-    return analysis_text, answer_text
+
+def _extract_think_answer_fields(parsed: dict) -> tuple[str, str]:
+    """从 dict 中按字段优先级提取 think/answer 文本（兼容历史字段名）。"""
+    think_val = parsed.get("think")
+    if not (isinstance(think_val, str) and think_val.strip()):
+        legacy_think = parsed.get("analysis")
+        think_val = legacy_think if isinstance(legacy_think, str) else ""
+    answer_val = parsed.get("answer")
+    if not (isinstance(answer_val, str) and answer_val.strip()):
+        legacy_answer = parsed.get("concise_answer")
+        answer_val = legacy_answer if isinstance(legacy_answer, str) else ""
+    think_text = think_val.strip() if isinstance(think_val, str) else ""
+    answer_text = answer_val.strip() if isinstance(answer_val, str) else ""
+    return think_text, answer_text
+
+
+def _split_analysis_concise_answer(raw: str, think_mode: bool) -> tuple[str, str]:
+    """解析最终节点 think_mode 下的模型输出，映射到 ReasonData.think / answer。
+
+    上游 (reasoner.v2.agent_graph._chat_final_with_format_retry) 已保证 raw 形态属于
+    以下三种之一：
+      A. 标准 `{think, answer}` JSON（首轮成功）
+      B. HTML 标签 `<think>...</think><answer>...</answer>`（首轮 JSON 失败，HTML 重试成功）
+      C. coercion 兜底封装 `{"think": "<reasoning_content 或空>", "answer": "<原始 body>"}`
+
+    本函数按以下顺序尝试解析：
+      1. think_mode=False 或 raw 为空：直接 ("", raw or "")
+      2. JSON dict 解析（兼容裸 JSON / ```json``` / 含解释文字 / json5 / 旧字段名 analysis、concise_answer）
+      3. HTML 标签解析（<think>/<answer>，<think> 可选）
+      4. 全失败：视为完全不遵循格式 → ("", raw)，并打 WARNING
+
+    解析成功（拿到 think/answer 文本）后字段缺失兜底，按用户最终确认的策略：
+      - 同时有 think 与 answer：分别映射
+      - 只有 think（或 analysis）：think、answer 都填该内容（保证 answer 字段不空）
+      - 只有 answer（或 concise_answer）：think="", answer=该值
+      - 都为空：("", raw)，并打 WARNING
+    """
+    if not think_mode or not raw:
+        return "", raw or ""
+
+    parsed = _try_parse_think_answer_dict(raw)
+    source: str
+    think_text: str
+    answer_text: str
+    if parsed is not None:
+        think_text, answer_text = _extract_think_answer_fields(parsed)
+        source = "json"
+    else:
+        html_obj = _try_parse_think_answer_html(raw)
+        if html_obj is not None:
+            think_text = html_obj.get("think", "") or ""
+            answer_text = html_obj.get("answer", "") or ""
+            source = "html"
+        else:
+            logger.warning(
+                "[ThinkMode] 模型输出无法解析为 JSON{think, answer} 或 HTML <think>/<answer>"
+                "（json/json5/codeblock/regex/HTML 全部失败），"
+                "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
+            )
+            return "", raw
+
+    if not think_text and not answer_text:
+        logger.warning(
+            f"[ThinkMode] 模型 {source} 输出中未提取到任何有效字段 "
+            f"(parsed={list(parsed.keys()) if parsed else 'html-empty'})，"
+            "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
+        )
+        return "", raw
+
+    if think_text and not answer_text:
+        # 只有 think/analysis：两个字段都用同一份 think 内容，避免 answer 完全为空
+        logger.warning(
+            f"[ThinkMode] 模型 {source} 输出缺少 answer 字段，"
+            "回落策略：think 与 answer 字段都使用 think 内容"
+        )
+        return think_text, think_text
+
+    if answer_text and not think_text:
+        # 只有 answer/concise_answer：think 留空
+        logger.warning(
+            f"[ThinkMode] 模型 {source} 输出缺少 think/analysis 字段，"
+            "回落策略：think 字段填空字符串，answer 字段保留 answer 内容"
+        )
+        return "", answer_text
+
+    return think_text, answer_text
 
 
 def _import_agent_graph(version: str):

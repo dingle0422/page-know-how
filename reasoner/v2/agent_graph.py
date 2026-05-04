@@ -16,6 +16,7 @@ from reasoner.v2.prompts import (
     SUMMARY_PROMPT,
     SUMMARY_AND_CLEAN_PROMPT,
     SUMMARY_AND_CLEAN_THINK_PROMPT,
+    SUMMARY_AND_CLEAN_THINK_HTML_PROMPT,
     SUMMARY_EXTRACT_SYSTEM_PROMPT,
     BATCH_REDUCE_SYSTEM_PROMPT,
     SUMMARY_ANSWER_SYSTEM_PROMPT,
@@ -25,21 +26,27 @@ from reasoner.v2.prompts import (
     BATCH_MERGE_PROMPT,
     BATCH_MERGE_AND_CLEAN_PROMPT,
     BATCH_MERGE_AND_CLEAN_THINK_PROMPT,
+    BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT,
     RETRIEVAL_SUMMARY_PROMPT,
     RETRIEVAL_SUMMARY_AND_CLEAN_PROMPT,
     RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT,
+    RETRIEVAL_SUMMARY_AND_CLEAN_THINK_HTML_PROMPT,
     RETRIEVAL_BATCH_SUMMARY_PROMPT,
     RETRIEVAL_BATCH_MERGE_PROMPT,
     RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT,
     RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT,
+    RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT,
     BATCH_SUMMARY_SYSTEM_PROMPT,
     BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT,
+    BATCH_MERGE_AND_CLEAN_THINK_HTML_SYSTEM_PROMPT,
     CHUNK_REASONING_PROMPT,
     CHUNK_REASONING_WITH_PITFALLS_PROMPT,
     CHUNK_REASONING_SYSTEM_PROMPT,
     CHUNK_REASONING_WITH_PITFALLS_SYSTEM_PROMPT,
     ALL_IN_ANSWER_PROMPT,
+    ALL_IN_ANSWER_HTML_PROMPT,
     ALL_IN_ANSWER_SYSTEM_PROMPT,
+    ALL_IN_ANSWER_HTML_SYSTEM_PROMPT,
     PURE_MODEL_REQUEST_PROMPT,
     PURE_MODEL_REFERENCE_EXTRACT_INSTRUCTIONS,
     PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS,
@@ -76,36 +83,73 @@ from reasoner.v2.skill_evaluator import evaluate_and_run, select_extra_skills
 logger = logging.getLogger(__name__)
 
 
-def _extract_answer_from_analysis_answer_json(raw: str) -> str | None:
-    """从 LLM 输出的 analysis/answer 合法 JSON 中提取 answer 字段；解析失败返回 None。"""
-    if not raw or not raw.strip():
+def _try_loads_to_dict(s: str) -> dict | None:
+    """容忍多种 JSON 变体（标准 / json5 / 内嵌 markdown 围栏 / raw 内首个 {} 块）。"""
+    if not s or not s.strip():
         return None
-    stripped = raw.strip()
-    parsed: dict | None = None
+    s = s.strip()
+    if s.startswith("```json"):
+        s = s[len("```json"):].strip()
+    elif s.startswith("```"):
+        s = s[3:].strip()
+    if s.endswith("```"):
+        s = s[:-3].strip()
+
     try:
-        o = json.loads(stripped)
+        o = json.loads(s)
         if isinstance(o, dict):
-            parsed = o
+            return o
     except (json.JSONDecodeError, ValueError):
         pass
-    if parsed is None:
-        try:
-            import json5
+    try:
+        import json5  # type: ignore[import-not-found]
 
-            o = json5.loads(stripped)
+        o = json5.loads(s)
+        if isinstance(o, dict):
+            return o
+    except Exception:
+        pass
+    m = re.search(r"\{.*\}", s, re.DOTALL)
+    if m:
+        try:
+            o = json.loads(m.group(0))
             if isinstance(o, dict):
-                parsed = o
-        except Exception:
+                return o
+        except (json.JSONDecodeError, ValueError):
             pass
+    return None
+
+
+def _validate_think_answer_json(raw: str) -> dict | None:
+    """严格校验最终 think_mode 输出：必须是 dict，且 think、answer 两字段都是非空字符串。
+
+    - 兼容历史字段名：think 缺失时回落到 analysis；answer 缺失时回落到 concise_answer。
+    - 通过返回标准化 {"think": str, "answer": str}；任一关键校验不过返回 None。
+    """
+    parsed = _try_loads_to_dict(raw)
     if parsed is None:
-        mobj = re.search(r"\{.*\}", stripped, re.DOTALL)
-        if mobj:
-            try:
-                o = json.loads(mobj.group(0))
-                if isinstance(o, dict):
-                    parsed = o
-            except (json.JSONDecodeError, ValueError):
-                pass
+        return None
+    think = parsed.get("think")
+    if not (isinstance(think, str) and think.strip()):
+        legacy_think = parsed.get("analysis")
+        if isinstance(legacy_think, str) and legacy_think.strip():
+            think = legacy_think
+        else:
+            return None
+    answer = parsed.get("answer")
+    if not (isinstance(answer, str) and answer.strip()):
+        legacy_answer = parsed.get("concise_answer")
+        if isinstance(legacy_answer, str) and legacy_answer.strip():
+            answer = legacy_answer
+        else:
+            return None
+    return {"think": think.strip(), "answer": answer.strip()}
+
+
+def _extract_answer_from_think_answer_json(raw: str) -> str | None:
+    """从最终 think/answer JSON 中提取 answer 字段（兼容旧 analysis/concise_answer 字段）；
+    解析失败或字段全空返回 None。"""
+    parsed = _try_loads_to_dict(raw)
     if not parsed:
         return None
     ans = parsed.get("answer")
@@ -115,6 +159,119 @@ def _extract_answer_from_analysis_answer_json(raw: str) -> str | None:
     if isinstance(legacy, str) and legacy.strip():
         return legacy.strip()
     return None
+
+
+_HTML_THINK_BLOCK_RE = re.compile(r"<think(?:\s[^>]*)?>(?P<body>.*?)</think\s*>", re.DOTALL | re.IGNORECASE)
+_HTML_ANSWER_BLOCK_RE = re.compile(r"<answer(?:\s[^>]*)?>(?P<body>.*?)</answer\s*>", re.DOTALL | re.IGNORECASE)
+# 兜底：deepseek 在 HTML 模式下偶尔会以 `<answer>...` 开头但末尾漏写 `</answer>`。
+# N=10 实测中 30 例 HTML 输出有 3 例（10%）属于这种"开标签到 EOF"形态，body 内容
+# 完整、答案合格，仅闭标签缺失。无闭合形式时退化为「<answer> 开标签 → 字符串结尾」匹配。
+_HTML_ANSWER_OPEN_TO_EOF_RE = re.compile(r"<answer(?:\s[^>]*)?>(?P<body>.*)\Z", re.DOTALL | re.IGNORECASE)
+
+
+def _parse_think_answer_html(body: str, fallback_think: str = "") -> dict | None:
+    """从 body 中尽力提取 <think>...</think> + <answer>...</answer>。
+
+    - <answer> 必须存在且内容非空，否则视作失败返回 None。
+        优先匹配闭合形式 `<answer>...</answer>`；闭合缺失时回退到「`<answer>` 开标签到
+        EOF」兜底，覆盖 deepseek HTML 末尾偶发漏闭合的情况（N=10 实测约 10%）。
+    - <think> 优先取 body 内的 <think>...</think>；缺失或为空时回落到 fallback_think
+      （来自 reasoning_content 经 split_think_block 剥下来的前缀，覆盖 deepseek 这类
+      把整段 think 都放在 reasoning_content / body 仅放 <answer> 的稳定原生形态，以及
+      qwen 这类把 think 全塞进 reasoning_content 的两种偏差形态）。
+    """
+    if not body:
+        return None
+    am = _HTML_ANSWER_BLOCK_RE.search(body)
+    if am:
+        answer = (am.group("body") or "").strip()
+    else:
+        am2 = _HTML_ANSWER_OPEN_TO_EOF_RE.search(body)
+        if not am2:
+            return None
+        answer = (am2.group("body") or "").strip()
+    if not answer:
+        return None
+    tm = _HTML_THINK_BLOCK_RE.search(body)
+    if tm and (tm.group("body") or "").strip():
+        think = (tm.group("body") or "").strip()
+    else:
+        think = (fallback_think or "").strip()
+    return {"think": think, "answer": answer}
+
+
+def _mirror_fill_think_answer(
+    think: str, answer: str, full_text: str = ""
+) -> tuple[str, str]:
+    """coercion 兜底专用的 think/answer 互填策略，保证下游字段尽量都非空。
+
+    填充规则：
+      - 仅 think 非空 → answer 复用 think 内容（让用户至少看到一段内容）
+      - 仅 answer 非空 → think 复用 answer 内容（保持 think_mode 字段非空）
+      - 两者都非空 → 原值不变
+      - 两者都空：
+          * full_text 非空 → 用 full_text 同时填入 think 和 answer
+            （覆盖"模型只输出空 JSON `{}`"或 `<answer></answer>` 这类极端形态）
+          * full_text 也为空 → 维持双空字符串（罕见的模型完全空响应场景）
+    """
+    think = (think or "").strip()
+    answer = (answer or "").strip()
+    if think and not answer:
+        return think, think
+    if answer and not think:
+        return answer, answer
+    if not think and not answer:
+        ft = (full_text or "").strip()
+        if ft:
+            return ft, ft
+        return "", ""
+    return think, answer
+
+
+def _coerce_to_think_answer_json(body: str, fallback_think: str = "") -> str:
+    """三层兜底的最末层：模型两次都没有给出可解析的 think/answer 结构时，
+    把现有内容硬封装成下游统一的 think/answer JSON 字符串，确保 app.py 解析侧
+    能拿到稳定的字段。
+
+    填充策略（保证 think 与 answer 字段尽量都非空）：
+      1) body 本身是 JSON dict（含 think/analysis、answer/concise_answer 任一非空字段）：
+         提取后 mirror-fill 互填空字段。注意此处比 _validate_think_answer_json 宽松——
+         主校验路径要求两字段都非空（防止把半成品当成功），但兜底层只要有"任意一个
+         字段有值"就尽力挽救。
+      2) body 是 HTML <think>/<answer>（含未闭合 <answer> 兜底，think 缺失时回落到
+         fallback_think）：提取后 mirror-fill 互填。
+      3) 最末兜底：think = fallback_think、answer = body 全文；mirror-fill 互填；
+         若两者都为空且 fallback_think+body 拼起来非空，用拼接全文覆盖两个字段。
+    """
+    full_text = (body or "").strip() or (fallback_think or "").strip()
+
+    parsed_dict = _try_loads_to_dict(body)
+    if parsed_dict:
+        think_val = parsed_dict.get("think")
+        if not (isinstance(think_val, str) and think_val.strip()):
+            legacy = parsed_dict.get("analysis")
+            think_val = legacy if isinstance(legacy, str) else ""
+        answer_val = parsed_dict.get("answer")
+        if not (isinstance(answer_val, str) and answer_val.strip()):
+            legacy = parsed_dict.get("concise_answer")
+            answer_val = legacy if isinstance(legacy, str) else ""
+        think_val = think_val.strip() if isinstance(think_val, str) else ""
+        answer_val = answer_val.strip() if isinstance(answer_val, str) else ""
+        if think_val or answer_val:
+            think, answer = _mirror_fill_think_answer(think_val, answer_val, full_text=full_text)
+            return json.dumps({"think": think, "answer": answer}, ensure_ascii=False)
+
+    parsed_html = _parse_think_answer_html(body, fallback_think=fallback_think)
+    if parsed_html:
+        think, answer = _mirror_fill_think_answer(
+            parsed_html["think"], parsed_html["answer"], full_text=full_text
+        )
+        return json.dumps({"think": think, "answer": answer}, ensure_ascii=False)
+
+    think, answer = _mirror_fill_think_answer(
+        fallback_think or "", body or "", full_text=full_text
+    )
+    return json.dumps({"think": think, "answer": answer}, ensure_ascii=False)
 
 
 @dataclass
@@ -802,32 +959,44 @@ class AgentGraph:
         skill_context = self._render_skill_records(extra_records)
         if not skill_context:
             return final_summary
-        prompt = ALL_IN_ANSWER_PROMPT.format(
+        prompt_kwargs = dict(
             question=self.question,
             final_summary=final_summary,
             skill_context=skill_context,
         )
+        prompt = ALL_IN_ANSWER_PROMPT.format(**prompt_kwargs)
+        prompt_html = ALL_IN_ANSWER_HTML_PROMPT.format(**prompt_kwargs)
+        system_prompt = (
+            self.answer_system_prompt
+            + "\n\n## 输出格式约束\n"
+            + ALL_IN_ANSWER_SYSTEM_PROMPT
+        )
+        system_prompt_html = (
+            self.answer_system_prompt
+            + "\n\n## 输出格式约束\n"
+            + ALL_IN_ANSWER_HTML_SYSTEM_PROMPT
+        )
         logger.info(f"[AllInAnswer] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[AllInAnswer] prompt 内容:\n{prompt}")
         try:
-            with step_scope("all_in_answer"):
-                answer = chat(
-                    prompt, vendor=self.vendor, model=self.model,
-                    system=(
-                        self.answer_system_prompt
-                        + "\n\n## 输出格式约束\n"
-                        + ALL_IN_ANSWER_SYSTEM_PROMPT
-                    ),
-                    enable_thinking=self.last_think,
-                )
-            answer = self._postprocess_final_chat(answer, "all_in_answer").strip()
-            extracted = _extract_answer_from_analysis_answer_json(answer)
+            answer_json = self._chat_final_with_format_retry(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                step_label="all_in_answer",
+                expects_think_answer_json=True,
+                html_retry_prompt=prompt_html,
+                html_retry_system=system_prompt_html,
+            )
+            extracted = _extract_answer_from_think_answer_json(answer_json)
             if extracted:
                 return extracted
-            if not answer:
+            if not answer_json:
                 logger.warning("[AllInAnswer] LLM 返回空，沿用 final summary 原文")
                 return final_summary
-            return answer
+            # coercion 兜底也至少是 {"think": ..., "answer": ...} JSON；走到这里属于极端情形，
+            # 直接把 JSON 串原样返回也不至于让 final summary 丢失（下游 _split_analysis_concise_answer
+            # 会再做一次解析）。
+            return answer_json
         except Exception as e:
             logger.error(f"[AllInAnswer] LLM 调用失败，沿用 final summary 原文: {e}")
             return final_summary
@@ -915,6 +1084,210 @@ class AgentGraph:
                 f"{preview}{'…' if len(think) > 300 else ''}"
             )
         return body
+
+    def _is_html_first_for_final(self) -> bool:
+        """判定最终节点（_all_in_answer / *_final_summary / *_batch_final_merge）
+        在双格式兜底链路中是否优先用 HTML、再回落到 JSON。
+
+        背景（参见 tests_logs/format_priority_compare_20260505_003502.log，N=10 实测）：
+          - deepseek-v3.2：JSON 模式平均 91.8s（reasoning 平均 3,901 字符，模型对 JSON
+            字符串转义的反复斟酌占用了大量推理 token）；HTML 模式平均 38.3s（reasoning
+            1,255 字符），通过率 90%（含未闭合 <answer> 兜底后 100%）。HTML 首选可节省
+            ~54s/次（约 -58% 时延）。
+          - qwen3.6-35b-a3b：JSON 模式 100%/8.4s，HTML 模式只有 56% 通过率（剩余直接
+            吐纯散文）。必须保持 JSON 首选 + HTML 兜底。
+
+        判定逻辑：vendor 或 model 名包含 "deepseek" 即视作 deepseek 系列，无论走哪条
+        通道（aliyun mudgate / servyou 内网 / mudgate v4-pro/flash），也兼容未来版本。
+        """
+        v = (self.vendor or "").lower()
+        m = (self.model or "").lower()
+        return "deepseek" in v or "deepseek" in m
+
+    def _final_chat_and_parse_once(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str | None,
+        label: str,
+        fmt: str,  # "json" / "html"
+        enable_thinking: bool,
+    ) -> tuple[dict | None, str, str]:
+        """单次 chat + 按指定格式解析。返回 (parsed_or_none, body, think_prefix)。"""
+        with step_scope(label):
+            raw = chat(
+                prompt, vendor=self.vendor, model=self.model,
+                system=system_prompt,
+                enable_thinking=enable_thinking,
+            )
+        think_prefix, body = split_think_block(raw or "")
+        if think_prefix:
+            preview = think_prefix[:300].replace("\n", " ")
+            logger.info(
+                f"[FinalChat·{label}] 剥离 <think> 前缀 {len(think_prefix)} 字符："
+                f"{preview}{'…' if len(think_prefix) > 300 else ''}"
+            )
+        if fmt == "json":
+            parsed = _validate_think_answer_json(body)
+        else:
+            parsed = _parse_think_answer_html(body, fallback_think=think_prefix)
+        return parsed, body, think_prefix
+
+    def _chat_final_with_format_retry(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str | None,
+        step_label: str,
+        expects_think_answer_json: bool,
+        enable_thinking: bool | None = None,
+        html_retry_prompt: str | None = None,
+        html_retry_system: str | None = None,
+    ) -> str:
+        """统一最终节点 chat 调用入口；自带「首选格式 → 兜底格式 → coercion」三层格式兜底。
+
+        参数：
+          - prompt:                JSON 版完整 user prompt（已注入 skill_context、参考回答等）
+          - system_prompt:         JSON 版 system prompt（已 augment 完毕）；可为 None
+          - step_label:            verbose trace 与日志中显示的节点名
+          - expects_think_answer_json:
+              True  → 期望模型最终给出严格的 `{think, answer}` 结构（即 think_mode +
+                       summary_clean_answer 同时开启的最终节点 / `_all_in_answer`）。按
+                       `_is_html_first_for_final()` 决定首选格式：
+                         * deepseek 系列 → HTML 首选 + JSON 兜底（实测 -58% 时延）
+                         * 其他（qwen 等）→ JSON 首选 + HTML 兜底（保持原行为）
+                       两次都不过则交叉兜底（首轮 body 是不是其实是另一格式）+ coercion。
+                       返回值恒为合法的 `{"think": str, "answer": str}` JSON 字符串。
+              False → 不做格式校验、不重试，原样返回 split_think_block 后的 body（自然语言）。
+          - enable_thinking:       默认随 self.last_think；少数节点（如 clean_answer）可显式覆盖。
+          - html_retry_prompt:     HTML 完整 user prompt（已 .format 完毕、已注入 skill_context /
+                                    参考回答等），内容/呈现段与 prompt 100% 一致，仅"输出格式"段
+                                    切换为 HTML 双标签。expects_think_answer_json=True 时强烈建议
+                                    传入；缺省时退化为单格式（不进行兜底重试，直接 coercion）。
+          - html_retry_system:     HTML 版 system prompt（已 augment 完毕），格式段为 HTML。
+                                    缺省时复用 system_prompt（仅当 system 不携带格式段时安全）。
+
+        异常时直接抛给上层（保持与原 chat 调用相同的失败语义），由各节点自身的 try/except 兜住。
+        """
+        if enable_thinking is None:
+            enable_thinking = self.last_think
+
+        if not expects_think_answer_json:
+            with step_scope(step_label):
+                raw = chat(
+                    prompt, vendor=self.vendor, model=self.model,
+                    system=system_prompt,
+                    enable_thinking=enable_thinking,
+                )
+            think_prefix, body = split_think_block(raw or "")
+            if think_prefix:
+                preview = think_prefix[:300].replace("\n", " ")
+                logger.info(
+                    f"[FinalChat·{step_label}] 剥离 <think> 前缀 {len(think_prefix)} 字符："
+                    f"{preview}{'…' if len(think_prefix) > 300 else ''}"
+                )
+            return body
+
+        # 决定首选 / 兜底格式：deepseek 系列优先 HTML（reasoning_content 自然承载 think，
+        # 跳过 JSON 转义反复斟酌，节省 ~58% 时延）；其他保持 JSON 首选 + HTML 兜底。
+        html_first = self._is_html_first_for_final() and html_retry_prompt is not None
+
+        if html_first:
+            primary_fmt = "html"
+            primary_prompt = html_retry_prompt
+            primary_system = html_retry_system if html_retry_system is not None else system_prompt
+            primary_label = step_label
+            secondary_fmt = "json"
+            secondary_prompt: str | None = prompt
+            secondary_system: str | None = system_prompt
+            secondary_label = f"{step_label}·json_retry"
+        else:
+            primary_fmt = "json"
+            primary_prompt = prompt
+            primary_system = system_prompt
+            primary_label = step_label
+            if html_retry_prompt is not None:
+                secondary_fmt = "html"
+                secondary_prompt = html_retry_prompt
+                secondary_system = html_retry_system if html_retry_system is not None else system_prompt
+                secondary_label = f"{step_label}·html_retry"
+            else:
+                secondary_fmt = ""
+                secondary_prompt = None
+                secondary_system = None
+                secondary_label = ""
+
+        # ===== 首轮：首选格式 =====
+        parsed1, body1, think1 = self._final_chat_and_parse_once(
+            prompt=primary_prompt,
+            system_prompt=primary_system,
+            label=primary_label,
+            fmt=primary_fmt,
+            enable_thinking=enable_thinking,
+        )
+        if parsed1:
+            return json.dumps(parsed1, ensure_ascii=False)
+
+        body1_preview = (body1 or "").replace("\n", " ")[:200]
+
+        if not secondary_prompt:
+            logger.warning(
+                f"[FinalChat·{primary_label}] {primary_fmt.upper()} 校验失败且未提供"
+                f" {('JSON' if primary_fmt == 'html' else 'HTML')} 兜底 prompt，"
+                f"直接走 coercion 兜底封装。 body 预览: {body1_preview}"
+            )
+            return _coerce_to_think_answer_json(body1, fallback_think=think1)
+
+        logger.warning(
+            f"[FinalChat·{primary_label}] {primary_fmt.upper()} 校验失败，发起 "
+            f"{secondary_fmt.upper()} 兜底重试。 body 预览: {body1_preview}"
+        )
+
+        # ===== 兜底：另一种格式 =====
+        try:
+            parsed2, body2, think2 = self._final_chat_and_parse_once(
+                prompt=secondary_prompt,
+                system_prompt=secondary_system,
+                label=secondary_label,
+                fmt=secondary_fmt,
+                enable_thinking=enable_thinking,
+            )
+        except Exception as e:
+            logger.error(
+                f"[FinalChat·{secondary_label}] {secondary_fmt.upper()} 兜底 chat 调用异常 "
+                f"{type(e).__name__}: {e}，转入 coercion 兜底封装"
+            )
+            return _coerce_to_think_answer_json(body1, fallback_think=think1)
+
+        if parsed2:
+            logger.info(
+                f"[FinalChat·{secondary_label}] {secondary_fmt.upper()} 解析成功"
+                f"（answer 长度 {len(parsed2['answer'])}，think 长度 {len(parsed2['think'])}）"
+            )
+            return json.dumps(parsed2, ensure_ascii=False)
+
+        # ===== 交叉兜底：兜底也失败时，再回头看看首轮 body 是不是其实是另一种格式 =====
+        # （deepseek 偶尔会在 HTML schema 下吐 JSON，反之亦然；免得白白丢掉一次推理）
+        if secondary_fmt == "html":
+            parsed1_cross = _parse_think_answer_html(body1, fallback_think=think1)
+        else:
+            parsed1_cross = _validate_think_answer_json(body1)
+        if parsed1_cross:
+            logger.warning(
+                f"[FinalChat·{primary_label}] {secondary_fmt.upper()} 兜底也失败，"
+                f"但首轮 body 含可解析 {secondary_fmt.upper()}，使用首轮结果"
+                f"（answer 长度 {len(parsed1_cross['answer'])}）"
+            )
+            return json.dumps(parsed1_cross, ensure_ascii=False)
+
+        body2_preview = (body2 or "").replace("\n", " ")[:200]
+        logger.warning(
+            f"[FinalChat·{secondary_label}] {secondary_fmt.upper()} 兜底仍未通过校验，"
+            f"触发 coercion 兜底封装。 body2 预览: {body2_preview}"
+        )
+        fallback_think = think2 or think1
+        fallback_body = body2 if (body2 and body2.strip()) else body1
+        return _coerce_to_think_answer_json(fallback_body, fallback_think=fallback_think)
 
     def run(self) -> dict:
         with agent_scope(agent_id="graph-root"):
@@ -2284,9 +2657,11 @@ class AgentGraph:
         agent_parts = self._build_evidence_parts()
         agent_results_text = "\n\n".join(agent_parts) if agent_parts else "（无）"
 
+        html_template: str | None = None
         if self.summary_clean_answer:
             if self.think_mode:
                 template = SUMMARY_AND_CLEAN_THINK_PROMPT
+                html_template = SUMMARY_AND_CLEAN_THINK_HTML_PROMPT
                 mode_label = "汇总+清洗一体·Think"
             else:
                 template = SUMMARY_AND_CLEAN_PROMPT
@@ -2294,27 +2669,35 @@ class AgentGraph:
         else:
             template = SUMMARY_PROMPT
             mode_label = "纯汇总"
-        prompt = template.format(
-            question=self.question,
-            agent_results=agent_results_text,
-        )
+        fmt_kwargs = dict(question=self.question, agent_results=agent_results_text)
+        prompt = template.format(**fmt_kwargs)
         prompt = self._append_skill_context_to_prompt(prompt, skill_context)
         prompt = self._inject_pure_model_reference(prompt)
         system_prompt = self._augment_system_for_answer(self.answer_system_prompt)
+
+        # think_mode 期望 JSON；同步构造对应的 HTML 完整 prompt 用于格式兜底重试，
+        # 让重试链路与首轮 100% 共享内容/呈现段，仅切换"输出格式"段。
+        prompt_html: str | None = None
+        if html_template is not None:
+            prompt_html = html_template.format(**fmt_kwargs)
+            prompt_html = self._append_skill_context_to_prompt(prompt_html, skill_context)
+            prompt_html = self._inject_pure_model_reference(prompt_html)
 
         logger.info(f"[Summary·{mode_label}] system prompt 长度: {len(system_prompt)} 字符")
         logger.info(f"[Summary·{mode_label}] user prompt 长度: {len(prompt)} 字符")
         logger.info(f"[Summary·{mode_label}] user prompt 内容:\n{prompt}")
 
+        expects_think_answer_json = self.summary_clean_answer and self.think_mode
+
         def _do_summary() -> str:
             try:
-                with step_scope("final_summary"):
-                    raw = chat(
-                        prompt, vendor=self.vendor, model=self.model,
-                        system=system_prompt,
-                        enable_thinking=self.last_think,
-                    )
-                return self._postprocess_final_chat(raw, "final_summary")
+                return self._chat_final_with_format_retry(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    step_label="final_summary",
+                    expects_think_answer_json=expects_think_answer_json,
+                    html_retry_prompt=prompt_html,
+                )
             except Exception as e:
                 logger.error(f"最终汇总 LLM 调用失败: {e}")
                 fallback_parts = []
@@ -2475,9 +2858,11 @@ class AgentGraph:
         numbered = "\n\n".join(
             f"### 摘要 {i+1}\n{s}" for i, s in enumerate(summaries)
         )
+        html_template: str | None = None
         if self.summary_clean_answer:
             if self.think_mode:
                 template = BATCH_MERGE_AND_CLEAN_THINK_PROMPT
+                html_template = BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT
                 mode_label = "合并+清洗一体·Think"
             else:
                 template = BATCH_MERGE_AND_CLEAN_PROMPT
@@ -2485,12 +2870,18 @@ class AgentGraph:
         else:
             template = BATCH_MERGE_PROMPT
             mode_label = "纯合并"
-        merge_prompt = template.format(
-            question=self.question,
-            batch_summaries=numbered,
-        )
+        fmt_kwargs = dict(question=self.question, batch_summaries=numbered)
+        merge_prompt = template.format(**fmt_kwargs)
         merge_prompt = self._append_skill_context_to_prompt(merge_prompt, skill_context)
         merge_prompt = self._inject_pure_model_reference(merge_prompt)
+
+        # think_mode 期望 JSON；同步构造对应的 HTML 完整 prompt（user + system 都换 schema）
+        # 让 HTML 兜底重试与首轮共享内容/呈现段，仅"输出格式"段切换。
+        merge_prompt_html: str | None = None
+        if html_template is not None:
+            merge_prompt_html = html_template.format(**fmt_kwargs)
+            merge_prompt_html = self._append_skill_context_to_prompt(merge_prompt_html, skill_context)
+            merge_prompt_html = self._inject_pure_model_reference(merge_prompt_html)
 
         logger.info(
             f"[BatchMerge] 第 {layer} 层（最终合并·{mode_label}）："
@@ -2498,22 +2889,32 @@ class AgentGraph:
         )
         logger.info(f"[BatchMerge] prompt 内容:\n{merge_prompt}")
 
+        expects_think_answer_json = self.summary_clean_answer and self.think_mode
+
         def _do_merge() -> str:
             try:
-                if self.summary_clean_answer and self.think_mode:
+                if expects_think_answer_json:
                     system_prompt = self._augment_system_for_answer(
                         self.answer_system_prompt,
                         "## 输出格式约束\n" + BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT,
+                    )
+                    system_prompt_html = self._augment_system_for_answer(
+                        self.answer_system_prompt,
+                        "## 输出格式约束\n" + BATCH_MERGE_AND_CLEAN_THINK_HTML_SYSTEM_PROMPT,
                     )
                 else:
                     system_prompt = self._augment_system_for_answer(
                         self.answer_system_prompt
                     )
-                with step_scope(f"batch_final_merge·L{layer}"):
-                    raw = chat(merge_prompt, vendor=self.vendor, model=self.model,
-                               system=system_prompt,
-                               enable_thinking=self.last_think)
-                return self._postprocess_final_chat(raw, f"batch_final_merge·L{layer}")
+                    system_prompt_html = None
+                return self._chat_final_with_format_retry(
+                    prompt=merge_prompt,
+                    system_prompt=system_prompt,
+                    step_label=f"batch_final_merge·L{layer}",
+                    expects_think_answer_json=expects_think_answer_json,
+                    html_retry_prompt=merge_prompt_html,
+                    html_retry_system=system_prompt_html,
+                )
             except Exception as e:
                 logger.error(f"[BatchMerge] 最终合并失败: {e}")
                 return "分批合并失败，以下为各摘要：\n" + numbered
@@ -2526,9 +2927,11 @@ class AgentGraph:
 
     def _retrieval_final_summary(self, organized_parts: list[str], skill_context: str = "") -> str:
         knowledge_text = "\n\n".join(organized_parts)
+        html_template: str | None = None
         if self.summary_clean_answer:
             if self.think_mode:
                 template = RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT
+                html_template = RETRIEVAL_SUMMARY_AND_CLEAN_THINK_HTML_PROMPT
                 mode_label = "汇总+清洗一体·Think"
             else:
                 template = RETRIEVAL_SUMMARY_AND_CLEAN_PROMPT
@@ -2536,24 +2939,32 @@ class AgentGraph:
         else:
             template = RETRIEVAL_SUMMARY_PROMPT
             mode_label = "纯汇总"
-        prompt = template.format(
-            question=self.question,
-            organized_knowledge=knowledge_text,
-        )
+        fmt_kwargs = dict(question=self.question, organized_knowledge=knowledge_text)
+        prompt = template.format(**fmt_kwargs)
         prompt = self._append_skill_context_to_prompt(prompt, skill_context)
         prompt = self._inject_pure_model_reference(prompt)
         system_prompt = self._augment_system_for_answer(self.answer_system_prompt)
 
+        prompt_html: str | None = None
+        if html_template is not None:
+            prompt_html = html_template.format(**fmt_kwargs)
+            prompt_html = self._append_skill_context_to_prompt(prompt_html, skill_context)
+            prompt_html = self._inject_pure_model_reference(prompt_html)
+
         logger.info(f"[RetrievalSummary·{mode_label}] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[RetrievalSummary·{mode_label}] prompt 内容:\n{prompt}")
 
+        expects_think_answer_json = self.summary_clean_answer and self.think_mode
+
         def _do_summary() -> str:
             try:
-                with step_scope("retrieval_final_summary"):
-                    raw = chat(prompt, vendor=self.vendor, model=self.model,
-                               system=system_prompt,
-                               enable_thinking=self.last_think)
-                return self._postprocess_final_chat(raw, "retrieval_final_summary")
+                return self._chat_final_with_format_retry(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    step_label="retrieval_final_summary",
+                    expects_think_answer_json=expects_think_answer_json,
+                    html_retry_prompt=prompt_html,
+                )
             except Exception as e:
                 logger.error(f"[RetrievalSummary] 召回总结失败: {e}")
                 return "召回总结生成失败，以下为召回的知识片段：\n" + knowledge_text
@@ -2651,9 +3062,11 @@ class AgentGraph:
         numbered = "\n\n".join(
             f"### 摘要 {i+1}\n{s}" for i, s in enumerate(summaries)
         )
+        html_template: str | None = None
         if self.summary_clean_answer:
             if self.think_mode:
                 template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT
+                html_template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT
                 mode_label = "合并+清洗一体·Think"
             else:
                 template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT
@@ -2661,13 +3074,17 @@ class AgentGraph:
         else:
             template = RETRIEVAL_BATCH_MERGE_PROMPT
             mode_label = "纯合并"
-        merge_prompt = template.format(
-            question=self.question,
-            batch_summaries=numbered,
-        )
+        fmt_kwargs = dict(question=self.question, batch_summaries=numbered)
+        merge_prompt = template.format(**fmt_kwargs)
         merge_prompt = self._append_skill_context_to_prompt(merge_prompt, skill_context)
         merge_prompt = self._inject_pure_model_reference(merge_prompt)
         system_prompt = self._augment_system_for_answer(self.answer_system_prompt)
+
+        merge_prompt_html: str | None = None
+        if html_template is not None:
+            merge_prompt_html = html_template.format(**fmt_kwargs)
+            merge_prompt_html = self._append_skill_context_to_prompt(merge_prompt_html, skill_context)
+            merge_prompt_html = self._inject_pure_model_reference(merge_prompt_html)
 
         logger.info(
             f"[RetrievalBatchMerge] 第 {layer} 层（最终合并·{mode_label}）："
@@ -2675,13 +3092,17 @@ class AgentGraph:
         )
         logger.info(f"[RetrievalBatchMerge] prompt 内容:\n{merge_prompt}")
 
+        expects_think_answer_json = self.summary_clean_answer and self.think_mode
+
         def _do_merge() -> str:
             try:
-                with step_scope(f"retrieval_batch_final_merge·L{layer}"):
-                    raw = chat(merge_prompt, vendor=self.vendor, model=self.model,
-                               system=system_prompt,
-                               enable_thinking=self.last_think)
-                return self._postprocess_final_chat(raw, f"retrieval_batch_final_merge·L{layer}")
+                return self._chat_final_with_format_retry(
+                    prompt=merge_prompt,
+                    system_prompt=system_prompt,
+                    step_label=f"retrieval_batch_final_merge·L{layer}",
+                    expects_think_answer_json=expects_think_answer_json,
+                    html_retry_prompt=merge_prompt_html,
+                )
             except Exception as e:
                 logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
                 return "召回分批合并失败，以下为各摘要：\n" + numbered

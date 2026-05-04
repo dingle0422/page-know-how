@@ -81,17 +81,69 @@ def _now() -> float:
 # ------------------------------------------------------------- 纯函数操作层
 
 
+async def _retry_short_request(
+    coro_factory: Callable[[], Awaitable[Any]],
+    *,
+    attempts: int = 1,
+    backoff_seconds: float = 0.3,
+    op_name: str = "redis_server short request",
+) -> Any:
+    """对'短请求型'调用做最多 attempts+1 次尝试，瞬时网络错误退避后重试。
+
+    背景：BLPOP 长轮询在客户端会偶发 RemoteProtocolError / PoolTimeout
+    （网关回收 keepalive、链路抖动等）。submit/queue_status 等关键路径上的
+    短请求若不重试，单次抖动就会冒成 5xx。这里提供一个轻量包装：
+    捕获 ``_TRANSIENT_NETWORK_ERRORS``、退避一次再试，仍失败才上抛。
+
+    parameters
+    ----------
+    coro_factory :
+        每次尝试都重新调用一次以构造**新的** awaitable，避免把已 await 过的协程
+        二次 await（asyncio 会报 RuntimeError: cannot reuse already awaited）。
+    attempts :
+        失败后再追加的重试次数。0 = 不重试（行为与裸调一致），1 = 最多调 2 次。
+    backoff_seconds :
+        每次失败后的固定退避；不做指数退避，避免提交路径感知到明显延迟。
+    op_name :
+        仅用于日志；标识哪一类操作触发了重试。
+    """
+    last_err: Optional[BaseException] = None
+    for attempt in range(attempts + 1):
+        try:
+            return await coro_factory()
+        except _TRANSIENT_NETWORK_ERRORS as e:
+            last_err = e
+            if attempt >= attempts:
+                raise
+            logger.warning(
+                f"[{op_name}] 第 {attempt + 1} 次失败 ({type(e).__name__}: {e})，"
+                f"{backoff_seconds:.2f}s 后重试"
+            )
+            await asyncio.sleep(backoff_seconds)
+    # 理论不可达：上面的循环要么 return 要么 raise；写在这里只是给静态检查兜底。
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError(f"[{op_name}] 重试逻辑异常退出")
+
+
 async def submit_task(
     client,
     request_payload: dict,
     *,
     ttl_seconds: float = DEFAULT_TASK_TTL_SECONDS,
+    retry_attempts: int = 1,
+    retry_backoff_seconds: float = 0.3,
 ) -> dict:
     """生成 task_id、写入 task:{id}、RPUSH 到 queue:reason:pending。
 
     写 KV 再 push 队列的顺序不能颠倒：worker BLPOP 拿到 task_id 后会立刻
     GET task:{id}，若此时 KV 里还没有该条 record，会被 worker 记 warning 并
     直接丢弃（见 ``WorkerPool._run_one``）。
+
+    set / rpush 这两步默认带 1 次轻量重试以吸收链路瞬抖（PoolTimeout、网关 504、
+    连接重置等）。任意一步**最终**失败都会原样抛回路由层，由 /api/reason/submit
+    返回 500；rpush 失败时会尽力清理已写入的 task:{id}，避免它在 KV 里成为孤儿
+    （没人会去消费、占着 TTL 时长）。
     """
     task_id = str(uuid.uuid4())
     request_payload = dict(request_payload)
@@ -111,8 +163,31 @@ async def submit_task(
         # "本进程正在跑的 running" vs "上一代进程崩掉留下的僵尸 running"。
         "instance_id": None,
     }
-    await client.set(_task_key(task_id), record, ttl_seconds=ttl_seconds)
-    await client.rpush(QUEUE_REASON_PENDING, task_id)
+
+    await _retry_short_request(
+        lambda: client.set(_task_key(task_id), record, ttl_seconds=ttl_seconds),
+        attempts=retry_attempts,
+        backoff_seconds=retry_backoff_seconds,
+        op_name=f"submit_task.set task={task_id}",
+    )
+    try:
+        await _retry_short_request(
+            lambda: client.rpush(QUEUE_REASON_PENDING, task_id),
+            attempts=retry_attempts,
+            backoff_seconds=retry_backoff_seconds,
+            op_name=f"submit_task.rpush task={task_id}",
+        )
+    except Exception:
+        # rpush 失败：尽力把刚写入的 task KV 删掉，避免遗留孤儿记录占 TTL。
+        # 删除本身也可能因为同一波抖动失败，捕获后忽略——24h TTL 自动兜底。
+        try:
+            await client.delete(_task_key(task_id))
+        except Exception as cleanup_err:
+            logger.warning(
+                f"[submit_task] rpush 失败后清理 task={task_id} 也失败，"
+                f"将依赖 TTL 过期: {cleanup_err}"
+            )
+        raise
     return record
 
 
@@ -497,9 +572,11 @@ class WorkerPool:
                 # 网关 504 / 连接重置 / 请求超时等"到 redis_server 链路"的瞬时错误：
                 # 典型场景是中间网关 proxy_read_timeout < blpop_timeout，
                 # 后端本身没事，下一轮重试即可。降成 warning，避免刷屏。
+                # 显式带上异常类型：很多底层异常（RemoteProtocolError/ReadError 等）
+                # 构造时不带 message，只打 {e} 会变空字符串，无法定位根因。
                 logger.warning(
                     f"[WorkerPool] worker-{worker_id} BLPOP 网络瞬时错误（通常是网关超时），"
-                    f"0.5s 后重试: {e}"
+                    f"0.5s 后重试: {type(e).__name__}: {e}"
                 )
                 try:
                     await asyncio.sleep(0.5)
