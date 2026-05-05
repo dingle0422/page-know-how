@@ -33,7 +33,7 @@ from concurrent.futures import ThreadPoolExecutor
 logger = logging.getLogger(__name__)
 
 # -------------------------------------------------------------------
-# Context vars：session_id / agent_id / step_label
+# Context vars：session_id / agent_id / step_label / prompt_vars
 # -------------------------------------------------------------------
 _session_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "verbose_session_id", default=None
@@ -44,6 +44,10 @@ _agent_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 _step_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "verbose_step_label", default=None
 )
+_prompt_vars_var: contextvars.ContextVar[dict | list | str | None] = contextvars.ContextVar(
+    "verbose_prompt_vars", default=None
+)
+_PROMPT_VARS_UNSET = object()
 
 # -------------------------------------------------------------------
 # ThreadPoolExecutor.submit monkey-patch：让 ContextVar 跨线程继承
@@ -168,6 +172,10 @@ def current_step() -> str | None:
     return _step_var.get()
 
 
+def current_prompt_vars() -> dict | list | str | None:
+    return _prompt_vars_var.get()
+
+
 @contextlib.contextmanager
 def open_session(
     session_id: str | None = None,
@@ -245,7 +253,11 @@ def open_session(
 
 
 @contextlib.contextmanager
-def agent_scope(agent_id: str | None = None, step: str | None = None):
+def agent_scope(
+    agent_id: str | None = None,
+    step: str | None = None,
+    prompt_vars: dict | list | str | None | object = _PROMPT_VARS_UNSET,
+):
     """为当前执行上下文绑定 agent_id 与 step 标签（嵌套安全）。
 
     verbose 未开启时退化为空 context，不产生任何副作用。
@@ -259,6 +271,8 @@ def agent_scope(agent_id: str | None = None, step: str | None = None):
         tokens.append(("agent", _agent_var.set(agent_id)))
     if step is not None:
         tokens.append(("step", _step_var.set(step)))
+    if prompt_vars is not _PROMPT_VARS_UNSET:
+        tokens.append(("prompt_vars", _prompt_vars_var.set(prompt_vars)))
     try:
         yield
     finally:
@@ -267,11 +281,13 @@ def agent_scope(agent_id: str | None = None, step: str | None = None):
                 _agent_var.reset(tk)  # type: ignore[arg-type]
             elif name == "step":
                 _step_var.reset(tk)  # type: ignore[arg-type]
+            elif name == "prompt_vars":
+                _prompt_vars_var.reset(tk)  # type: ignore[arg-type]
 
 
-def step_scope(step: str):
-    """只改 step 的便捷作用域。"""
-    return agent_scope(step=step)
+def step_scope(step: str, prompt_vars: dict | list | str | None = None):
+    """只改 step 的便捷作用域，可顺带记录该步使用的 prompt 变量名。"""
+    return agent_scope(step=step, prompt_vars=prompt_vars)
 
 
 def log_llm_call(
@@ -302,6 +318,7 @@ def log_llm_call(
         "vendor": vendor,
         "model": model,
         "elapsed_ms": elapsed_ms,
+        "prompt_vars": _prompt_vars_var.get(),
         "system": system,
         "prompt": prompt,
         "response": response,
@@ -342,6 +359,7 @@ def log_llm_error(
         "vendor": vendor,
         "model": model,
         "elapsed_ms": elapsed_ms,
+        "prompt_vars": _prompt_vars_var.get(),
         "system": system,
         "prompt": prompt,
         "error": error,
@@ -369,6 +387,7 @@ def log_event(event_type: str, **fields) -> None:
         "session_id": sid,
         "agent_id": _agent_var.get(),
         "step": _step_var.get(),
+        "prompt_vars": _prompt_vars_var.get(),
         "thread": threading.current_thread().name,
     }
     payload.update(fields)

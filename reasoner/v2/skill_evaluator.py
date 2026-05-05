@@ -176,7 +176,13 @@ def _select_skills(question: str, vendor: str, model: str) -> list[str]:
     prompt = _SELECT_PROMPT.format(index_doc=index_doc, question=question)
     try:
         from utils.verbose_logger import step_scope as _vstep
-        with _vstep("skill_select"):
+        with _vstep(
+            "skill_select",
+            prompt_vars={
+                "user": "_SELECT_PROMPT",
+                "system": "_SELECT_SYSTEM_PROMPT",
+            },
+        ):
             resp = chat(prompt, vendor=vendor, model=model, system=_SELECT_SYSTEM_PROMPT)
     except Exception as e:
         logger.error("[Evaluator] Step1 LLM 调用失败: %s", e)
@@ -225,7 +231,16 @@ def _generate_command(
 
     try:
         from utils.verbose_logger import step_scope as _vstep
-        with _vstep(step_tag):
+        prompt_var_names = ["_GENERATE_CMD_PROMPT"]
+        if prev_attempt is not None:
+            prompt_var_names.append("_RETRY_HINT_TEMPLATE")
+        with _vstep(
+            step_tag,
+            prompt_vars={
+                "user": prompt_var_names,
+                "system": "_GENERATE_CMD_SYSTEM_PROMPT",
+            },
+        ):
             resp = chat(prompt, vendor=vendor, model=model, system=_GENERATE_CMD_SYSTEM_PROMPT)
     except Exception as e:
         logger.error("[Evaluator] Step2 LLM 调用失败 (skill=%s): %s", skill_name, e)
@@ -340,7 +355,18 @@ def select_extra_skills(
     )
     try:
         from utils.verbose_logger import step_scope as _vstep
-        with _vstep("skill_select_extra"):
+        prompt_var_names = ["_SELECT_PROMPT"]
+        if extra_hint:
+            prompt_var_names.append("extra_hint")
+        if evidence_hint:
+            prompt_var_names.append("evidence_hint")
+        with _vstep(
+            "skill_select_extra",
+            prompt_vars={
+                "user": prompt_var_names,
+                "system": "_SELECT_SYSTEM_PROMPT",
+            },
+        ):
             resp = chat(prompt, vendor=vendor, model=model, system=_SELECT_SYSTEM_PROMPT)
     except Exception as e:
         logger.error("[Evaluator] select_extra_skills LLM 调用失败: %s", e)

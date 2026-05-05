@@ -474,6 +474,10 @@ class AgentGraph:
         #     语义上自定义部分优先级最高（与默认冲突时以自定义为准）。
         custom = (answer_system_prompt or "").strip() if answer_system_prompt is not None else ""
         if custom:
+            self.answer_system_prompt_var_names = [
+                "answerSystemPrompt",
+                "SUMMARY_ANSWER_SYSTEM_PROMPT",
+            ]
             self.answer_system_prompt = (
                 "## 最高行为准则\n"
                 "（以下规则由调用方在本次请求中传入，优先级高于下方默认规范；"
@@ -488,6 +492,7 @@ class AgentGraph:
                 f"最终长度: {len(self.answer_system_prompt)} 字符"
             )
         else:
+            self.answer_system_prompt_var_names = ["SUMMARY_ANSWER_SYSTEM_PROMPT"]
             self.answer_system_prompt = SUMMARY_ANSWER_SYSTEM_PROMPT
             logger.info(
                 f"[AnswerSystemPrompt] 使用默认 SUMMARY_ANSWER_SYSTEM_PROMPT，"
@@ -675,7 +680,13 @@ class AgentGraph:
 
         def _run() -> str:
             try:
-                with step_scope("pure_model_reasoning"):
+                with step_scope(
+                    "pure_model_reasoning",
+                    prompt_vars={
+                        "user": "PURE_MODEL_REQUEST_PROMPT",
+                        "system": "SUMMARY_SYSTEM_PROMPT",
+                    },
+                ):
                     return chat(
                         prompt,
                         vendor=self.pure_model_vendor,
@@ -822,6 +833,20 @@ class AgentGraph:
         if format_body:
             parts.append(format_body)
         return "\n\n".join(parts)
+
+    def _extract_system_prompt_vars(self, *format_prompt_vars: str) -> list[str]:
+        names = ["BATCH_REDUCE_SYSTEM_PROMPT"]
+        if self.pure_model_result and self._pure_model_reference:
+            names.append("PURE_MODEL_REFERENCE_EXTRACT_INSTRUCTIONS")
+        names.extend(name for name in format_prompt_vars if name)
+        return names
+
+    def _answer_system_prompt_vars(self, *format_prompt_vars: str) -> list[str]:
+        names = list(self.answer_system_prompt_var_names)
+        if self.pure_model_result and self._pure_model_reference:
+            names.append("PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS")
+        names.extend(name for name in format_prompt_vars if name)
+        return names
 
     def _run_skill_evaluation(self) -> None:
         """在独立线程中跑 evaluator 的 asyncio 事件循环"""
@@ -999,6 +1024,37 @@ class AgentGraph:
             return prompt + "\n\n" + skill_context
         return prompt[:idx] + "\n\n" + skill_context + prompt[idx:]
 
+    @staticmethod
+    def _format_batch_summaries_for_merge(summaries: list[str]) -> str:
+        """把多份中间摘要拼接成最终合并 prompt 中的 batch_summaries 段。
+
+        使用强分隔哨兵（BEGIN_BATCH_SUMMARY n / END_BATCH_SUMMARY n）包围每条
+        摘要，避免摘要正文里的 Markdown 标题（##/###）与外层 prompt 的 ##/###
+        小节标题竞争层级——后者负责"用户问题/各批次摘要/输出格式约束"等外层
+        结构，前者只能出现在哨兵块内部，模型可以一眼区分边界归属。
+
+        每个摘要块结构：
+            ===== BEGIN_BATCH_SUMMARY {i} =====
+            [摘要序号] {i}
+            [摘要内容开始]
+            {正文原样保留，rstrip 去尾部空白}
+            [摘要内容结束]
+            ===== END_BATCH_SUMMARY {i} =====
+        块之间用空行分隔。
+        """
+        blocks: list[str] = []
+        for i, s in enumerate(summaries, start=1):
+            body = (s or "").rstrip()
+            blocks.append(
+                f"===== BEGIN_BATCH_SUMMARY {i} =====\n"
+                f"[摘要序号] {i}\n"
+                f"[摘要内容开始]\n"
+                f"{body}\n"
+                f"[摘要内容结束]\n"
+                f"===== END_BATCH_SUMMARY {i} ====="
+            )
+        return "\n\n".join(blocks)
+
     def _judge_extra_skills(
         self, exclude: set[str], evidence: str | None = None
     ) -> list[str]:
@@ -1077,6 +1133,14 @@ class AgentGraph:
                 expects_think_answer_json=True,
                 html_retry_prompt=prompt_html,
                 html_retry_system=system_prompt_html,
+                prompt_vars={
+                    "user": "ALL_IN_ANSWER_PROMPT",
+                    "system": self._answer_system_prompt_vars("ALL_IN_ANSWER_SYSTEM_PROMPT"),
+                },
+                html_retry_prompt_vars={
+                    "user": "ALL_IN_ANSWER_HTML_PROMPT",
+                    "system": self._answer_system_prompt_vars("ALL_IN_ANSWER_HTML_SYSTEM_PROMPT"),
+                },
             )
             if self.think_mode and answer_json:
                 # 保留完整结构交给 app.py 映射到 ReasonData.think / answer。
@@ -1206,9 +1270,10 @@ class AgentGraph:
         label: str,
         fmt: str,  # "json" / "html"
         enable_thinking: bool,
+        prompt_vars: dict | list | str | None = None,
     ) -> tuple[dict | None, str, str]:
         """单次 chat + 按指定格式解析。返回 (parsed_or_none, body, think_prefix)。"""
-        with step_scope(label):
+        with step_scope(label, prompt_vars=prompt_vars):
             raw = chat(
                 prompt, vendor=self.vendor, model=self.model,
                 system=system_prompt,
@@ -1237,6 +1302,8 @@ class AgentGraph:
         enable_thinking: bool | None = None,
         html_retry_prompt: str | None = None,
         html_retry_system: str | None = None,
+        prompt_vars: dict | list | str | None = None,
+        html_retry_prompt_vars: dict | list | str | None = None,
     ) -> str:
         """统一最终节点 chat 调用入口；自带「首选格式 → 兜底格式 → coercion」三层格式兜底。
 
@@ -1267,7 +1334,7 @@ class AgentGraph:
             enable_thinking = self.last_think
 
         if not expects_think_answer_json:
-            with step_scope(step_label):
+            with step_scope(step_label, prompt_vars=prompt_vars):
                 raw = chat(
                     prompt, vendor=self.vendor, model=self.model,
                     system=system_prompt,
@@ -1290,25 +1357,30 @@ class AgentGraph:
             primary_fmt = "html"
             primary_prompt = html_retry_prompt
             primary_system = html_retry_system if html_retry_system is not None else system_prompt
+            primary_prompt_vars = html_retry_prompt_vars or prompt_vars
             primary_label = step_label
             secondary_fmt = "json"
             secondary_prompt: str | None = prompt
             secondary_system: str | None = system_prompt
+            secondary_prompt_vars = prompt_vars
             secondary_label = f"{step_label}·json_retry"
         else:
             primary_fmt = "json"
             primary_prompt = prompt
             primary_system = system_prompt
+            primary_prompt_vars = prompt_vars
             primary_label = step_label
             if html_retry_prompt is not None:
                 secondary_fmt = "html"
                 secondary_prompt = html_retry_prompt
                 secondary_system = html_retry_system if html_retry_system is not None else system_prompt
+                secondary_prompt_vars = html_retry_prompt_vars or prompt_vars
                 secondary_label = f"{step_label}·html_retry"
             else:
                 secondary_fmt = ""
                 secondary_prompt = None
                 secondary_system = None
+                secondary_prompt_vars = None
                 secondary_label = ""
 
         # ===== 首轮：首选格式 =====
@@ -1318,6 +1390,7 @@ class AgentGraph:
             label=primary_label,
             fmt=primary_fmt,
             enable_thinking=enable_thinking,
+            prompt_vars=primary_prompt_vars,
         )
         if parsed1:
             return json.dumps(parsed1, ensure_ascii=False)
@@ -1345,6 +1418,7 @@ class AgentGraph:
                 label=secondary_label,
                 fmt=secondary_fmt,
                 enable_thinking=enable_thinking,
+                prompt_vars=secondary_prompt_vars,
             )
         except Exception as e:
             logger.error(
@@ -1941,6 +2015,10 @@ class AgentGraph:
             vendor=self.vendor,
             model=self.model,
             max_part_depth=self.reduce_max_part_depth,
+            intermediate_prompt_vars={
+                "user": "BATCH_SUMMARY_PROMPT",
+                "system": self._extract_system_prompt_vars("BATCH_SUMMARY_SYSTEM_PROMPT"),
+            },
             logger_label="ReduceQueue·Chunk",
         )
         self._reduce_pipeline = pipeline
@@ -2183,7 +2261,13 @@ class AgentGraph:
             f"({len(parts)} 个 parts)"
         )
         try:
-            with step_scope(f"streaming_batch_summary#{batch_index}"):
+            with step_scope(
+                f"streaming_batch_summary#{batch_index}",
+                prompt_vars={
+                    "user": "BATCH_SUMMARY_PROMPT",
+                    "system": self._extract_system_prompt_vars("BATCH_SUMMARY_SYSTEM_PROMPT"),
+                },
+            ):
                 return chat(
                     prompt, vendor=self.vendor, model=self.model,
                     system=system_prompt,
@@ -2357,7 +2441,23 @@ class AgentGraph:
             f"prompt 长度: {len(prompt)} 字符"
         )
         try:
-            with step_scope(f"chunk_reason#{chunk.index}"):
+            prompt_var = (
+                "CHUNK_REASONING_WITH_PITFALLS_PROMPT"
+                if self.check_pitfalls
+                else "CHUNK_REASONING_PROMPT"
+            )
+            system_prompt_var = (
+                "CHUNK_REASONING_WITH_PITFALLS_SYSTEM_PROMPT"
+                if self.check_pitfalls
+                else "CHUNK_REASONING_SYSTEM_PROMPT"
+            )
+            with step_scope(
+                f"chunk_reason#{chunk.index}",
+                prompt_vars={
+                    "user": prompt_var,
+                    "system": ["SUMMARY_EXTRACT_SYSTEM_PROMPT", system_prompt_var],
+                },
+            ):
                 response = chat(prompt, vendor=self.vendor, model=self.model,
                                 system=SUMMARY_EXTRACT_SYSTEM_PROMPT + "\n\n" + system_template)
             return self._parse_chunk_json(response, chunk.index)
@@ -2756,12 +2856,18 @@ class AgentGraph:
             if self.think_mode:
                 template = SUMMARY_AND_CLEAN_THINK_PROMPT
                 html_template = SUMMARY_AND_CLEAN_THINK_HTML_PROMPT
+                prompt_var = "SUMMARY_AND_CLEAN_THINK_PROMPT"
+                html_prompt_var = "SUMMARY_AND_CLEAN_THINK_HTML_PROMPT"
                 mode_label = "汇总+清洗一体·Think"
             else:
                 template = SUMMARY_AND_CLEAN_PROMPT
+                prompt_var = "SUMMARY_AND_CLEAN_PROMPT"
+                html_prompt_var = None
                 mode_label = "汇总+清洗一体"
         else:
             template = SUMMARY_PROMPT
+            prompt_var = "SUMMARY_PROMPT"
+            html_prompt_var = None
             mode_label = "纯汇总"
         fmt_kwargs = dict(question=self.question, agent_results=agent_results_text)
         prompt = template.format(**fmt_kwargs)
@@ -2791,6 +2897,14 @@ class AgentGraph:
                     step_label="final_summary",
                     expects_think_answer_json=expects_think_answer_json,
                     html_retry_prompt=prompt_html,
+                    prompt_vars={
+                        "user": prompt_var,
+                        "system": self._answer_system_prompt_vars(),
+                    },
+                    html_retry_prompt_vars={
+                        "user": html_prompt_var,
+                        "system": self._answer_system_prompt_vars(),
+                    } if html_prompt_var else None,
                 )
             except Exception as e:
                 logger.error(f"最终汇总 LLM 调用失败: {e}")
@@ -2839,6 +2953,14 @@ class AgentGraph:
             vendor=self.vendor,
             model=self.model,
             max_part_depth=self.reduce_max_part_depth,
+            intermediate_prompt_vars={
+                "user": (
+                    "RETRIEVAL_BATCH_SUMMARY_PROMPT"
+                    if "Retrieval" in logger_label
+                    else "BATCH_SUMMARY_PROMPT"
+                ),
+                "system": self._extract_system_prompt_vars("BATCH_SUMMARY_SYSTEM_PROMPT"),
+            },
             logger_label=logger_label,
         )
         if intermediate_system_prompt is not None:
@@ -2920,7 +3042,13 @@ class AgentGraph:
                 f"prompt 长度: {len(prompt)} 字符"
             )
             try:
-                with step_scope(f"batch_summary·L{layer}·b{batch_index}"):
+                with step_scope(
+                    f"batch_summary·L{layer}·b{batch_index}",
+                    prompt_vars={
+                        "user": "BATCH_SUMMARY_PROMPT",
+                        "system": self._extract_system_prompt_vars("BATCH_SUMMARY_SYSTEM_PROMPT"),
+                    },
+                ):
                     return chat(prompt, vendor=self.vendor, model=self.model,
                                 system=system_prompt)
             except Exception as e:
@@ -2949,20 +3077,24 @@ class AgentGraph:
         return self._recursive_batch_reduce(batch_summaries, layer + 1, skill_context=skill_context)
 
     def _batch_final_merge(self, summaries: list[str], layer: int, skill_context: str = "") -> str:
-        numbered = "\n\n".join(
-            f"### 摘要 {i+1}\n{s}" for i, s in enumerate(summaries)
-        )
+        numbered = self._format_batch_summaries_for_merge(summaries)
         html_template: str | None = None
         if self.summary_clean_answer:
             if self.think_mode:
                 template = BATCH_MERGE_AND_CLEAN_THINK_PROMPT
                 html_template = BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT
+                prompt_var = "BATCH_MERGE_AND_CLEAN_THINK_PROMPT"
+                html_prompt_var = "BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT"
                 mode_label = "合并+清洗一体·Think"
             else:
                 template = BATCH_MERGE_AND_CLEAN_PROMPT
+                prompt_var = "BATCH_MERGE_AND_CLEAN_PROMPT"
+                html_prompt_var = None
                 mode_label = "合并+清洗一体"
         else:
             template = BATCH_MERGE_PROMPT
+            prompt_var = "BATCH_MERGE_PROMPT"
+            html_prompt_var = None
             mode_label = "纯合并"
         fmt_kwargs = dict(question=self.question, batch_summaries=numbered)
         merge_prompt = template.format(**fmt_kwargs)
@@ -3008,6 +3140,19 @@ class AgentGraph:
                     expects_think_answer_json=expects_think_answer_json,
                     html_retry_prompt=merge_prompt_html,
                     html_retry_system=system_prompt_html,
+                    prompt_vars={
+                        "user": prompt_var,
+                        "system": self._answer_system_prompt_vars(
+                            "BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT"
+                            if expects_think_answer_json else ""
+                        ),
+                    },
+                    html_retry_prompt_vars={
+                        "user": html_prompt_var,
+                        "system": self._answer_system_prompt_vars(
+                            "BATCH_MERGE_AND_CLEAN_THINK_HTML_SYSTEM_PROMPT"
+                        ),
+                    } if html_prompt_var else None,
                 )
             except Exception as e:
                 logger.error(f"[BatchMerge] 最终合并失败: {e}")
@@ -3026,12 +3171,18 @@ class AgentGraph:
             if self.think_mode:
                 template = RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT
                 html_template = RETRIEVAL_SUMMARY_AND_CLEAN_THINK_HTML_PROMPT
+                prompt_var = "RETRIEVAL_SUMMARY_AND_CLEAN_THINK_PROMPT"
+                html_prompt_var = "RETRIEVAL_SUMMARY_AND_CLEAN_THINK_HTML_PROMPT"
                 mode_label = "汇总+清洗一体·Think"
             else:
                 template = RETRIEVAL_SUMMARY_AND_CLEAN_PROMPT
+                prompt_var = "RETRIEVAL_SUMMARY_AND_CLEAN_PROMPT"
+                html_prompt_var = None
                 mode_label = "汇总+清洗一体"
         else:
             template = RETRIEVAL_SUMMARY_PROMPT
+            prompt_var = "RETRIEVAL_SUMMARY_PROMPT"
+            html_prompt_var = None
             mode_label = "纯汇总"
         fmt_kwargs = dict(question=self.question, organized_knowledge=knowledge_text)
         prompt = template.format(**fmt_kwargs)
@@ -3058,6 +3209,14 @@ class AgentGraph:
                     step_label="retrieval_final_summary",
                     expects_think_answer_json=expects_think_answer_json,
                     html_retry_prompt=prompt_html,
+                    prompt_vars={
+                        "user": prompt_var,
+                        "system": self._answer_system_prompt_vars(),
+                    },
+                    html_retry_prompt_vars={
+                        "user": html_prompt_var,
+                        "system": self._answer_system_prompt_vars(),
+                    } if html_prompt_var else None,
                 )
             except Exception as e:
                 logger.error(f"[RetrievalSummary] 召回总结失败: {e}")
@@ -3126,7 +3285,13 @@ class AgentGraph:
                 f"prompt 长度: {len(prompt)} 字符"
             )
             try:
-                with step_scope(f"retrieval_batch_summary·L{layer}·b{batch_index}"):
+                with step_scope(
+                    f"retrieval_batch_summary·L{layer}·b{batch_index}",
+                    prompt_vars={
+                        "user": "RETRIEVAL_BATCH_SUMMARY_PROMPT",
+                        "system": self._extract_system_prompt_vars("BATCH_SUMMARY_SYSTEM_PROMPT"),
+                    },
+                ):
                     return chat(prompt, vendor=self.vendor, model=self.model,
                                 system=system_prompt)
             except Exception as e:
@@ -3153,20 +3318,24 @@ class AgentGraph:
         return self._retrieval_recursive_batch_reduce(batch_summaries, layer + 1, skill_context=skill_context)
 
     def _retrieval_batch_final_merge(self, summaries: list[str], layer: int, skill_context: str = "") -> str:
-        numbered = "\n\n".join(
-            f"### 摘要 {i+1}\n{s}" for i, s in enumerate(summaries)
-        )
+        numbered = self._format_batch_summaries_for_merge(summaries)
         html_template: str | None = None
         if self.summary_clean_answer:
             if self.think_mode:
                 template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT
                 html_template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT
+                prompt_var = "RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_PROMPT"
+                html_prompt_var = "RETRIEVAL_BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT"
                 mode_label = "合并+清洗一体·Think"
             else:
                 template = RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT
+                prompt_var = "RETRIEVAL_BATCH_MERGE_AND_CLEAN_PROMPT"
+                html_prompt_var = None
                 mode_label = "合并+清洗一体"
         else:
             template = RETRIEVAL_BATCH_MERGE_PROMPT
+            prompt_var = "RETRIEVAL_BATCH_MERGE_PROMPT"
+            html_prompt_var = None
             mode_label = "纯合并"
         fmt_kwargs = dict(question=self.question, batch_summaries=numbered)
         merge_prompt = template.format(**fmt_kwargs)
@@ -3196,6 +3365,14 @@ class AgentGraph:
                     step_label=f"retrieval_batch_final_merge·L{layer}",
                     expects_think_answer_json=expects_think_answer_json,
                     html_retry_prompt=merge_prompt_html,
+                    prompt_vars={
+                        "user": prompt_var,
+                        "system": self._answer_system_prompt_vars(),
+                    },
+                    html_retry_prompt_vars={
+                        "user": html_prompt_var,
+                        "system": self._answer_system_prompt_vars(),
+                    } if html_prompt_var else None,
                 )
             except Exception as e:
                 logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
@@ -3215,7 +3392,7 @@ class AgentGraph:
         logger.info(f"[CleanAnswer] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[CleanAnswer] prompt 内容:\n{prompt}")
         try:
-            with step_scope("clean_answer"):
+            with step_scope("clean_answer", prompt_vars={"user": "CLEAN_ANSWER_PROMPT"}):
                 cleaned = chat(prompt, vendor=self.vendor, model=self.model,
                                enable_thinking=self.last_think)
             cleaned = self._postprocess_final_chat(cleaned, "clean_answer")

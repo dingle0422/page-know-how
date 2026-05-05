@@ -365,7 +365,7 @@ class RelationCrawler:
 def _call_llm_json(prompt: str, vendor: str, model: str) -> Optional[dict]:
     """复用 react_agent 中的轻量 JSON LLM 调用模式（剥 ```json 外壳 + json.loads）。"""
     try:
-        with step_scope("relation_relevance"):
+        with step_scope("relation_relevance", prompt_vars={"user": "RELATION_RELEVANCE_PROMPT"}):
             response = chat(prompt, vendor=vendor, model=model)
     except Exception as e:
         logger.warning(f"[RelationCrawler] LLM 调用失败: {e}")

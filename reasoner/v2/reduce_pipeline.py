@@ -99,6 +99,7 @@ class ReducePipeline:
         max_part_depth: int = 5,
         bs_workers: int = 5,
         intermediate_system_prompt: str = BATCH_REDUCE_SYSTEM_PROMPT + "\n\n" + BATCH_SUMMARY_SYSTEM_PROMPT,
+        intermediate_prompt_vars: dict | list | str | None = None,
         logger_label: str = "ReduceQueue",
     ):
         if batch_size <= 0:
@@ -109,6 +110,7 @@ class ReducePipeline:
         self.batch_size = int(batch_size)
         self.intermediate_prompt = intermediate_prompt
         self.intermediate_system_prompt = intermediate_system_prompt
+        self.intermediate_prompt_vars = intermediate_prompt_vars
         self.final_merge_callable = final_merge_callable
         self.question = question
         self.vendor = vendor
@@ -295,7 +297,10 @@ class ReducePipeline:
         )
         t0 = time.time()
         try:
-            with step_scope(f"reduce_intermediate·b{batch_seq}·d{depth_in}->d{depth_out}"):
+            with step_scope(
+                f"reduce_intermediate·b{batch_seq}·d{depth_in}->d{depth_out}",
+                prompt_vars=self.intermediate_prompt_vars,
+            ):
                 output = chat(
                     prompt, vendor=self.vendor, model=self.model,
                     system=self.intermediate_system_prompt,

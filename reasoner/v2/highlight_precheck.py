@@ -17,8 +17,10 @@
       或直进 final merge。
 
 设计要点：
-    - 候选按 (highlighted, target_policy_id, target_clause_id) 全局去重，
-      避免同一外链因多父章节重复出现而挤占 LLM 上下文。
+    - 候选按 (highlighted, parent_dir) 去重：同一父章节里同名的高亮关键词只展示
+      一行，避免 LLM 看到一串外观完全相同、无法区分的重复项。同一 (highlighted,
+      parent_dir) 下解析出的多个目标条款会聚合到同一个候选的 targets 列表中，
+      LLM 选中该候选后会一并强制展开这些目标。
     - 只触发 first-hop BFS 种子；后续深跳仍受 RelationCrawler 的 max_depth /
       max_nodes / RelationRegistry 去重约束，不会引发爆炸式展开。
     - 返回统计信息供 trace 使用。
@@ -40,26 +42,30 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class HighlightCandidate:
-    """单条高亮外链候选（用于 LLM 预判 + 后续强制展开的 ref_filter）。"""
-    index: int                      # 1-based 展示编号
-    parent_dir: str                 # 含 clause.json 的父目录绝对路径
-    parent_label: str               # 业务化父章节定位（知识名 > ... > 末级章节）
-    highlighted: str                # 关键词（ref.highlightedContent）
-    target_policy_id: str           # 目标条款 policy id
-    target_clause_id: str           # 目标条款 clause id
+    """单条高亮外链候选（用于 LLM 预判 + 后续强制展开的 ref_filter）。
+
+    一个候选对应一个 (highlighted, parent_dir) 组合：同一父章节里同名的高亮
+    关键词只生成一条候选；其底下解析出的全部目标条款合并到 targets。
+    """
+    index: int                              # 1-based 展示编号
+    parent_dir: str                         # 含 clause.json 的父目录绝对路径
+    parent_label: str                       # 业务化父章节定位（知识名 > ... > 末级章节）
+    highlighted: str                        # 关键词（ref.highlightedContent）
+    targets: list[tuple[str, str]]          # 目标条款 (policy_id, clause_id) 列表（已按出现顺序去重）
 
 
 def collect_highlight_candidates(knowledge_root: str) -> list[HighlightCandidate]:
     """扫描 knowledge_root 下所有 clause.json，展开 references 为候选列表。
 
-    去重键：(highlighted, target_policy_id, target_clause_id)。同一个关键词/目标
-    组合即使出现在多个父章节也只保留首次遇到的那个作为代表。
+    去重键：(highlighted, parent_dir)。同一父章节里同名的高亮关键词只保留
+    一条候选，所有解析到的目标条款 (policy_id, clause_id) 都聚合到该候选的
+    targets 中（按出现顺序去重）。同一关键词若出现在不同父章节，则各自独立成条。
     """
-    candidates: list[HighlightCandidate] = []
     if not knowledge_root or not os.path.isdir(knowledge_root):
-        return candidates
+        return []
 
-    seen: set[tuple[str, str, str]] = set()
+    grouped: dict[tuple[str, str], HighlightCandidate] = {}
+    target_seen: dict[tuple[str, str], set[tuple[str, str]]] = {}
     idx = 0
 
     for root, _dirs, files in os.walk(knowledge_root):
@@ -77,6 +83,7 @@ def collect_highlight_candidates(knowledge_root: str) -> list[HighlightCandidate
         if not refs:
             continue
 
+        parent_dir_abs = os.path.abspath(root)
         parent_label = build_parent_location_label(knowledge_root, root)
 
         for ref in refs:
@@ -93,21 +100,28 @@ def collect_highlight_candidates(knowledge_root: str) -> list[HighlightCandidate
                 cid = (tgt.get("clauseId") or "").strip()
                 if not pid or not cid:
                     continue
-                key = (highlighted, pid, cid)
-                if key in seen:
-                    continue
-                seen.add(key)
-                idx += 1
-                candidates.append(HighlightCandidate(
-                    index=idx,
-                    parent_dir=os.path.abspath(root),
-                    parent_label=parent_label,
-                    highlighted=highlighted,
-                    target_policy_id=pid,
-                    target_clause_id=cid,
-                ))
 
-    return candidates
+                group_key = (highlighted, parent_dir_abs)
+                cand = grouped.get(group_key)
+                if cand is None:
+                    idx += 1
+                    cand = HighlightCandidate(
+                        index=idx,
+                        parent_dir=parent_dir_abs,
+                        parent_label=parent_label,
+                        highlighted=highlighted,
+                        targets=[],
+                    )
+                    grouped[group_key] = cand
+                    target_seen[group_key] = set()
+
+                tgt_key = (pid, cid)
+                if tgt_key in target_seen[group_key]:
+                    continue
+                target_seen[group_key].add(tgt_key)
+                cand.targets.append(tgt_key)
+
+    return list(grouped.values())
 
 
 def _build_prompt(question: str, candidates: list[HighlightCandidate]) -> str:
@@ -225,7 +239,13 @@ class HighlightPrecheck:
         )
 
         try:
-            with step_scope("highlight_precheck"):
+            with step_scope(
+                "highlight_precheck",
+                prompt_vars={
+                    "user": "HIGHLIGHT_PRECHECK_PROMPT",
+                    "system": "HIGHLIGHT_PRECHECK_SYSTEM_PROMPT",
+                },
+            ):
                 response = chat(
                     prompt, vendor=self.vendor, model=self.model,
                     system=HIGHLIGHT_PRECHECK_SYSTEM_PROMPT,
@@ -269,8 +289,9 @@ class HighlightPrecheck:
         total_frags = 0
         for parent_dir, group in by_parent.items():
             allowed = {
-                (c.highlighted, c.target_policy_id, c.target_clause_id)
+                (c.highlighted, pid, cid)
                 for c in group
+                for pid, cid in c.targets
             }
 
             def _filter(h, pid, cid, _allowed=allowed):

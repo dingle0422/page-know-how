@@ -612,7 +612,7 @@ class ReactAgent:
         )
 
         try:
-            with step_scope("path_correction"):
+            with step_scope("path_correction", prompt_vars={"user": "PATH_CORRECTION_PROMPT"}):
                 response = chat(prompt, vendor=self.vendor, model=self.model)
             cleaned = response.strip()
             if cleaned.startswith("```json"):
@@ -654,7 +654,7 @@ class ReactAgent:
             knowledge_content=stripped_content,
             available_subdirs=subdirs_str,
         )
-        with step_scope("root_disclosure"):
+        with step_scope("root_disclosure", prompt_vars={"user": "ROOT_DISCLOSURE_PROMPT"}):
             return self._call_llm_json(prompt)
 
     def _assess_content(self, knowledge_content: str, current_dir: str) -> dict | None:
@@ -665,7 +665,7 @@ class ReactAgent:
             parent_summary=self.parent_summary or "（无上游摘要）",
             knowledge_content=stripped_content,
         )
-        with step_scope("content_assess"):
+        with step_scope("content_assess", prompt_vars={"user": "CONTENT_ASSESS_PROMPT"}):
             return self._call_llm_json(prompt)
 
     def _assess_relevance(self, knowledge_content: str, current_dir: str) -> dict | None:
@@ -676,7 +676,7 @@ class ReactAgent:
             parent_summary=self.parent_summary or "（无上游摘要）",
             knowledge_content=stripped_content,
         )
-        with step_scope("relevance_assess"):
+        with step_scope("relevance_assess", prompt_vars={"user": "RELEVANCE_ASSESS_PROMPT"}):
             return self._call_llm_json(prompt)
 
     def _ask_navigation(self, knowledge_content: str, current_dir: str) -> dict | None:
@@ -697,7 +697,16 @@ class ReactAgent:
                 knowledge_content=stripped_content,
                 explorable_dirs=explorable_dirs,
             )
-        with step_scope("navigation_disclosure"):
+        with step_scope(
+            "navigation_disclosure",
+            prompt_vars={
+                "user": (
+                    "RETRIEVAL_DISCLOSURE_PROMPT"
+                    if self.retrieval_mode
+                    else "DISCLOSURE_PROMPT"
+                ),
+            },
+        ):
             return self._call_llm_json(prompt)
 
     def _parallel_decide(
@@ -748,7 +757,7 @@ class ReactAgent:
         )
 
         try:
-            with step_scope("force_summary"):
+            with step_scope("force_summary", prompt_vars={"user": "FORCE_SUMMARY_PROMPT"}):
                 response = chat(prompt, vendor=self.vendor, model=self.model)
             cleaned = response.strip()
             if cleaned.startswith("```json"):
@@ -790,7 +799,10 @@ class ReactAgent:
 
         is_relevant = False
         try:
-            with step_scope("force_retrieval_judge"):
+            with step_scope(
+                "force_retrieval_judge",
+                prompt_vars={"user": "RETRIEVAL_FORCE_SUMMARY_PROMPT"},
+            ):
                 response = chat(prompt, vendor=self.vendor, model=self.model)
             cleaned = response.strip()
             if cleaned.startswith("```json"):

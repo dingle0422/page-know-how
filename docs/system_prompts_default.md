@@ -356,7 +356,7 @@
 5. 如知识体系 / 已有证据完全不涉及参考回答提到的事实点，请明确指出"现有资料中未能覆盖该点"，不要凭空补齐
 ```
 
-#### `"## 输出格式约束\n" + BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT（输出格式 / JSON schema）`
+#### `"\n" + BATCH_MERGE_AND_CLEAN_THINK_SYSTEM_PROMPT（输出格式 / JSON schema）`
 
 ```text
 ## 输出格式约束

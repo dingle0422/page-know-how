@@ -232,11 +232,27 @@ def _build_system(fmt: str) -> str:
     return SUMMARY_ANSWER_SYSTEM_PROMPT + "\n\n## 输出格式约束\n" + schema_section
 
 
+def _format_batch_summaries_for_merge(summaries: list[str]) -> str:
+    """复刻 AgentGraph._format_batch_summaries_for_merge：用强分隔哨兵包围每条摘要，
+    避免摘要正文里的 Markdown 标题与外层 prompt 的 ##/### 小节标题竞争层级。
+    """
+    blocks: list[str] = []
+    for i, s in enumerate(summaries, start=1):
+        body = (s or "").rstrip()
+        blocks.append(
+            f"===== BEGIN_BATCH_SUMMARY {i} =====\n"
+            f"[摘要序号] {i}\n"
+            f"[摘要内容开始]\n"
+            f"{body}\n"
+            f"[摘要内容结束]\n"
+            f"===== END_BATCH_SUMMARY {i} ====="
+        )
+    return "\n\n".join(blocks)
+
+
 def _build_user_prompt(fmt: str, question: str, batch_summaries: list[str]) -> str:
     """user prompt 复刻 _batch_final_merge 的 .format 调用方式。"""
-    numbered = "\n\n".join(
-        f"### 摘要 {i+1}\n{s}" for i, s in enumerate(batch_summaries)
-    )
+    numbered = _format_batch_summaries_for_merge(batch_summaries)
     template = (
         BATCH_MERGE_AND_CLEAN_THINK_PROMPT if fmt == "json"
         else BATCH_MERGE_AND_CLEAN_THINK_HTML_PROMPT
