@@ -161,43 +161,134 @@ def _extract_answer_from_think_answer_json(raw: str) -> str | None:
     return None
 
 
-_HTML_THINK_BLOCK_RE = re.compile(r"<think(?:\s[^>]*)?>(?P<body>.*?)</think\s*>", re.DOTALL | re.IGNORECASE)
-_HTML_ANSWER_BLOCK_RE = re.compile(r"<answer(?:\s[^>]*)?>(?P<body>.*?)</answer\s*>", re.DOTALL | re.IGNORECASE)
-# 兜底：deepseek 在 HTML 模式下偶尔会以 `<answer>...` 开头但末尾漏写 `</answer>`。
-# N=10 实测中 30 例 HTML 输出有 3 例（10%）属于这种"开标签到 EOF"形态，body 内容
-# 完整、答案合格，仅闭标签缺失。无闭合形式时退化为「<answer> 开标签 → 字符串结尾」匹配。
-_HTML_ANSWER_OPEN_TO_EOF_RE = re.compile(r"<answer(?:\s[^>]*)?>(?P<body>.*)\Z", re.DOTALL | re.IGNORECASE)
+# ---- HTML 标签解析所需的基础正则（拆成"开/闭标签独立匹配"，便于按位置切片） ----
+# 锚点：</think>(可选空白)<answer>，是 think→answer 的硬边界。
+# 即使 think 内复述了 prompt 给出的 schema（含 <think>/</think>/<answer>/</answer>
+# 字面量），真正的边界一定是字符串里**最后一处**紧贴的 </think>\s*<answer>。
+_HTML_BOUNDARY_RE = re.compile(
+    r"</think\s*>\s*<answer(?:\s[^>]*)?>",
+    re.IGNORECASE,
+)
+_HTML_THINK_OPEN_RE = re.compile(r"<think(?:\s[^>]*)?>", re.IGNORECASE)
+_HTML_THINK_CLOSE_RE = re.compile(r"</think\s*>", re.IGNORECASE)
+_HTML_ANSWER_OPEN_RE = re.compile(r"<answer(?:\s[^>]*)?>", re.IGNORECASE)
+_HTML_ANSWER_CLOSE_RE = re.compile(r"</answer\s*>", re.IGNORECASE)
+
+# answer body 实质字符数下限：低于该值视作 schema 复述（如 `...`、`……`、
+# `示例答案` 等），降级到下一档；阈值 20 远低于业务侧任何合规客服回答的最低字数，
+# 不会误杀真实答案。`\w` 在 Python re 默认 unicode 模式下会匹配 CJK 字符，
+# 足够覆盖中英文混排正文。
+_MIN_ANSWER_CONTENT_CHARS = 20
+_ANSWER_CONTENT_CHAR_RE = re.compile(r"\w")
+
+
+def _is_substantive_answer_body(text: str) -> bool:
+    """answer body 是否包含足量实质字符（剔除空白/标点/省略号后）。
+
+    用于 HTML 解析 tier 1/2 命中后过滤掉"schema 复述"误命中，例如：
+        <answer>...</answer>
+        <answer>面向用户表述</answer>
+        <answer>……</answer>
+    这类 body 实质字符数都 ≤ 20，会被判为不合格、降级到下一档。
+    """
+    if not text:
+        return False
+    return len(_ANSWER_CONTENT_CHAR_RE.findall(text)) > _MIN_ANSWER_CONTENT_CHARS
+
+
+def _take_answer_body(body: str, answer_open_end: int) -> str:
+    """从 <answer> 开标签结束位置往后取 answer body：
+    优先到最近的 </answer>，无闭合则到 EOF（兼容 deepseek 偶发末尾漏闭合的情况）。
+    """
+    rest = body[answer_open_end:]
+    cm = _HTML_ANSWER_CLOSE_RE.search(rest)
+    if cm:
+        return rest[:cm.start()].strip()
+    return rest.strip()
+
+
+def _extract_think_segment(section: str, fallback_think: str) -> str:
+    """从 think 段（边界 </think> 之前的内容）抽取 think 文本。
+
+    - 若 section 以 <think> 开标签开头（含前导空白），认为 body 内含完整 <think>...，
+      剥离开标签后即可作为 think；fallback_think 已被吸收，此时无需再拼接。
+    - 否则视为：上游 split_think_block 已把开头的 <think>...</think> 切走、
+      fallback_think 就是被切走那段，section 则是被切走之后剩下的 think 后半截；
+      两者拼接才是完整 think（典型场景：think 内复述 schema 含字面量 </think>，
+      被 split_think_block 的非贪婪匹配在 schema 处提前截断）。
+    """
+    section = section or ""
+    leading_open = re.match(r"\A\s*<think(?:\s[^>]*)?>", section, flags=re.IGNORECASE)
+    if leading_open:
+        return section[leading_open.end():].strip()
+    fb = (fallback_think or "").strip()
+    sec = section.strip()
+    if fb and sec:
+        return f"{fb}\n{sec}"
+    return fb or sec
 
 
 def _parse_think_answer_html(body: str, fallback_think: str = "") -> dict | None:
-    """从 body 中尽力提取 <think>...</think> + <answer>...</answer>。
+    """从 body 中尽力提取 <think>...</think> + <answer>...</answer>，按两档兜底逐档尝试。
 
-    - <answer> 必须存在且内容非空，否则视作失败返回 None。
-        优先匹配闭合形式 `<answer>...</answer>`；闭合缺失时回退到「`<answer>` 开标签到
-        EOF」兜底，覆盖 deepseek HTML 末尾偶发漏闭合的情况（N=10 实测约 10%）。
-    - <think> 优先取 body 内的 <think>...</think>；缺失或为空时回落到 fallback_think
-      （来自 reasoning_content 经 split_think_block 剥下来的前缀，覆盖 deepseek 这类
-      把整段 think 都放在 reasoning_content / body 仅放 <answer> 的稳定原生形态，以及
-      qwen 这类把 think 全塞进 reasoning_content 的两种偏差形态）。
+    设计动机：deepseek 等模型在 HTML 模式下偶尔会在 think 内复述 prompt 给出的输出
+    格式 schema（含 `<think>...</think><answer>...</answer>` 字面量），导致简单的
+    "第一个完整 <answer> 块"匹配会落到 schema 复述上，把真实答案截成 `...`，
+    think 也会被对应截断。本函数按以下优先级处理：
+
+      Tier 1 — 锚点边界（最稳健）：
+        在 body 中找**最后一处** `</think>\\s*<answer>`，作为 think→answer 的硬边界。
+        即使 think 内复述了 schema，真实边界一定是最后一处紧贴的 </think><answer>。
+        命中后 answer 取该 <answer> 到最近 </answer>（或 EOF）。
+        answer body 必须通过 `_is_substantive_answer_body` 长度判定（>20 实质字符），
+        否则视作 schema 复述误命中，降级到 tier 2。
+
+      Tier 2 — 末尾配对（容忍 boundary 缺失/带文字间隔）：
+        没有 </think><answer> 紧贴或 tier 1 长度不达标时，倒序遍历所有 <answer>
+        开标签，逐个尝试「<answer> 开标签 → 紧随 </answer> 或 EOF」作为候选 answer，
+        通过长度判定即接受。think 取候选 <answer> 之前最后一个 </think> 之前的内容
+        （与 fallback_think 配合 `_extract_think_segment` 拼接补齐）。
+        覆盖原"开标签到 EOF"漏闭合形态（N=10 实测约 10%），无需独立 tier。
+
+      全失败返回 None，由上层走 coercion 兜底。
+
+    fallback_think 兼容上游 split_think_block 已切走 body 开头 <think>...</think>
+    的形态：body 内若仍残留完整 <think>...</think> 片段则优先使用 body 内的内容；
+    否则与 fallback_think 拼接得到完整 think。
     """
     if not body:
         return None
-    am = _HTML_ANSWER_BLOCK_RE.search(body)
-    if am:
-        answer = (am.group("body") or "").strip()
-    else:
-        am2 = _HTML_ANSWER_OPEN_TO_EOF_RE.search(body)
-        if not am2:
-            return None
-        answer = (am2.group("body") or "").strip()
-    if not answer:
-        return None
-    tm = _HTML_THINK_BLOCK_RE.search(body)
-    if tm and (tm.group("body") or "").strip():
-        think = (tm.group("body") or "").strip()
-    else:
-        think = (fallback_think or "").strip()
-    return {"think": think, "answer": answer}
+
+    # ===== Tier 1: 锚点边界 </think>\s*<answer>（取最后一处） =====
+    boundaries = list(_HTML_BOUNDARY_RE.finditer(body))
+    if boundaries:
+        b = boundaries[-1]
+        # 在 boundary match 内重新定位 </think> 与 <answer> 子段（按构造永远命中），
+        # 转换为 body 中的绝对位置。
+        think_close_local = _HTML_THINK_CLOSE_RE.search(b.group(0))
+        answer_open_local = _HTML_ANSWER_OPEN_RE.search(b.group(0))
+        think_close_start = b.start() + think_close_local.start()
+        answer_open_end = b.start() + answer_open_local.end()
+        candidate_answer = _take_answer_body(body, answer_open_end)
+        if _is_substantive_answer_body(candidate_answer):
+            think = _extract_think_segment(body[:think_close_start], fallback_think)
+            return {"think": think, "answer": candidate_answer}
+        # 锚点的 answer body 不够实质（疑似 schema 复述误命中），降级到 tier 2
+
+    # ===== Tier 2: 末尾配对 — 倒序遍历 <answer> 开标签，选第一个 body 通过长度判定的 =====
+    answer_opens = list(_HTML_ANSWER_OPEN_RE.finditer(body))
+    for am in reversed(answer_opens):
+        candidate = _take_answer_body(body, am.end())
+        if not _is_substantive_answer_body(candidate):
+            continue
+        # 选定该 <answer>：在它起点之前找最后一个 </think>，之前的内容作为 think 段
+        pre = body[:am.start()]
+        closes = list(_HTML_THINK_CLOSE_RE.finditer(pre))
+        section = pre[:closes[-1].start()] if closes else pre
+        think = _extract_think_segment(section, fallback_think)
+        return {"think": think, "answer": candidate}
+
+    return None
 
 
 def _mirror_fill_think_answer(
@@ -987,6 +1078,9 @@ class AgentGraph:
                 html_retry_prompt=prompt_html,
                 html_retry_system=system_prompt_html,
             )
+            if self.think_mode and answer_json:
+                # 保留完整结构交给 app.py 映射到 ReasonData.think / answer。
+                return answer_json
             extracted = _extract_answer_from_think_answer_json(answer_json)
             if extracted:
                 return extracted
