@@ -105,6 +105,7 @@ def cmd_reason(args):
         common_kwargs["summary_pipeline_mode"] = args.summary_pipeline_mode
         common_kwargs["reduce_max_part_depth"] = args.reduce_max_part_depth
         common_kwargs["pure_model_result"] = args.pure_model_result
+        common_kwargs["answer_refine"] = args.answer_refine
     else:
         if args.summary_clean_answer:
             print("警告：--summary-clean-answer 仅在 --version v1/v2 下生效，本次将被忽略")
@@ -116,6 +117,8 @@ def cmd_reason(args):
             print("警告：--enable-relations 仅在 --version v1/v2 下生效，本次将被忽略")
         if args.pure_model_result:
             print("警告：--pure-model-result 仅在 --version v1/v2 下生效，本次将被忽略")
+        if args.answer_refine:
+            print("警告：--answer-refine 仅在 --version v1/v2 下生效，本次将被忽略")
 
     verbose_trace = getattr(args, "verbose_trace", False)
     session_id = getattr(args, "session_id", None)
@@ -347,6 +350,15 @@ def main():
              "将冲突信息以「疑点」方式呈现。仅在 --version v1/v2 下生效；"
              "外部请求 60s 内未返回会自动降级为「无外部参考」。"
              "默认开启，与 app.py 对齐；可显式 --no-pure-model-result 关闭"
+    )
+    reason_parser.add_argument(
+        "--answer-refine", action=argparse.BooleanOptionalAction, default=True,
+        help="启用答案精简（仅 v1/v2 生效）：在整体推理流程最末一步对最终 answer 做"
+             "「结论先行 + 核心证据/因果逻辑/注意事项」结构化精简。"
+             "thinkMode=True 时，原完整 answer 会迁移到响应 think 字段，"
+             "精简结果写入响应 answer 字段；thinkMode=False 时直接覆盖 answer 字段。"
+             "与 --clean-answer / --summary-clean-answer / --think-mode / --last-think "
+             "完全正交。默认开启，与 app.py 对齐；可显式 --no-answer-refine 关闭"
     )
     from utils.verbose_logger import VERBOSE_DEFAULT_ENABLED as _VT_DEFAULT
     reason_parser.add_argument(

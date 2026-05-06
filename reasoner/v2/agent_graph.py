@@ -50,6 +50,8 @@ from reasoner.v2.prompts import (
     PURE_MODEL_REQUEST_PROMPT,
     PURE_MODEL_REFERENCE_EXTRACT_INSTRUCTIONS,
     PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS,
+    ANSWER_REFINE_PROMPT,
+    ANSWER_REFINE_SYSTEM_PROMPT,
 )
 from reasoner.v2.chunk_builder import (
     build_knowledge_chunks,
@@ -423,6 +425,7 @@ class AgentGraph:
         page_knowledge_dir: str | None = None,
         policy_index_path: str | None = None,
         pure_model_result: bool = False,
+        answer_refine: bool = False,
     ):
         self.question = question
         self.knowledge_root = knowledge_root
@@ -525,6 +528,16 @@ class AgentGraph:
         self._pure_model_future = None
         self._pure_model_reference: str | None = None
         self._pure_model_lock = threading.Lock()
+
+        # ---------- answer-refine（流水线最末一步独立后置精简） ----------
+        # 开启时（默认推荐开启）：在 standard / retrieval / chunk 三种模式产出最终
+        # answer 后、返回 result 字典之前，追加一次「结论先行 + 核心证据/因果逻辑/
+        # 注意事项」结构化精简。与 cleanAnswer / summaryCleanAnswer / thinkMode /
+        # lastThink 完全正交。
+        # think_mode=True 时：原 answer 内容会迁移到响应 think 字段，refine 结果
+        # 写入 answer 字段；think_mode=False 时直接覆盖最终 answer。
+        # 关闭时：流水线行为保持原样，无任何额外 LLM 调用。
+        self.answer_refine = bool(answer_refine)
 
         # ---------- 关联展开（可选） ----------
         self.enable_relations = enable_relations
@@ -1527,6 +1540,9 @@ class AgentGraph:
         elif self.clean_answer:
             answer = self._clean_answer(answer)
 
+        if self.answer_refine:
+            answer = self._refine_answer(answer)
+
         trace_log = self._build_trace_log()
         relevant_chapters = self._collect_relevant_chapters()
 
@@ -1695,6 +1711,9 @@ class AgentGraph:
             )
         elif self.clean_answer:
             answer = self._clean_answer(answer)
+
+        if self.answer_refine:
+            answer = self._refine_answer(answer)
 
         trace_log = self._build_chunk_trace_log(chunks)
         relevant_chapters = self._collect_relevant_chapters()
@@ -3400,6 +3419,101 @@ class AgentGraph:
             return cleaned
         except Exception as e:
             logger.error(f"答案清洗 LLM 调用失败，返回原始 summary: {e}")
+            return raw_answer
+
+    def _extract_user_facing_answer(self, raw: str) -> str:
+        """从前序最终 answer 抽取出「面向用户的纯文本 answer 部分」。
+
+        覆盖三种历史形态：
+          1) JSON `{think, answer}`（含旧字段名 analysis/concise_answer）：
+             复用 `_extract_answer_from_think_answer_json`。
+          2) HTML `<think>...</think><answer>...</answer>`（首轮 JSON 失败、HTML
+             兜底成功的形态）：复用 `_parse_think_answer_html` 取 answer 段。
+          3) 纯文本（think_mode=False / coercion 兜底失败 / 老版本路径）：原样返回。
+
+        任何形态都至少返回一个非 None 的字符串（空串也算合法），便于下游 refine
+        prompt 直接 .format 使用。
+        """
+        if not raw:
+            return ""
+        text = raw.strip()
+        if not text:
+            return ""
+
+        json_extracted = _extract_answer_from_think_answer_json(text)
+        if json_extracted:
+            return json_extracted
+
+        html_parsed = _parse_think_answer_html(text)
+        if html_parsed:
+            ans = (html_parsed.get("answer") or "").strip()
+            if ans:
+                return ans
+
+        return text
+
+    def _refine_answer(self, raw_answer: str) -> str:
+        """流水线最末一步：对最终 answer 做「结论先行 + 核心证据/因果逻辑/注意事项」
+        结构化精简。
+
+        - 输入：上一阶段最终 answer（可能是 think_mode JSON / HTML / 纯文本）。
+        - LLM 仅看 user-facing answer 部分（不喂 think 草稿）。
+        - 输出（写回 result["answer"]）：
+            * think_mode=True ：返回 `{"think": <精简前的原 answer>, "answer": <refine 结果>}`
+              JSON 字符串；下游 app.py._split_analysis_concise_answer 会自然映射，
+              使响应里 think=精简前完整答案、answer=精简后结构化答案。
+            * think_mode=False：直接返回 refine 后的纯文本，覆盖原 answer。
+        - 失败兜底：任何异常都打 ERROR 后返回 raw_answer 原样，避免 refine 节点
+          拖垮主流程。
+        """
+        original_answer = self._extract_user_facing_answer(raw_answer)
+        if not original_answer.strip():
+            logger.warning("[AnswerRefine] 抽取出的原 answer 为空，跳过 refine 直接返回原值")
+            return raw_answer
+
+        prompt = ANSWER_REFINE_PROMPT.format(
+            question=self.question,
+            raw_answer=original_answer,
+        )
+        logger.info(f"[AnswerRefine] prompt 长度: {len(prompt)} 字符")
+        logger.info(f"[AnswerRefine] prompt 内容:\n{prompt}")
+        try:
+            with step_scope(
+                "answer_refine",
+                prompt_vars={
+                    "user": "ANSWER_REFINE_PROMPT",
+                    "system": "ANSWER_REFINE_SYSTEM_PROMPT",
+                },
+            ):
+                refined_raw = chat(
+                    prompt,
+                    vendor=self.vendor,
+                    model=self.model,
+                    system=ANSWER_REFINE_SYSTEM_PROMPT,
+                    enable_thinking=self.last_think,
+                )
+            refined = self._postprocess_final_chat(refined_raw, "answer_refine")
+            refined = (refined or "").strip()
+            if not refined:
+                logger.warning("[AnswerRefine] LLM 返回空内容，沿用原 answer")
+                return raw_answer
+
+            logger.info(
+                f"[AnswerRefine] 完成：原 answer {len(original_answer)} 字符 → "
+                f"精简后 {len(refined)} 字符"
+                f"（保留比 {len(refined) / max(len(original_answer), 1):.0%}）"
+            )
+
+            if self.think_mode:
+                # think_mode：原完整 answer 归入 think 字段，refine 结果归入 answer 字段，
+                # 让 app.py 的 think_mode 解析链路自然落到响应的 think / answer。
+                return json.dumps(
+                    {"think": original_answer, "answer": refined},
+                    ensure_ascii=False,
+                )
+            return refined
+        except Exception as e:
+            logger.error(f"[AnswerRefine] LLM 调用失败，沿用原 answer: {e}")
             return raw_answer
 
     def _build_trace_log(self) -> str:

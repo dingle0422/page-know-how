@@ -294,6 +294,16 @@ class ReasonRequest(BaseModel):
                     "外部请求 60s 内未返回 / 失败时自动降级为「无外部参考」。"
                     "submit / reason 两个入口均生效；仅在 version=v1/v2 下生效。",
     )
+    answerRefine: bool = Field(
+        default=True,
+        description="启用答案精简：在整体推理流程最末一步对最终 answer 做"
+                    "「结论先行 + 核心证据/因果逻辑/注意事项」结构化精简，"
+                    "保留核心因果链与硬性限制条件、不引入新事实、不改变判断结论。"
+                    "thinkMode=True 时：原完整 answer 内容会迁移到响应 think 字段，"
+                    "精简结果写入响应 answer 字段；thinkMode=False 时直接覆盖响应 answer 字段。"
+                    "与 cleanAnswer / summaryCleanAnswer / thinkMode / lastThink 完全正交。"
+                    "仅在 version=v1/v2 下生效",
+    )
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
         description="启用 verbose 模式：以当次请求的 taskId 为文件名，"
@@ -792,6 +802,7 @@ def _run_reasoning(
     summary_pipeline_mode: str = "layered",
     reduce_max_part_depth: int = 5,
     pure_model_result: bool = False,
+    answer_refine: bool = False,
 ) -> dict:
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
@@ -808,6 +819,7 @@ def _run_reasoning(
         extra_kwargs["summary_pipeline_mode"] = summary_pipeline_mode
         extra_kwargs["reduce_max_part_depth"] = reduce_max_part_depth
         extra_kwargs["pure_model_result"] = pure_model_result
+        extra_kwargs["answer_refine"] = answer_refine
     else:
         if summary_clean_answer:
             logger.warning("summaryCleanAnswer 仅在 version=v1/v2 下生效，本次将被忽略")
@@ -819,6 +831,8 @@ def _run_reasoning(
             logger.warning("enableRelations 仅在 version=v1/v2 下生效，本次将被忽略")
         if pure_model_result:
             logger.warning("pureModelResult 仅在 version=v1/v2 下生效，本次将被忽略")
+        if answer_refine:
+            logger.warning("answerRefine 仅在 version=v1/v2 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,
@@ -946,6 +960,7 @@ async def _reason_executor(request_payload: dict) -> dict:
         "enableRelations": request_payload.get("enableRelations"),
         "thinkMode": request_payload.get("thinkMode"),
         "pureModelResult": request_payload.get("pureModelResult"),
+        "answerRefine": request_payload.get("answerRefine"),
     }
     with _open_verbose_session(
         session_id=task_id,
@@ -986,6 +1001,7 @@ async def _reason_executor(request_payload: dict) -> dict:
             summary_pipeline_mode=request_payload.get("summaryPipelineMode", "layered"),
             reduce_max_part_depth=request_payload.get("reduceMaxPartDepth", 4),
             pure_model_result=request_payload.get("pureModelResult", False),
+            answer_refine=request_payload.get("answerRefine", True),
         )
 
         if req_verbose:
