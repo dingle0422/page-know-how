@@ -3453,6 +3453,26 @@ class AgentGraph:
 
         return text
 
+    # answer-refine 预处理：模型在前序 final summary 阶段经常以「你好/您好」+
+    # 标点（！。，~ 等）开场作为客服寒暄。这类寒暄会让 refine 输出的「结论先行」
+    # 段落顶部出现冗余问候，影响"5 秒看到结论"的可读性，因此在喂入 refine 前
+    # 统一剥掉。规则：
+    #   - 匹配「你好 / 您好」后面紧跟的若干常见结尾标点（含中英文感叹号、句号、
+    #     逗号、波浪号、冒号、分号、顿号）以及前后空白，整体替换成单个空格；
+    #   - 全文范围多次匹配（不限于段首），覆盖如「……。您好！请注意……」之类
+    #     穿插在中段的寒暄；
+    #   - 替换后清理冒出来的连续行内空白与首尾空白，但保留段落换行结构。
+    _GREETING_RE = re.compile(r"[你您]好[\s!！。.，,、；;：:~～]*")
+
+    @classmethod
+    def _strip_greetings(cls, text: str) -> str:
+        if not text:
+            return text or ""
+        cleaned = cls._GREETING_RE.sub(" ", text)
+        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+        cleaned = "\n".join(line.strip() for line in cleaned.splitlines())
+        return cleaned.strip()
+
     def _refine_answer(self, raw_answer: str) -> str:
         """流水线最末一步：对最终 answer 做「结论先行 + 核心证据/因果逻辑/注意事项」
         结构化精简。
@@ -3473,9 +3493,21 @@ class AgentGraph:
             logger.warning("[AnswerRefine] 抽取出的原 answer 为空，跳过 refine 直接返回原值")
             return raw_answer
 
+        # 预处理：剥离「你好 / 您好」+ 紧随标点的客服寒暄，避免 refine 输出
+        # 的"结论先行"段落顶部继续带着冗余问候，影响首屏可读性。
+        sanitized_answer = self._strip_greetings(original_answer)
+        if sanitized_answer != original_answer:
+            logger.info(
+                f"[AnswerRefine] 预处理剥离「你好/您好」寒暄："
+                f"{len(original_answer)} → {len(sanitized_answer)} 字符"
+            )
+        if not sanitized_answer:
+            logger.warning("[AnswerRefine] 剥离寒暄后内容为空，跳过 refine 直接返回原值")
+            return raw_answer
+
         prompt = ANSWER_REFINE_PROMPT.format(
             question=self.question,
-            raw_answer=original_answer,
+            raw_answer=sanitized_answer,
         )
         logger.info(f"[AnswerRefine] prompt 长度: {len(prompt)} 字符")
         logger.info(f"[AnswerRefine] prompt 内容:\n{prompt}")
@@ -3501,16 +3533,19 @@ class AgentGraph:
                 return raw_answer
 
             logger.info(
-                f"[AnswerRefine] 完成：原 answer {len(original_answer)} 字符 → "
+                f"[AnswerRefine] 完成：原 answer {len(sanitized_answer)} 字符 → "
                 f"精简后 {len(refined)} 字符"
-                f"（保留比 {len(refined) / max(len(original_answer), 1):.0%}）"
+                f"（保留比 {len(refined) / max(len(sanitized_answer), 1):.0%}）"
             )
 
             if self.think_mode:
-                # think_mode：原完整 answer 归入 think 字段，refine 结果归入 answer 字段，
-                # 让 app.py 的 think_mode 解析链路自然落到响应的 think / answer。
+                # think_mode：剥离寒暄后的完整 answer 归入 think 字段，
+                # refine 结果归入 answer 字段；让 app.py 的 think_mode 解析链路
+                # 自然落到响应的 think / answer。
+                # 用 sanitized_answer 是为了让响应里的 think 与 answer 保持
+                # 一致的"无寒暄"基线，避免用户在 think 字段又看到"您好/你好"。
                 return json.dumps(
-                    {"think": original_answer, "answer": refined},
+                    {"think": sanitized_answer, "answer": refined},
                     ensure_ascii=False,
                 )
             return refined

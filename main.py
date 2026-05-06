@@ -289,7 +289,7 @@ def main():
     )
     reason_parser.add_argument(
         "--answer-system-prompt", default=None,
-        help="最终作答阶段的 system prompt 自定义内容（仅 v1 生效）。"
+        help="最终作答阶段的 system prompt 自定义内容（仅 v1/v2 生效）。"
              "不传或传空字符串则使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT 默认版本；"
              "中间提炼层（SUMMARY_EXTRACT_SYSTEM_PROMPT / BATCH_REDUCE_SYSTEM_PROMPT）"
              "不受此参数影响"
@@ -343,13 +343,13 @@ def main():
              "--summary-pipeline-mode=layered 时本字段忽略。默认 4"
     )
     reason_parser.add_argument(
-        "--pure-model-result", action=argparse.BooleanOptionalAction, default=True,
+        "--pure-model-result", action=argparse.BooleanOptionalAction, default=False,
         help="在推理流程初始节点并行向 deepseek-v4-pro 发起一次纯大模型原生作答，"
              "并在 batch summary / final summary 阶段把该回答注入到用户问题下方，"
              "作为「参考回答」供推理模型对照支撑 / 修正 / 冲突证据提取；final 阶段"
              "将冲突信息以「疑点」方式呈现。仅在 --version v1/v2 下生效；"
              "外部请求 60s 内未返回会自动降级为「无外部参考」。"
-             "默认开启，与 app.py 对齐；可显式 --no-pure-model-result 关闭"
+             "默认关闭，与 app.py 对齐；可显式 --pure-model-result 开启"
     )
     reason_parser.add_argument(
         "--answer-refine", action=argparse.BooleanOptionalAction, default=True,
