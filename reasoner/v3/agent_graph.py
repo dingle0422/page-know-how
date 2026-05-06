@@ -881,15 +881,26 @@ class AgentGraph:
             parts.append(format_body)
         return "\n\n".join(parts)
 
-    def _build_corpus_final_prompt(self, evidence: str) -> tuple[str, str]:
+    def _build_corpus_final_prompt(
+        self, evidence: str, skill_context: str = "",
+    ) -> tuple[str, str]:
         """v3 专用：返回 (system_prompt, user_prompt) 二元组。
 
         - system 直接采用 CORPUS_SYSTEM_PROMPT，不再叠加 answer_system_prompt /
           PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS / 输出格式段。
-        - user 使用极简模板「## 用户问题 + ## 参考知识」。
+        - user 使用模板「## 【用户问题】 + （可选）## 参考事实 + ## 【参考知识】」。
+          skill_context 由 `_build_skill_context_for_summary` 产出（内含
+          `## 参考事实（外部 Skill 结果）` 节标题），插在用户问题与参考知识之间，
+          让 phase-0 跑出的 Skill 结果作为权威事实进入最终 LLM 上下文。
+          空字符串时整段省略。
         """
+        skill_block = ""
+        if skill_context:
+            skill_block = skill_context.rstrip() + "\n\n"
         user_prompt = CORPUS_USER_PROMPT.format(
-            question=self.question, evidence=evidence
+            question=self.question,
+            skill_context_block=skill_block,
+            evidence=evidence,
         )
         return CORPUS_SYSTEM_PROMPT, user_prompt
 
@@ -1273,8 +1284,11 @@ class AgentGraph:
     ) -> str:
         """新版 double-check 编排：在每个最终 summary / merge 步骤内部使用。
 
-        - final_summary_callable: 已经把 phase-0 skill_context 拼好的 final summary 调用
-          （带清洗或不带清洗，由调用方决定）
+        - final_summary_callable: 调用方已把 phase-0 skill_context 通过
+          `_build_corpus_final_prompt(..., skill_context=...)` 注入到该 callable 的
+          user prompt 中（位于「## 【用户问题】」与「## 【参考知识】」之间），本方法
+          只负责"summary || judge 并行 + 必要时走 _all_in_answer 二次合并"的编排，
+          不再额外修改 prompt。
         - judge_evidence: 喂给 judge 的浓缩证据（即将进入 final summary 的 numbered
           summaries / agent_parts / organized_parts）
         - 编排：summary || judge 并行；judge 无需求 → 直接返回 summary；judge 有需求 →
@@ -1308,7 +1322,8 @@ class AgentGraph:
             if extra_future is None:
                 logger.info(
                     f"[{stage_label}] judge 无新 skill 需求"
-                    f"（phase-0 已完成 {len(done_records_snapshot)} 个 skill 并已注入），"
+                    f"（phase-0 完成的 {len(done_records_snapshot)} 个 skill "
+                    f"结果已由调用方注入 final summary user prompt），"
                     f"直接采用 final summary 输出"
                 )
                 return final_summary
@@ -1784,7 +1799,9 @@ class AgentGraph:
                         groups = self._merge_orphan_groups_into_groups(groups, orphan_by_kw)
                     # 留给 _build_chunk_trace_log 渲染各组 summary 长度概览
                     self._chunk_groups = groups
-                    answer = self._chunk_streaming_assemble_final(groups)
+                    answer = self._chunk_streaming_assemble_final(
+                        groups, skill_context=summary_skill_context,
+                    )
                 else:
                     # 旧路径：把 HighlightPrecheck orphan 拼成单 part 追加到 ordered_parts，
                     # 由 _chunk_finalize_summary 决定 final merge 时的处理。
@@ -2421,7 +2438,11 @@ class AgentGraph:
             if g.kind == "self" or not kw:
                 block = summary
             else:
-                lines = [f"【关键词】{kw}"]
+                # 同一目标条款被多个高亮共指时，crawler 会按 (pid,cid) 去重为一个 fragment
+                # 但保留所有别名，这里跨 fragment 把"该主关键词桶里出现过的全部高亮"合并展示，
+                # 让 LLM 在 final corpus 阶段也能看到完整的关键词来源（与派生 chunk 标题口径一致）。
+                label = self._render_keyword_with_aliases(kw)
+                lines = [f"【关键词】{label}"]
                 if g.headings:
                     lines.append("【关键词相关知识】")
                     for h in g.headings:
@@ -2429,6 +2450,35 @@ class AgentGraph:
                 block = "\n".join(lines) + f"\n\n{summary}"
             blocks.append(block)
         return "\n\n---\n\n".join(blocks)
+
+    def _render_keyword_with_aliases(self, keyword: str) -> str:
+        """按主关键词从 RelationRegistry 收集对应 fragments 的 highlighted_aliases，
+        与主关键词一起拼成 "主 | 别名1 | 别名2 ..." 形式（与派生 chunk 标题里的
+        build_highlighted_label 口径一致）。
+
+        - 桶内可能有 1..N 个 fragment（同一主关键词牵出多条目标条款），需把所有 fragment
+          的 aliases 并集，按入队顺序去重；
+        - 无 registry / 无匹配 fragment / 无 aliases 时退化为原 keyword；
+        - keyword 为空（兜底桶）返回空串——调用方自己决定是否输出标题行。
+        """
+        keyword = (keyword or "").strip()
+        if not keyword:
+            return ""
+        registry = getattr(self, "relation_registry", None)
+        if registry is None:
+            return keyword
+        seen: set[str] = {keyword}
+        parts: list[str] = [keyword]
+        for frag in registry.get_all():
+            if (frag.highlighted or "").strip() != keyword:
+                continue
+            for a in (getattr(frag, "highlighted_aliases", None) or []):
+                a = (a or "").strip()
+                if not a or a in seen:
+                    continue
+                seen.add(a)
+                parts.append(a)
+        return " | ".join(parts)
 
     def _build_chunk_orphan_groups(self) -> dict[str, list[str]]:
         """按 fragment.highlighted 把 HighlightPrecheck 兜底命中、未被任何 chunk slot 收纳的
@@ -2528,6 +2578,15 @@ class AgentGraph:
 
         # 对所有发生过注入（包括新建）的组，重跑 reduce_to_single（保留之前已 reduce 的
         # 单条 summary 与 orphan parts 一起再压一次）。
+        # 与 _streaming_orchestrate_by_group 保持一致：跨组并发，每组内部 batches 并发由
+        # _reduce_group_to_single 自管；这里只负责把多个组的 reduce 入口同时拉起来，
+        # 避免 chunk-LLM 未命中、纯 orphan 起步场景下多个新建 keyword 组被串行依次跑完。
+        if not injected_groups:
+            return groups
+
+        # 先组装每组的最终 parts（把已有 summary 并入 new_parts），保证 group_label 与
+        # force_compress 计算与原串行版本完全等价；future 完成后再回写 g.summary / g.parts。
+        prepared: list[tuple[_StreamGroup, list[str], bool]] = []
         for g, had_prior in injected_groups:
             # 把已有 summary 也作为一条 part 喂回去（否则之前压缩出的内容会被丢失）；
             # summary 为空（首次注入到空 group）则不补。
@@ -2537,33 +2596,65 @@ class AgentGraph:
             # had_prior=False 表示 parts 全是 RelationFragment 裸渲染文本，哪怕只 1 条也
             # 必须走一次 BATCH_SUMMARY 把元数据头规整成 final summary 风格；
             # had_prior=True 走原"len==1 直接透传"快路径。
+            prepared.append((g, new_parts, not had_prior))
+
+        if len(prepared) == 1:
+            g, new_parts, force_compress = prepared[0]
             g.summary = self._reduce_group_to_single(
                 new_parts, group_label=self._group_label(g),
-                force_compress=not had_prior,
+                force_compress=force_compress,
             )
-            g.parts = new_parts  # 保留供 trace 使用
+            g.parts = new_parts
+            return groups
+
+        with ThreadPoolExecutor(
+            max_workers=min(len(prepared), 8),
+            thread_name_prefix="reduce-orphan-grp",
+        ) as group_pool:
+            future_map: dict = {}
+            for g, new_parts, force_compress in prepared:
+                fut = group_pool.submit(
+                    self._reduce_group_to_single,
+                    new_parts, self._group_label(g), force_compress,
+                )
+                future_map[fut] = (g, new_parts)
+            for fut in as_completed(future_map):
+                g, new_parts = future_map[fut]
+                try:
+                    g.summary = fut.result()
+                except Exception as e:
+                    logger.error(
+                        f"[OrphanReduce] {self._group_label(g)} reduce 异常: {e}"
+                    )
+                    g.summary = f"（{self._group_label(g)} reduce 异常: {e}）"
+                g.parts = new_parts  # 保留供 trace 使用
 
         return groups
 
     def _chunk_streaming_assemble_final(
-        self, groups: list[_StreamGroup],
+        self, groups: list[_StreamGroup], skill_context: str = "",
     ) -> str:
         """v3 final-summary 重构后的最终汇总：把 groups 拼成 corpus evidence → 单次 chat
         → think/answer JSON 字符串，并保留 double-check 编排。
 
-        说明：v3 corpus path 设计上不向 user prompt 注入 skill_context（参考
-        _batch_final_merge / _retrieval_final_summary 实现），skill 结果通过
-        _finalize_with_double_check 内部的 phase-0 注入与 _all_in_answer 二次合并机制
-        体现，本方法保持一致。
+        skill_context（phase-0 已完成 skill 的渲染文本）会通过
+        `_build_corpus_final_prompt` 注入到用户问题与参考知识之间，作为权威外部事实
+        进入最终 LLM 上下文；为空时整段省略。`_finalize_with_double_check` 仍保留
+        judge → extra-skill → `_all_in_answer` 的二次合并兜底，用于覆盖 phase-0
+        之外被 judge 二次召回的新 skill。
         """
         evidence = self._format_groups_for_corpus_evidence(groups)
-        system_prompt, prompt = self._build_corpus_final_prompt(evidence)
+        system_prompt, prompt = self._build_corpus_final_prompt(
+            evidence, skill_context=skill_context,
+        )
 
         logger.info(
             f"[ChunkStreamingFinal·Corpus] groups={len(groups)} "
             f"(self_parts={len(groups[0].parts) if groups else 0}, "
             f"keyword_groups={sum(1 for g in groups if g.kind == 'keyword')}) "
-            f"evidence_chars={len(evidence)} prompt_chars={len(prompt)}"
+            f"evidence_chars={len(evidence)} "
+            f"skill_ctx_chars={len(skill_context or '')} "
+            f"prompt_chars={len(prompt)}"
         )
         logger.info(f"[ChunkStreamingFinal·Corpus] prompt 内容:\n{prompt}")
 
@@ -3498,8 +3589,10 @@ class AgentGraph:
 
         与 v2 相比：
         - 不走 summary_clean_answer / think_mode 的 JSON / HTML 双轨；
-        - 不再叠加 answer_system_prompt / pure_model_reference / skill_context（system
-          已经是 corpus 全量约束）；
+        - 不再叠加 answer_system_prompt / pure_model_reference（system 已经是 corpus
+          全量约束）；
+        - skill_context 作为权威外部事实经 `_build_corpus_final_prompt` 注入到
+          user prompt 的「用户问题」与「参考知识」之间；空字符串时整段省略。
         - 输出固定为 `{"think": <reasoning_content>, "answer": <corpus 输出 <answer> 段>}`
           JSON 字符串，便于下游 `_split_analysis_concise_answer` 把 reasoning_content
           映射到 ReasonData.think、把干净 answer 映射到 ReasonData.answer。
@@ -3507,7 +3600,9 @@ class AgentGraph:
         agent_parts = self._build_evidence_parts()
         agent_results_text = "\n\n".join(agent_parts) if agent_parts else "（无）"
 
-        system_prompt, prompt = self._build_corpus_final_prompt(agent_results_text)
+        system_prompt, prompt = self._build_corpus_final_prompt(
+            agent_results_text, skill_context=skill_context,
+        )
         mode_label = "Corpus"
 
         logger.info(f"[Summary·{mode_label}] system prompt 长度: {len(system_prompt)} 字符")
@@ -3693,9 +3788,15 @@ class AgentGraph:
 
     def _batch_final_merge(self, summaries: list[str], layer: int, skill_context: str = "") -> str:
         """v3 版分批最终合并：直接用 corpus prompt，输出
-        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。"""
+        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。
+
+        skill_context（phase-0 已完成 skill 渲染文本）经 `_build_corpus_final_prompt`
+        注入到 user prompt 的「用户问题」与「参考知识」之间；空时整段省略。
+        """
         numbered = self._format_batch_summaries_for_merge(summaries)
-        system_prompt, merge_prompt = self._build_corpus_final_prompt(numbered)
+        system_prompt, merge_prompt = self._build_corpus_final_prompt(
+            numbered, skill_context=skill_context,
+        )
         mode_label = "Corpus"
 
         logger.info(
@@ -3723,9 +3824,15 @@ class AgentGraph:
 
     def _retrieval_final_summary(self, organized_parts: list[str], skill_context: str = "") -> str:
         """v3 版召回最终汇总：直接用 corpus prompt，输出
-        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。"""
+        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。
+
+        skill_context 经 `_build_corpus_final_prompt` 注入到「用户问题」与
+        「参考知识」之间；空时整段省略。
+        """
         knowledge_text = "\n\n".join(organized_parts)
-        system_prompt, prompt = self._build_corpus_final_prompt(knowledge_text)
+        system_prompt, prompt = self._build_corpus_final_prompt(
+            knowledge_text, skill_context=skill_context,
+        )
         mode_label = "Corpus"
 
         logger.info(f"[RetrievalSummary·{mode_label}] prompt 长度: {len(prompt)} 字符")
@@ -3839,9 +3946,15 @@ class AgentGraph:
 
     def _retrieval_batch_final_merge(self, summaries: list[str], layer: int, skill_context: str = "") -> str:
         """v3 版召回分批最终合并：直接用 corpus prompt，输出
-        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。"""
+        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。
+
+        skill_context 经 `_build_corpus_final_prompt` 注入到「用户问题」与
+        「参考知识」之间；空时整段省略。
+        """
         numbered = self._format_batch_summaries_for_merge(summaries)
-        system_prompt, merge_prompt = self._build_corpus_final_prompt(numbered)
+        system_prompt, merge_prompt = self._build_corpus_final_prompt(
+            numbered, skill_context=skill_context,
+        )
         mode_label = "Corpus"
 
         logger.info(

@@ -1599,6 +1599,6 @@ CORPUS_SYSTEM_PROMPT = _CORPUS_SYSTEM_PROMPT
 CORPUS_USER_PROMPT = """## 【用户问题】：
 {question}
 
-## 【参考知识】：
+{skill_context_block}## 【参考知识】：
 {evidence}
 """
