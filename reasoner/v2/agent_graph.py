@@ -533,7 +533,8 @@ class AgentGraph:
         # 开启时（默认推荐开启）：在 standard / retrieval / chunk 三种模式产出最终
         # answer 后、返回 result 字典之前，追加一次「结论先行 + 核心证据/因果逻辑/
         # 注意事项」结构化精简。与 cleanAnswer / summaryCleanAnswer / thinkMode /
-        # lastThink 完全正交。
+        # lastThink 完全正交；其中 lastThink 不作用于本节点，refine 默认不开启
+        # 模型 thinking。
         # think_mode=True 时：原 answer 内容会迁移到响应 think 字段，refine 结果
         # 写入 answer 字段；think_mode=False 时直接覆盖最终 answer。
         # 关闭时：流水线行为保持原样，无任何额外 LLM 调用。
@@ -3458,6 +3459,7 @@ class AgentGraph:
 
         - 输入：上一阶段最终 answer（可能是 think_mode JSON / HTML / 纯文本）。
         - LLM 仅看 user-facing answer 部分（不喂 think 草稿）。
+        - 本节点默认不开启模型 thinking，不跟随 self.last_think。
         - 输出（写回 result["answer"]）：
             * think_mode=True ：返回 `{"think": <精简前的原 answer>, "answer": <refine 结果>}`
               JSON 字符串；下游 app.py._split_analysis_concise_answer 会自然映射，
@@ -3490,7 +3492,7 @@ class AgentGraph:
                     vendor=self.vendor,
                     model=self.model,
                     system=ANSWER_REFINE_SYSTEM_PROMPT,
-                    enable_thinking=self.last_think,
+                    enable_thinking=False,
                 )
             refined = self._postprocess_final_chat(refined_raw, "answer_refine")
             refined = (refined or "").strip()
