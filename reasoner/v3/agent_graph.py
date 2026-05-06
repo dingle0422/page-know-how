@@ -862,6 +862,53 @@ class AgentGraph:
         )
         return CORPUS_SYSTEM_PROMPT, user_prompt
 
+    def _corpus_chat_to_think_answer_json(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str,
+        step_label: str,
+    ) -> str:
+        """v3 最终节点专用：单次 chat → 拆 reasoning_content / 模型 <answer> 段，
+        封装成 `{"think": <reasoning_content>, "answer": <answer 段>}` JSON 字符串。
+
+        语义：
+          - reasoning_content 由 llm/client.chat 在 enable_thinking=True 时统一以
+            `<think>...</think>` 前缀回注到 content 头部。本方法用 split_think_block
+            剥出该前缀作为 think 字段，确保 think_mode 路径能拿到模型推理轨迹。
+          - 模型按 CORPUS_SYSTEM_PROMPT 输出形如 `<think>...</think>\n<answer>...</answer>`，
+            其中第一段 `<think>` 已被 split_think_block 切走（即上一步的 reasoning_content），
+            剩下的 body 仍可能含模型自带的 `<think>` 段 + `<answer>` 段。本方法用
+            `_extract_user_facing_answer` 仅取 `<answer>` 内容作为 answer 字段，
+            模型自带的 `<think>` 段不再保留（按用户决策只暴露 reasoning_content）。
+          - 返回值固定为合法 JSON 字符串，下游 `_split_analysis_concise_answer`
+            会自然映射到 ReasonData.think / ReasonData.answer。
+        """
+        with step_scope(
+            step_label,
+            prompt_vars={"user": "CORPUS_USER_PROMPT", "system": "CORPUS_SYSTEM_PROMPT"},
+        ):
+            raw = chat(
+                prompt,
+                vendor=self.vendor,
+                model=self.model,
+                system=system_prompt,
+                enable_thinking=self.last_think,
+            )
+        raw = raw or ""
+        reasoning, body = split_think_block(raw)
+        if reasoning:
+            preview = reasoning[:300].replace("\n", " ")
+            logger.info(
+                f"[FinalChat·{step_label}] 剥离 reasoning_content {len(reasoning)} 字符："
+                f"{preview}{'…' if len(reasoning) > 300 else ''}"
+            )
+        answer = self._extract_user_facing_answer(body) if body else ""
+        return json.dumps(
+            {"think": reasoning, "answer": answer},
+            ensure_ascii=False,
+        )
+
     def _extract_system_prompt_vars(self, *format_prompt_vars: str) -> list[str]:
         names = ["BATCH_REDUCE_SYSTEM_PROMPT"]
         if self.pure_model_result and self._pure_model_reference:
@@ -2887,8 +2934,9 @@ class AgentGraph:
         - 不走 summary_clean_answer / think_mode 的 JSON / HTML 双轨；
         - 不再叠加 answer_system_prompt / pure_model_reference / skill_context（system
           已经是 corpus 全量约束）；
-        - 强制 expects_think_answer_json=False，统一返回纯文本 body；
-        - 返回前剥 <answer> 壳，确保下游拿到的是面向用户的最终答案。
+        - 输出固定为 `{"think": <reasoning_content>, "answer": <corpus 输出 <answer> 段>}`
+          JSON 字符串，便于下游 `_split_analysis_concise_answer` 把 reasoning_content
+          映射到 ReasonData.think、把干净 answer 映射到 ReasonData.answer。
         """
         agent_parts = self._build_evidence_parts()
         agent_results_text = "\n\n".join(agent_parts) if agent_parts else "（无）"
@@ -2902,17 +2950,11 @@ class AgentGraph:
 
         def _do_summary() -> str:
             try:
-                raw = self._chat_final_with_format_retry(
+                return self._corpus_chat_to_think_answer_json(
                     prompt=prompt,
                     system_prompt=system_prompt,
                     step_label="final_summary",
-                    expects_think_answer_json=False,
-                    prompt_vars={
-                        "user": "CORPUS_USER_PROMPT",
-                        "system": "CORPUS_SYSTEM_PROMPT",
-                    },
                 )
-                return self._extract_user_facing_answer(raw)
             except Exception as e:
                 logger.error(f"最终汇总 LLM 调用失败: {e}")
                 fallback_parts = []
@@ -3084,7 +3126,8 @@ class AgentGraph:
         return self._recursive_batch_reduce(batch_summaries, layer + 1, skill_context=skill_context)
 
     def _batch_final_merge(self, summaries: list[str], layer: int, skill_context: str = "") -> str:
-        """v3 版分批最终合并：直接用 corpus prompt，跳过 think_mode JSON / HTML 双轨。"""
+        """v3 版分批最终合并：直接用 corpus prompt，输出
+        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。"""
         numbered = self._format_batch_summaries_for_merge(summaries)
         system_prompt, merge_prompt = self._build_corpus_final_prompt(numbered)
         mode_label = "Corpus"
@@ -3097,17 +3140,11 @@ class AgentGraph:
 
         def _do_merge() -> str:
             try:
-                raw = self._chat_final_with_format_retry(
+                return self._corpus_chat_to_think_answer_json(
                     prompt=merge_prompt,
                     system_prompt=system_prompt,
                     step_label=f"batch_final_merge·L{layer}",
-                    expects_think_answer_json=False,
-                    prompt_vars={
-                        "user": "CORPUS_USER_PROMPT",
-                        "system": "CORPUS_SYSTEM_PROMPT",
-                    },
                 )
-                return self._extract_user_facing_answer(raw)
             except Exception as e:
                 logger.error(f"[BatchMerge] 最终合并失败: {e}")
                 return "分批合并失败，以下为各摘要：\n" + numbered
@@ -3119,7 +3156,8 @@ class AgentGraph:
         )
 
     def _retrieval_final_summary(self, organized_parts: list[str], skill_context: str = "") -> str:
-        """v3 版召回最终汇总：直接用 corpus prompt。"""
+        """v3 版召回最终汇总：直接用 corpus prompt，输出
+        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。"""
         knowledge_text = "\n\n".join(organized_parts)
         system_prompt, prompt = self._build_corpus_final_prompt(knowledge_text)
         mode_label = "Corpus"
@@ -3129,17 +3167,11 @@ class AgentGraph:
 
         def _do_summary() -> str:
             try:
-                raw = self._chat_final_with_format_retry(
+                return self._corpus_chat_to_think_answer_json(
                     prompt=prompt,
                     system_prompt=system_prompt,
                     step_label="retrieval_final_summary",
-                    expects_think_answer_json=False,
-                    prompt_vars={
-                        "user": "CORPUS_USER_PROMPT",
-                        "system": "CORPUS_SYSTEM_PROMPT",
-                    },
                 )
-                return self._extract_user_facing_answer(raw)
             except Exception as e:
                 logger.error(f"[RetrievalSummary] 召回总结失败: {e}")
                 return "召回总结生成失败，以下为召回的知识片段：\n" + knowledge_text
@@ -3240,7 +3272,8 @@ class AgentGraph:
         return self._retrieval_recursive_batch_reduce(batch_summaries, layer + 1, skill_context=skill_context)
 
     def _retrieval_batch_final_merge(self, summaries: list[str], layer: int, skill_context: str = "") -> str:
-        """v3 版召回分批最终合并：直接用 corpus prompt。"""
+        """v3 版召回分批最终合并：直接用 corpus prompt，输出
+        `{"think": <reasoning_content>, "answer": <corpus answer>}` JSON。"""
         numbered = self._format_batch_summaries_for_merge(summaries)
         system_prompt, merge_prompt = self._build_corpus_final_prompt(numbered)
         mode_label = "Corpus"
@@ -3253,17 +3286,11 @@ class AgentGraph:
 
         def _do_merge() -> str:
             try:
-                raw = self._chat_final_with_format_retry(
+                return self._corpus_chat_to_think_answer_json(
                     prompt=merge_prompt,
                     system_prompt=system_prompt,
                     step_label=f"retrieval_batch_final_merge·L{layer}",
-                    expects_think_answer_json=False,
-                    prompt_vars={
-                        "user": "CORPUS_USER_PROMPT",
-                        "system": "CORPUS_SYSTEM_PROMPT",
-                    },
                 )
-                return self._extract_user_facing_answer(raw)
             except Exception as e:
                 logger.error(f"[RetrievalBatchMerge] 最终合并失败: {e}")
                 return "召回分批合并失败，以下为各摘要：\n" + numbered
