@@ -185,7 +185,9 @@ class ReasonRequest(BaseModel):
     )
     version: str = Field(
         default="v2",
-        description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt，默认 v1）",
+        description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt, "
+                    "v3=v2 基础上把最终汇总节点 system prompt 切换为 _CORPUS_SYSTEM_PROMPT 训练样本风格；"
+                    "默认 v2）",
     )
     enableSkills: bool = Field(
         default=True,
@@ -772,6 +774,8 @@ def _import_agent_graph(version: str):
         from reasoner.v0.agent_graph import AgentGraph
     elif version == "v2":
         from reasoner.v2.agent_graph import AgentGraph
+    elif version == "v3":
+        from reasoner.v3.agent_graph import AgentGraph
     else:
         from reasoner.v1.agent_graph import AgentGraph
     return AgentGraph
@@ -807,7 +811,7 @@ def _run_reasoning(
     """执行单问题推理，返回 answer 和 kh_obj"""
     AgentGraphCls = _import_agent_graph(version)
     extra_kwargs = {}
-    if version in ("v1", "v2"):
+    if version in ("v1", "v2", "v3"):
         extra_kwargs["summary_clean_answer"] = summary_clean_answer
         extra_kwargs["answer_system_prompt"] = answer_system_prompt
         extra_kwargs["think_mode"] = think_mode
@@ -822,17 +826,17 @@ def _run_reasoning(
         extra_kwargs["answer_refine"] = answer_refine
     else:
         if summary_clean_answer:
-            logger.warning("summaryCleanAnswer 仅在 version=v1/v2 下生效，本次将被忽略")
+            logger.warning("summaryCleanAnswer 仅在 version=v1/v2/v3 下生效，本次将被忽略")
         if answer_system_prompt:
-            logger.warning("answerSystemPrompt 仅在 version=v1/v2 下生效，本次将被忽略")
+            logger.warning("answerSystemPrompt 仅在 version=v1/v2/v3 下生效，本次将被忽略")
         if think_mode:
-            logger.warning("thinkMode 仅在 version=v1/v2 下生效，本次将被忽略")
+            logger.warning("thinkMode 仅在 version=v1/v2/v3 下生效，本次将被忽略")
         if enable_relations:
-            logger.warning("enableRelations 仅在 version=v1/v2 下生效，本次将被忽略")
+            logger.warning("enableRelations 仅在 version=v1/v2/v3 下生效，本次将被忽略")
         if pure_model_result:
-            logger.warning("pureModelResult 仅在 version=v1/v2 下生效，本次将被忽略")
+            logger.warning("pureModelResult 仅在 version=v1/v2/v3 下生效，本次将被忽略")
         if answer_refine:
-            logger.warning("answerRefine 仅在 version=v1/v2 下生效，本次将被忽略")
+            logger.warning("answerRefine 仅在 version=v1/v2/v3 下生效，本次将被忽略")
     graph = AgentGraphCls(
         question=question,
         knowledge_root=knowledge_dir,

@@ -1,0 +1,428 @@
+"""Skill 两步式评估器
+
+请求进入时调用一次：
+- Step 1: LLM 读外层 skills/skills.md，决定本问题需要哪些 skill（可能为空）
+- Step 2: 对每个选中 skill，加载其内层 skills.md，让 LLM 生成 bash 命令
+- Step 3: 沙箱执行 bash 命令，结果写入 SkillResultRegistry
+
+Step 2 的多个 skill 之间互相独立，并行 await 提升吞吐。
+"""
+
+import asyncio
+import json
+import logging
+import os
+import re
+
+from llm.client import chat
+
+from skills.registry import SkillResultRegistry
+from skills.runner import SkillExecutionResult, SkillRunner
+
+logger = logging.getLogger(__name__)
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_SKILLS_DIR = os.path.join(_PROJECT_ROOT, "skills")
+_INDEX_DOC = os.path.join(_SKILLS_DIR, "skills.md")
+
+
+_SELECT_SYSTEM_PROMPT = """你是一个税务问答系统的 skill 调度器。请判断回答用户问题前，必须先调用哪些 skill 来获取关键事实信息（例如标准商品名、税率、外部数据等）。
+
+规则：
+- 仅在 skill 能为问题提供关键事实支撑时才选中；如果问题靠常识或纯文本知识就能回答，返回空数组。
+- 同一个 skill 不要重复选中。
+- 严格按照 JSON 数组格式输出，不要输出任何额外解释、不要包裹 markdown 代码块。
+- 输出示例：["skill_name_1", "skill_name_2"] 或 []。
+"""
+
+_SELECT_PROMPT = """==== skills/skills.md ====
+{index_doc}
+==== END ====
+
+用户问题：
+{question}
+"""
+
+
+_GENERATE_CMD_SYSTEM_PROMPT = """你是一个税务问答系统的 skill 命令生成器。你将收到某个 skill 的详细文档与用户问题。
+请基于文档，为这个问题生成一行可直接在 bash 中执行的命令。
+
+要求：
+- 严格按照文档中的"调用方式"示例编写。
+- 把用户问题中涉及的实体（如商品名、服务名）作为参数传入。
+- 多个参数请用双引号包裹，包括包含中文/空格/特殊字符的参数。
+- 仅输出命令本身，不要任何解释、不要 markdown 代码块、不要前后缀。
+- 如果一行无法表达，使用 ` && ` 连接，不要换行。
+"""
+
+_GENERATE_CMD_PROMPT = """下面是 skill `{skill_name}` 的详细文档：
+
+==== skills/{skill_name}/skills.md ====
+{detail_doc}
+==== END ====
+
+用户问题：
+{question}
+"""
+
+
+_RETRY_HINT_TEMPLATE = """
+
+---
+**【重要】上一次你生成的命令执行失败，请分析错误后重新生成一条正确命令**：
+- 上次命令：{prev_cmd}
+- exit_code：{exit_code}
+- stderr（截断）：
+{stderr}
+- stdout（截断）：
+{stdout}
+
+常见错误提示：
+- usage/argument 相关的错误通常是缺少位置参数或参数没有正确用双引号包裹
+- 中文 / 空格 / 特殊字符的参数必须用双引号
+- 严格按照文档中"调用方式"的示例格式，不要凭空新增未出现过的参数
+
+请**重新生成**一行可直接执行的命令（仍然不要任何解释、不要 markdown 代码块），并确保不要重复上一次的错误："""
+
+
+_JSON_ARRAY_RE = re.compile(r"\[.*?\]", re.DOTALL)
+
+
+def _format_retry_hint(prev_cmd: str, prev_result: "SkillExecutionResult") -> str:
+    stderr_snippet = (prev_result.stderr or "").strip()[:500] or "（空）"
+    stdout_snippet = (prev_result.stdout or "").strip()[:200] or "（空）"
+    return _RETRY_HINT_TEMPLATE.format(
+        prev_cmd=prev_cmd or "（空）",
+        exit_code=prev_result.exit_code,
+        stderr=stderr_snippet,
+        stdout=stdout_snippet,
+    )
+
+
+def _extract_json_array(text: str) -> list[str]:
+    """从 LLM 响应中尽力提取 JSON 数组"""
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE).strip()
+
+    try:
+        data = json.loads(text)
+        if isinstance(data, list):
+            return [str(x) for x in data]
+    except json.JSONDecodeError:
+        pass
+
+    m = _JSON_ARRAY_RE.search(text)
+    if m:
+        try:
+            data = json.loads(m.group(0))
+            if isinstance(data, list):
+                return [str(x) for x in data]
+        except json.JSONDecodeError:
+            pass
+
+    logger.warning("[Evaluator] 无法解析 LLM 选 skill 的输出，原文: %s", text[:200])
+    return []
+
+
+def _strip_command(text: str) -> str:
+    """LLM 偶尔会带 markdown 围栏或解释，清洗为纯命令字符串"""
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    text = " ".join(line.strip() for line in text.splitlines() if line.strip())
+    return text
+
+
+def _load_index_doc() -> str:
+    if not os.path.exists(_INDEX_DOC):
+        logger.error("[Evaluator] skills 索引文件不存在: %s", _INDEX_DOC)
+        return ""
+    with open(_INDEX_DOC, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _load_detail_doc(skill_name: str) -> str:
+    path = os.path.join(_SKILLS_DIR, skill_name, "skills.md")
+    if not os.path.exists(path):
+        logger.warning("[Evaluator] skill 详细文档不存在: %s", path)
+        return ""
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _list_available_skills() -> set[str]:
+    """扫描 skills/ 下含 skills.md 的子目录，作为合法 skill 名"""
+    available: set[str] = set()
+    for entry in os.listdir(_SKILLS_DIR):
+        full = os.path.join(_SKILLS_DIR, entry)
+        if os.path.isdir(full) and os.path.exists(os.path.join(full, "skills.md")):
+            available.add(entry)
+    return available
+
+
+def _select_skills(question: str, vendor: str, model: str) -> list[str]:
+    """Step 1: LLM 选 skill"""
+    index_doc = _load_index_doc()
+    if not index_doc:
+        return []
+
+    prompt = _SELECT_PROMPT.format(index_doc=index_doc, question=question)
+    try:
+        from utils.verbose_logger import step_scope as _vstep
+        with _vstep(
+            "skill_select",
+            prompt_vars={
+                "user": "_SELECT_PROMPT",
+                "system": "_SELECT_SYSTEM_PROMPT",
+            },
+        ):
+            resp = chat(prompt, vendor=vendor, model=model, system=_SELECT_SYSTEM_PROMPT)
+    except Exception as e:
+        logger.error("[Evaluator] Step1 LLM 调用失败: %s", e)
+        return []
+
+    selected = _extract_json_array(resp)
+    available = _list_available_skills()
+    valid = [s for s in selected if s in available]
+    invalid = sorted(set(selected) - available)
+    if invalid:
+        logger.warning("[Evaluator] LLM 选中了不存在的 skill，已忽略: %s", invalid)
+
+    logger.info(
+        "[Evaluator] Step1 选中 skill: %s | LLM原始返回: %s | "
+        "可用skill池: %s | 不存在已忽略: %s",
+        valid, selected, sorted(available), invalid,
+    )
+    return valid
+
+
+def _generate_command(
+    skill_name: str,
+    question: str,
+    vendor: str,
+    model: str,
+    prev_attempt: tuple[str, SkillExecutionResult] | None = None,
+) -> str:
+    """Step 2: LLM 为指定 skill 生成 bash 命令。
+
+    Args:
+        prev_attempt: 上一轮 (cmd, result)；若非 None 则视为重试，
+                      会在 prompt 末尾追加失败反馈引导 LLM 修正。
+    """
+    detail_doc = _load_detail_doc(skill_name)
+    if not detail_doc:
+        return ""
+
+    prompt = _GENERATE_CMD_PROMPT.format(
+        skill_name=skill_name, detail_doc=detail_doc, question=question,
+    )
+    step_tag = f"skill_generate_cmd·{skill_name}"
+    if prev_attempt is not None:
+        prev_cmd, prev_result = prev_attempt
+        prompt += _format_retry_hint(prev_cmd, prev_result)
+        step_tag = f"skill_generate_cmd·{skill_name}·retry"
+
+    try:
+        from utils.verbose_logger import step_scope as _vstep
+        prompt_var_names = ["_GENERATE_CMD_PROMPT"]
+        if prev_attempt is not None:
+            prompt_var_names.append("_RETRY_HINT_TEMPLATE")
+        with _vstep(
+            step_tag,
+            prompt_vars={
+                "user": prompt_var_names,
+                "system": "_GENERATE_CMD_SYSTEM_PROMPT",
+            },
+        ):
+            resp = chat(prompt, vendor=vendor, model=model, system=_GENERATE_CMD_SYSTEM_PROMPT)
+    except Exception as e:
+        logger.error("[Evaluator] Step2 LLM 调用失败 (skill=%s): %s", skill_name, e)
+        return ""
+
+    cmd = _strip_command(resp)
+    tag = "重试生成命令" if prev_attempt is not None else "生成命令"
+    logger.info("[Evaluator] Step2 skill=%s %s: %s", skill_name, tag, cmd[:200])
+    return cmd
+
+
+async def _run_one_skill(
+    skill_name: str,
+    question: str,
+    runner: SkillRunner,
+    registry: SkillResultRegistry,
+    vendor: str,
+    model: str,
+    max_retries: int = 1,
+) -> None:
+    """执行单个 skill：若首次失败，最多重试 `max_retries` 次，由 LLM 基于错误信息重新生成命令。"""
+    cmd = await asyncio.to_thread(
+        _generate_command, skill_name, question, vendor, model,
+    )
+    if not cmd:
+        logger.warning("[Evaluator] skill=%s 命令生成失败，跳过执行", skill_name)
+        return
+
+    result = await runner.execute(cmd)
+
+    attempt = 0
+    while not result.success and attempt < max_retries:
+        attempt += 1
+        logger.warning(
+            "[Evaluator] skill=%s 第%d次执行失败 (exit=%d)，触发重试让 LLM 重新生成命令 | "
+            "失败命令: %s | stderr: %s",
+            skill_name, attempt, result.exit_code, cmd[:200],
+            (result.stderr or "")[:200],
+        )
+        new_cmd = await asyncio.to_thread(
+            _generate_command, skill_name, question, vendor, model,
+            (cmd, result),
+        )
+        if not new_cmd:
+            logger.warning(
+                "[Evaluator] skill=%s 第%d次重试未能生成新命令，放弃重试",
+                skill_name, attempt,
+            )
+            break
+        if new_cmd == cmd:
+            logger.warning(
+                "[Evaluator] skill=%s 第%d次重试生成命令与上次完全一致，放弃重试",
+                skill_name, attempt,
+            )
+            break
+
+        cmd = new_cmd
+        result = await runner.execute(cmd)
+
+    if result.success and attempt > 0:
+        logger.info(
+            "[Evaluator] skill=%s 重试第%d次后执行成功", skill_name, attempt,
+        )
+
+    registry.add(skill_name, cmd, result)
+
+
+def select_extra_skills(
+    question: str,
+    exclude: set[str] | None,
+    vendor: str = "qwen3.5-122b-a10b",
+    model: str = "Qwen3.5-122B-A10B",
+    evidence: str | None = None,
+) -> list[str]:
+    """double-check 阶段使用：基于 question 二次评估剩余还需要的 skill。
+
+    与 _select_skills 的区别：
+    - 在 prompt 中明确告知"已完成的 skill"，让 LLM 不要重复选取
+    - 可选传入 evidence（被各路 agent / chunk 提炼后即将进入 final merge 的浓缩证据），
+      让 LLM 基于"已有的中间事实"判断是否还存在必须靠 skill 才能闭合的关键缺口
+    - 返回结果再做一次过滤，确保不与 exclude 集合重叠
+    - 这样调用方可以避免对已经被前置 summary 吸收的 skill 做无意义的二次执行
+    """
+    index_doc = _load_index_doc()
+    if not index_doc:
+        return []
+
+    exclude = set(exclude or [])
+    extra_hint = ""
+    if exclude:
+        listed = "\n".join(f"- {s}" for s in sorted(exclude))
+        extra_hint = (
+            "\n\n**已执行 skill（结果已经在前置阶段被回答采纳，请勿再次选取）**：\n"
+            f"{listed}"
+        )
+
+    evidence_hint = ""
+    if evidence and evidence.strip():
+        evidence_hint = (
+            "\n\n**已知中间证据（来自前置推理 / 知识压缩，可能仍缺关键事实）**：\n"
+            "（请仅在该证据明显缺少必须由 skill 提供的权威事实时才补选 skill；"
+            "若证据已能支撑回答，请返回空数组。）\n"
+            "----\n"
+            f"{evidence.strip()}\n"
+            "----"
+        )
+
+    prompt = (
+        _SELECT_PROMPT.format(index_doc=index_doc, question=question)
+        + extra_hint
+        + evidence_hint
+    )
+    try:
+        from utils.verbose_logger import step_scope as _vstep
+        prompt_var_names = ["_SELECT_PROMPT"]
+        if extra_hint:
+            prompt_var_names.append("extra_hint")
+        if evidence_hint:
+            prompt_var_names.append("evidence_hint")
+        with _vstep(
+            "skill_select_extra",
+            prompt_vars={
+                "user": prompt_var_names,
+                "system": "_SELECT_SYSTEM_PROMPT",
+            },
+        ):
+            resp = chat(prompt, vendor=vendor, model=model, system=_SELECT_SYSTEM_PROMPT)
+    except Exception as e:
+        logger.error("[Evaluator] select_extra_skills LLM 调用失败: %s", e)
+        return []
+
+    selected = _extract_json_array(resp)
+    available = _list_available_skills()
+    valid = [s for s in selected if s in available and s not in exclude]
+    invalid = [s for s in selected if s not in available]
+    duplicate = [s for s in selected if s in exclude]
+    if invalid:
+        logger.warning("[Evaluator] 二次选 skill 中含不存在项，已忽略: %s", invalid)
+    if duplicate:
+        logger.info("[Evaluator] 二次选 skill 命中已完成 skill，已剔除: %s", duplicate)
+    logger.info(
+        "[Evaluator] select_extra_skills 命中: %s | LLM原始返回: %s | "
+        "可用skill池: %s | 已完成(exclude): %s | 不存在已忽略: %s | 已完成已剔除: %s",
+        valid, selected, sorted(available), sorted(exclude), invalid, duplicate,
+    )
+    return valid
+
+
+async def evaluate_and_run(
+    question: str,
+    registry: SkillResultRegistry,
+    runner: SkillRunner,
+    vendor: str = "qwen3.5-122b-a10b",
+    model: str = "Qwen3.5-122B-A10B",
+    skill_names: list[str] | None = None,
+) -> list[str]:
+    """对单个用户问题做 skill 评估与执行。
+
+    Args:
+        question:    用户问题
+        registry:    结果注册表（执行结果会写入此处）
+        runner:      bash 沙箱执行器
+        vendor/model: LLM 厂商与模型
+        skill_names: 可选；若提供则跳过 Step1，直接对这些 skill 走 Step2+执行
+                     （供 double_check 阶段复用 evaluator 的 Step2 逻辑）
+
+    Returns:
+        实际执行的 skill 名列表
+    """
+    if skill_names is None:
+        selected = await asyncio.to_thread(_select_skills, question, vendor, model)
+    else:
+        available = _list_available_skills()
+        selected = [s for s in skill_names if s in available]
+
+    if not selected:
+        logger.info("[Evaluator] 本次问题无需调用任何 skill")
+        return []
+
+    await asyncio.gather(*[
+        _run_one_skill(name, question, runner, registry, vendor, model)
+        for name in selected
+    ])
+
+    return selected

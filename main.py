@@ -43,6 +43,8 @@ def _import_engine(version: str):
         from reasoner.v0.engine import run_single_question, run_reasoning
     elif version == "v2":
         from reasoner.v2.engine import run_single_question, run_reasoning
+    elif version == "v3":
+        from reasoner.v3.engine import run_single_question, run_reasoning
     else:
         from reasoner.v1.engine import run_single_question, run_reasoning
     return run_single_question, run_reasoning
@@ -92,7 +94,7 @@ def cmd_reason(args):
         enable_skills=enable_skills,
         last_think=args.last_think,
     )
-    if version in ("v1", "v2"):
+    if version in ("v1", "v2", "v3"):
         common_kwargs["chunk_size"] = args.chunk_size
         common_kwargs["summary_clean_answer"] = args.summary_clean_answer
         common_kwargs["think_mode"] = args.think_mode
@@ -108,17 +110,17 @@ def cmd_reason(args):
         common_kwargs["answer_refine"] = args.answer_refine
     else:
         if args.summary_clean_answer:
-            print("警告：--summary-clean-answer 仅在 --version v1/v2 下生效，本次将被忽略")
+            print("警告：--summary-clean-answer 仅在 --version v1/v2/v3 下生效，本次将被忽略")
         if args.think_mode:
-            print("警告：--think-mode 仅在 --version v1/v2 下生效，本次将被忽略")
+            print("警告：--think-mode 仅在 --version v1/v2/v3 下生效，本次将被忽略")
         if args.answer_system_prompt:
-            print("警告：--answer-system-prompt 仅在 --version v1/v2 下生效，本次将被忽略")
+            print("警告：--answer-system-prompt 仅在 --version v1/v2/v3 下生效，本次将被忽略")
         if args.enable_relations:
-            print("警告：--enable-relations 仅在 --version v1/v2 下生效，本次将被忽略")
+            print("警告：--enable-relations 仅在 --version v1/v2/v3 下生效，本次将被忽略")
         if args.pure_model_result:
-            print("警告：--pure-model-result 仅在 --version v1/v2 下生效，本次将被忽略")
+            print("警告：--pure-model-result 仅在 --version v1/v2/v3 下生效，本次将被忽略")
         if args.answer_refine:
-            print("警告：--answer-refine 仅在 --version v1/v2 下生效，本次将被忽略")
+            print("警告：--answer-refine 仅在 --version v1/v2/v3 下生效，本次将被忽略")
 
     verbose_trace = getattr(args, "verbose_trace", False)
     session_id = getattr(args, "session_id", None)
@@ -246,8 +248,9 @@ def main():
              "每个块并行推理后汇总。默认 3000，与 app.py 对齐；置 0 关闭并回退到 ReactAgent 探索模式"
     )
     reason_parser.add_argument(
-        "--version", default="v2", choices=["v0", "v1", "v2"],
-        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt）。"
+        "--version", default="v2", choices=["v0", "v1", "v2", "v3"],
+        help="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt, "
+             "v3=v2 基础上把最终汇总节点 system prompt 切换为 _CORPUS_SYSTEM_PROMPT 训练样本风格）。"
              "默认 v2，与 app.py 对齐"
     )
     reason_parser.add_argument(
