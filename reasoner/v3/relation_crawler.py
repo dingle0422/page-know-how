@@ -172,26 +172,46 @@ class RelationCrawler:
     ):
         """逐层 BFS：每一层并发评估当前批，把判定为 relevant 的节点按 hop_depth < max_depth
         条件扩展其子引用到下一层 queue。
+
+        关键词别名合并：
+            同一 (policy_id, clause_id) 可能被多条不同 highlightedContent 引用（例如父 clause
+            里两段不同高亮共指同一附件）。此时按 key 全局去重只保留首个 fragment，但其余高亮
+            的关键词文本必须合并到 fragment.highlighted_aliases，否则下游标题里只会看到主关键词，
+            另一个引用关系就丢失了。合并分两条路径：
+              - 跨 crawl/跨层：registry 已有对应 fragment → 立即调用 registry.merge_aliases；
+              - 同层重复：fragment 还未生成 → 暂存到 alias_buffer，evaluate 完后统一 merge。
         """
         current_layer = queue
         while current_layer and node_budget[0] > 0:
             # 同层内按 (policy_id, clause_id) 去重 + visited 去重 + budget 截断
             # 风险2修复：先查 RelationRegistry 是否已有该 key，有则跳过（避免重复 LLM 调用）
             dedup: list[_CandidateRef] = []
+            # 同层 dedup 跳过的候选：暂存其 highlighted，待本层 evaluate 完成、fragment 落地后再 merge
+            alias_buffer: dict[tuple[str, str], list[str]] = {}
             for cand in current_layer:
                 if node_budget[0] <= 0:
                     break
                 key = (cand.policy_id, cand.clause_id)
                 # 跨 chunk 去重：registry 已有的 key 直接跳过，不浪费 LLM 调用
                 if self.registry.has(cand.policy_id, cand.clause_id):
+                    if cand.highlighted:
+                        # 已落地的 fragment 直接 merge 别名
+                        self.registry.merge_aliases(
+                            cand.policy_id, cand.clause_id, [cand.highlighted],
+                        )
                     continue
                 with self._lock:
                     if key in visited:
+                        if cand.highlighted:
+                            alias_buffer.setdefault(key, []).append(cand.highlighted)
                         continue
                     visited.add(key)
                 dedup.append(cand)
 
             if not dedup:
+                # 即便本层全跳过，也要把 alias_buffer 里残留的别名 merge 到（之前已落地的）fragment
+                for key, kws in alias_buffer.items():
+                    self.registry.merge_aliases(key[0], key[1], kws)
                 break
 
             futures = {
@@ -219,6 +239,10 @@ class RelationCrawler:
                 # 是否扩展下一跳
                 if descend_children and fragment.hop_depth < self.max_depth:
                     next_layer.extend(descend_children)
+
+            # 本层 fragment 已 add 到 registry，可以安全地把 alias_buffer 里的别名合并过去
+            for key, kws in alias_buffer.items():
+                self.registry.merge_aliases(key[0], key[1], kws)
 
             current_layer = next_layer
 

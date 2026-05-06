@@ -59,6 +59,7 @@ from reasoner.v3.chunk_builder import (
     build_knowledge_chunks,
     build_parent_location_label,
     build_target_location_label,
+    build_highlighted_label,
     split_relations_into_chunks,
     natural_dir_sort_key,
     KnowledgeChunk,
@@ -387,6 +388,14 @@ class _OrderedSlot:
     derived_results: dict[int, dict] = field(default_factory=dict)  # derived_seq -> result
     relation_fragments: list[RelationFragment] = field(default_factory=list)
 
+    # 按高亮关键词分桶的派生 chunk 与结果（v3 final-summary 重构使用）。
+    # 上面的 derived_chunks / derived_results 仍保留为"全部派生 chunk 的合并视图"，
+    # 用于现有 trace 渲染逻辑兼容；下面两个字段是按 keyword 切片后的视图，
+    # _streaming_orchestrate_by_group 会按 keyword 分组分别提交 reduce。
+    # 兜底桶名：fragment.highlighted 为空时落到 "" 这个 key。
+    derived_chunks_by_keyword: dict[str, list[KnowledgeChunk]] = field(default_factory=dict)
+    derived_results_by_keyword: dict[str, dict[int, dict]] = field(default_factory=dict)
+
     self_done: threading.Event = field(default_factory=threading.Event)
     relation_done: threading.Event = field(default_factory=threading.Event)
     derived_done: threading.Event = field(default_factory=threading.Event)
@@ -394,6 +403,25 @@ class _OrderedSlot:
     pending_derived: int = 0
     completed_derived: int = 0
     derived_lock: threading.Lock = field(default_factory=threading.Lock)
+
+
+@dataclass
+class _StreamGroup:
+    """Final-summary 重构使用：一个独立的"reduce 单元"。
+
+    kind="self"  ：聚合所有原始 chunk 的 self_part；
+    kind="keyword"：跨 slot 聚合同一高亮关键词的所有派生 part；keyword 字段为该关键词字面值。
+
+    headings：该组所有 chunk LLM 输出 relevant_headings 的去重清洗结果（保留首次出现顺序），
+        每段已经过 _clean_heading_path 剥掉 "^[\\w\\.]+_" 编号前缀。
+    parts   ：待 reduce 的原始 part 文本列表（每个 part 由 _render_chunk_part 渲染）。
+    summary ：reduce 至 1 条后的最终摘要正文，由 _reduce_group_to_single 写入。
+    """
+    kind: str
+    keyword: str = ""
+    headings: list[str] = field(default_factory=list)
+    parts: list[str] = field(default_factory=list)
+    summary: str = ""
 
 
 class AgentGraph:
@@ -515,6 +543,9 @@ class AgentGraph:
         self._chunk_relevant_headings: list[str] = []
         self._chunk_reasoning_results: list[dict] = []
         self._chunk_slots: list[_OrderedSlot] = []  # 流式调度产物，trace 阶段引用
+        # v3 final-summary 重构：按 self / keyword 分组的 reduce 产物，trace 阶段渲染
+        # 各组的 summary 长度概览。仅在 enable_relations + summary_batch_size>0 路径填充。
+        self._chunk_groups: list[_StreamGroup] | None = None
         self._reduce_pipeline: ReducePipeline | None = None  # reduce_queue 模式下保留以便 trace 阶段拿轨迹
 
         # ---------- 外部大模型原生回答（pure_model_result 开关） ----------
@@ -1721,15 +1752,22 @@ class AgentGraph:
                 finally:
                     self._join_chunk_side_futures(skill_future, precheck_future)
             else:
+                # v3 final-summary 重构后：
+                #   - relations + summary_batch_size>0：_chunk_streaming_pipeline 返回 groups
+                #     （已按 self / keyword 分组并各自 reduce 至 1 条）；orphan 注入对应组后
+                #     重跑该组 reduce，再走 _chunk_streaming_assemble_final（corpus + double-check）。
+                #   - relations + summary_batch_size==0：保持旧路径（ordered_parts → _chunk_finalize_summary）。
+                #   - 不开 relations：保持旧路径（_chunk_reason_phase 生成 ordered_parts）。
+                groups: list[_StreamGroup] | None = None
+                ordered_parts: list[str] = []
                 try:
                     if self.enable_relations and self.relation_crawler is not None:
-                        batch_outputs, ordered_parts = self._chunk_streaming_pipeline(chunks)
+                        groups, ordered_parts = self._chunk_streaming_pipeline(chunks)
                     else:
                         ordered_parts = self._chunk_reason_phase(chunks)
-                        batch_outputs = None
                 finally:
                     # 必须先等齐 precheck 才能保证 RelationRegistry 稳定、
-                    # _build_chunk_orphan_part 能看到完整的 orphan 集合。
+                    # _build_chunk_orphan_part(_groups) 能看到完整的 orphan 集合。
                     self._join_chunk_side_futures(skill_future, precheck_future)
 
                 if self.enable_skills and self.skill_registry:
@@ -1738,29 +1776,21 @@ class AgentGraph:
                     done_records_snapshot = []
                 summary_skill_context = self._build_skill_context_for_summary(done_records_snapshot)
 
-                # 把 HighlightPrecheck 主动判定命中、但未被任何 chunk slot 收纳的 RelationFragment
-                # 作为额外 part 追加到 summary 递归入口：
-                #   - 若 batch_outputs 非空（走过流式 BATCH_SUMMARY），追加到 batch_outputs 尾部，
-                #     随后与其他 batch 摘要一起进 _recursive_batch_reduce(layer=2)：总数 ≤ batch_size
-                #     时 orphan 原文直进 final merge 的 prompt，否则再过一轮 BATCH_SUMMARY。
-                #   - 若未过流式 BATCH_SUMMARY（summary_batch_size==0 等路径），直接追加到
-                #     ordered_parts，由 _chunk_finalize_summary 决定 final merge 时的处理。
-                orphan_part = self._build_chunk_orphan_part()
-                if orphan_part:
-                    if batch_outputs is not None:
-                        batch_outputs.append(orphan_part)
-                    else:
-                        ordered_parts.append(orphan_part)
-
-                if batch_outputs is not None:
-                    # 流式调度已经把 ordered_parts 凑批跑完 BATCH_SUMMARY，
-                    # 此处只剩"对 batch_outputs 做 final merge"。
-                    # 把 batch_outputs 喂回 _recursive_batch_reduce，逻辑会自动判断
-                    # 是否需要再压一层（>batch_size 时递归，否则直接 final merge）。
-                    answer = self._recursive_batch_reduce(
-                        batch_outputs, layer=2, skill_context=summary_skill_context,
-                    )
+                if groups is not None:
+                    # 新路径：HighlightPrecheck orphan 按 keyword 分桶后注入到对应 group，
+                    # 受影响的 group 重跑 reduce_to_single；最后走 corpus final + double-check。
+                    orphan_by_kw = self._build_chunk_orphan_groups()
+                    if orphan_by_kw:
+                        groups = self._merge_orphan_groups_into_groups(groups, orphan_by_kw)
+                    # 留给 _build_chunk_trace_log 渲染各组 summary 长度概览
+                    self._chunk_groups = groups
+                    answer = self._chunk_streaming_assemble_final(groups)
                 else:
+                    # 旧路径：把 HighlightPrecheck orphan 拼成单 part 追加到 ordered_parts，
+                    # 由 _chunk_finalize_summary 决定 final merge 时的处理。
+                    orphan_part = self._build_chunk_orphan_part()
+                    if orphan_part:
+                        ordered_parts.append(orphan_part)
                     answer = self._chunk_finalize_summary(ordered_parts, summary_skill_context)
         finally:
             if side_pool is not None:
@@ -1792,14 +1822,15 @@ class AgentGraph:
 
     def _chunk_streaming_pipeline(
         self, chunks: list[KnowledgeChunk]
-    ) -> tuple[list[str] | None, list[str]]:
-        """三相并发流式 pipeline。
+    ) -> tuple[list[_StreamGroup] | None, list[str]]:
+        """三相并发流式 pipeline（v3 final-summary 重构后）。
 
-        返回 (batch_outputs, ordered_parts)：
-          - summary_batch_size > 0 时：batch_outputs 为按顺序完成的 batch summaries 列表
-            （已经被分批 LLM 压缩过），ordered_parts 同样填充以便 trace；
-          - summary_batch_size == 0 时：batch_outputs 为 None，ordered_parts 是按顺序
-            的全部 parts（原始 + 派生），由调用方自行做 final merge。
+        返回 (groups, ordered_parts)：
+          - summary_batch_size > 0：groups 非空，按 self / 高亮关键词分组，每组已 reduce 至
+            1 条 summary，调用方据此拼装 corpus final evidence。ordered_parts 仍按 slot
+            顺序填充，仅供 trace 渲染兼容。
+          - summary_batch_size == 0：groups=None，ordered_parts 为按顺序的全部 parts
+            （原始 + 派生），由调用方走 _chunk_finalize_summary 走原 final merge 流程。
         """
         total_chunks = len(chunks)
         slots = [_OrderedSlot(parent_index=c.index, self_chunk=c) for c in chunks]
@@ -1812,9 +1843,6 @@ class AgentGraph:
         )
 
         batch_size = max(0, int(self.summary_batch_size))
-        bs_pool: ThreadPoolExecutor | None = None
-        if batch_size > 0:
-            bs_pool = ThreadPoolExecutor(max_workers=5, thread_name_prefix="bs-stream")
 
         # 原始 chunk LLM 提交
         for chunk, slot in zip(chunks, slots):
@@ -1823,22 +1851,24 @@ class AgentGraph:
             )
 
         ordered_parts: list[str] = []
-        batch_outputs: list[str] = []
+        groups: list[_StreamGroup] | None = None
 
-        if bs_pool is not None:
-            ordered_parts, batch_outputs = self._streaming_orchestrate(
-                slots, batch_size, bs_pool,
+        if batch_size > 0:
+            # 新路径：等齐所有 slot → 按 self / keyword 分组 → 每组独立 reduce 至 1 条。
+            # 注意：HighlightPrecheck orphan 仍由调用方在 precheck join 后注入到对应组，
+            # 所以这里只处理 chunk slot 内已收纳的 self / derived parts。
+            groups, ordered_parts = self._streaming_orchestrate_by_group(
+                slots, total_chunks,
             )
         else:
-            # 无分批：等所有 slot 完成后，按顺序拉 parts
+            # 旧路径：summary_batch_size==0 时不分批，等所有 slot 完成后按顺序拉 parts，
+            # 由调用方走 _chunk_finalize_summary → _batch_final_merge（corpus final 同款）。
             for slot in slots:
                 slot.derived_done.wait()
             for slot in slots:
                 ordered_parts.extend(self._render_slot_parts(slot, total_chunks))
 
         chunk_pool.shutdown(wait=True)
-        if bs_pool is not None:
-            bs_pool.shutdown(wait=True)
 
         # 汇总 _chunk_relevant_headings / _chunk_reasoning_results 与 trace_log 兼容
         self._chunk_reasoning_results = [
@@ -1856,9 +1886,7 @@ class AgentGraph:
                 hs = d_res.get("relevant_headings", []) or []
                 self._chunk_relevant_headings.extend(hs)
 
-        if bs_pool is not None:
-            return batch_outputs, ordered_parts
-        return None, ordered_parts
+        return groups, ordered_parts
 
     def _streaming_run_self(
         self,
@@ -1908,7 +1936,14 @@ class AgentGraph:
         parent_assessment: str,
         chunk_pool: ThreadPoolExecutor,
     ) -> None:
-        """worker：对 chunk 内每个命中目录跑 RelationCrawler.crawl，合并 fragments。"""
+        """worker：对 chunk 内每个命中目录跑 RelationCrawler.crawl，合并 fragments。
+
+        v3 final-summary 重构后，本方法在切派生 chunk 前先按 `frag.highlighted` 分桶：
+        同一关键词的所有 fragments 一起切 derived_chunks，跨关键词不会被合并到同一个
+        derived chunk。这样下游 _streaming_orchestrate_by_group 才能按"关键词"独立 reduce
+        到 1 条 summary，避免不同关键词的 heading 被同一份摘要稀释掉。
+        derived_seq 在所有桶之间共用一个递增计数器，保证 slot.derived_results 字典 key 唯一。
+        """
         all_fragments: list[RelationFragment] = []
         try:
             for target_dir in targets:
@@ -1929,29 +1964,52 @@ class AgentGraph:
             slot.derived_done.set()
             return
 
-        derived_chunks = split_relations_into_chunks(
-            fragments=all_fragments,
-            chunk_size=self.chunk_size,
-            parent_chunk=chunk,
-            start_derived_seq=1,
-            knowledge_root=self.knowledge_root,
-        )
-        slot.derived_chunks = derived_chunks
+        # 按 highlighted 分桶（保留首次出现顺序）；空 highlighted 落到 "" 兜底桶。
+        buckets: dict[str, list[RelationFragment]] = {}
+        keyword_order: list[str] = []
+        for frag in all_fragments:
+            kw = (frag.highlighted or "").strip()
+            if kw not in buckets:
+                buckets[kw] = []
+                keyword_order.append(kw)
+            buckets[kw].append(frag)
 
-        if not derived_chunks:
+        derived_chunks_all: list[KnowledgeChunk] = []
+        seq_to_keyword: dict[int, str] = {}
+        next_seq = 1
+        for kw in keyword_order:
+            bucket_chunks = split_relations_into_chunks(
+                fragments=buckets[kw],
+                chunk_size=self.chunk_size,
+                parent_chunk=chunk,
+                start_derived_seq=next_seq,
+                knowledge_root=self.knowledge_root,
+            )
+            if not bucket_chunks:
+                continue
+            slot.derived_chunks_by_keyword[kw] = bucket_chunks
+            slot.derived_results_by_keyword.setdefault(kw, {})
+            for d_chunk in bucket_chunks:
+                seq_to_keyword[d_chunk.derived_seq] = kw
+                derived_chunks_all.append(d_chunk)
+            next_seq += len(bucket_chunks)
+
+        slot.derived_chunks = derived_chunks_all
+
+        if not derived_chunks_all:
             slot.relation_done.set()
             slot.derived_done.set()
             return
 
         with slot.derived_lock:
-            slot.pending_derived = len(derived_chunks)
+            slot.pending_derived = len(derived_chunks_all)
             slot.completed_derived = 0
         slot.relation_done.set()
 
-        # 派生 chunk 提交到 chunk_pool 跑同款 LLM
-        for d_chunk in derived_chunks:
+        for d_chunk in derived_chunks_all:
+            kw = seq_to_keyword[d_chunk.derived_seq]
             chunk_pool.submit(
-                self._streaming_run_derived, chunk, slot, d_chunk,
+                self._streaming_run_derived, chunk, slot, d_chunk, kw,
             )
 
     def _streaming_run_derived(
@@ -1959,8 +2017,14 @@ class AgentGraph:
         parent_chunk: KnowledgeChunk,
         slot: _OrderedSlot,
         d_chunk: KnowledgeChunk,
+        keyword: str = "",
     ) -> None:
-        """worker：派生 chunk LLM 推理。"""
+        """worker：派生 chunk LLM 推理。
+
+        keyword：本派生 chunk 所属高亮关键词（来自 _streaming_run_relations 的分桶）。
+        result 同时写入 slot.derived_results 与 slot.derived_results_by_keyword[keyword]，
+        保证 trace 渲染（按 derived_seq）和 group reduce（按 keyword）都能拿到完整数据。
+        """
         try:
             # total_chunks 用 parent_index 配合 derived_seq 渲染（不影响 LLM 行为，仅日志）
             result = self._reason_on_chunk(d_chunk, total_chunks=0)
@@ -1975,6 +2039,7 @@ class AgentGraph:
                 "pitfalls": [],
             }
         slot.derived_results[d_chunk.derived_seq] = result
+        slot.derived_results_by_keyword.setdefault(keyword, {})[d_chunk.derived_seq] = result
         with slot.derived_lock:
             slot.completed_derived += 1
             done = slot.completed_derived >= slot.pending_derived
@@ -2035,6 +2100,489 @@ class AgentGraph:
             f"原始+派生 parts 总计 {len(ordered_parts)} 条"
         )
         return ordered_parts, batch_outputs
+
+    # ------------------- 流式按组 reduce（v3 final-summary 重构） -------------------
+
+    # 章节编号前缀：仅 ASCII 字母数字加点（如 '2_' / '2.1_' / '2.1.3_' / 'A.1_'），
+    # 显式排除中文/Unicode 字母——避免 '\w' 在 Python re 下匹配 CJK 误把 '涉税处理_税率'
+    # 这种无编号但中间含下划线的标题首段砍掉。
+    _HEADING_NUMERIC_PREFIX_RE = re.compile(r"^[A-Za-z0-9\.]+_")
+
+    @staticmethod
+    def _clean_heading_path(raw: str) -> str:
+        """清洗一个章节路径字符串：
+
+        - 按 ' > ' 切段；
+        - 每段去掉外层【】、首尾空白后，剥掉形如 '2_' / '2.1_' / '2.1.3_' / 'A.1_' 的
+          ASCII 编号前缀，保留剩余的业务文字；
+        - 重新用 ' > ' 拼接；空段忽略。
+
+        例：'2_涉税处理 > 2.1_增值税 > 2.1.3_视同销售' → '涉税处理 > 增值税 > 视同销售'
+        """
+        if not raw:
+            return ""
+        cleaned: list[str] = []
+        for seg in str(raw).split(">"):
+            seg = seg.strip().strip("【】").strip()
+            if not seg:
+                continue
+            seg = AgentGraph._HEADING_NUMERIC_PREFIX_RE.sub("", seg).strip()
+            if seg:
+                cleaned.append(seg)
+        return " > ".join(cleaned)
+
+    def _streaming_orchestrate_by_group(
+        self,
+        slots: list[_OrderedSlot],
+        total_chunks: int,
+    ) -> tuple[list[_StreamGroup], list[str]]:
+        """v3 final-summary 重构：等所有 slot derived_done，把 self / 关键词 各组的 parts
+        聚齐，每组独立递归 reduce 至 1 条 summary，组之间并发执行。
+
+        语境：默认参数下 enable_relations=True、summary_batch_size=3，进入本方法。
+
+        分组规则：
+          - self 组：所有 slot.self_part；headings 取自每个 slot.self_result.relevant_headings。
+          - keyword 组：跨所有 slot 把同一 frag.highlighted 桶内的派生 part 聚到一起；
+            headings 取自这些派生 chunk LLM 的 relevant_headings。
+          - 兜底桶（fragment.highlighted=""）：派生 part 与 headings 直接合并到 self 组，
+            避免出现"空关键词"的关键词组。
+
+        返回 (groups, ordered_parts)：
+          - groups：第 0 项固定是 self 组（即使 self_parts 为空也保留占位，调用方在拼装
+            evidence 时会因 summary 为空而跳过）；其后是按 keyword 首次出现顺序排列的若干 keyword 组。
+          - ordered_parts：按 slot 顺序的全部 parts（self + derived），仅供 trace 渲染兼容，
+            不参与 final summary 输入。
+        """
+        ordered_parts: list[str] = []
+        for slot in slots:
+            slot.derived_done.wait()
+            ordered_parts.extend(self._render_slot_parts(slot, total_chunks))
+
+        # ---- 1) 收集 self 组与兜底桶 ----
+        self_parts: list[str] = []
+        self_headings: list[str] = []
+        seen_self_headings: set[str] = set()
+
+        def _add_headings(target_list: list[str], target_seen: set[str], raw_headings):
+            for h in raw_headings or []:
+                cleaned = self._clean_heading_path(h)
+                if cleaned and cleaned not in target_seen:
+                    target_seen.add(cleaned)
+                    target_list.append(cleaned)
+
+        for slot in slots:
+            if slot.self_chunk is None or slot.self_result is None:
+                continue
+            self_parts.append(self._render_chunk_part(
+                chunk_label=f"{slot.parent_index}/{total_chunks}",
+                result=slot.self_result,
+            ))
+            _add_headings(self_headings, seen_self_headings,
+                          slot.self_result.get("relevant_headings"))
+
+        # ---- 2) 跨 slot 聚合 keyword 组 ----
+        keyword_to_parts: dict[str, list[str]] = {}
+        keyword_to_headings: dict[str, list[str]] = {}
+        keyword_seen_headings: dict[str, set[str]] = {}
+        keyword_order: list[str] = []
+
+        for slot in slots:
+            for kw, d_chunks in slot.derived_chunks_by_keyword.items():
+                d_results = slot.derived_results_by_keyword.get(kw, {})
+                for d_chunk in d_chunks:
+                    d_res = d_results.get(d_chunk.derived_seq, {}) or {
+                        "relevant_headings": [], "analysis": "", "pitfalls": [],
+                    }
+                    rendered = self._render_chunk_part(
+                        chunk_label=f"{slot.parent_index}.{d_chunk.derived_seq} (关联派生)",
+                        result=d_res,
+                    )
+                    raw_hs = d_res.get("relevant_headings") or []
+                    if kw == "":
+                        # 兜底桶并入 self 组
+                        self_parts.append(rendered)
+                        _add_headings(self_headings, seen_self_headings, raw_hs)
+                    else:
+                        if kw not in keyword_to_parts:
+                            keyword_to_parts[kw] = []
+                            keyword_to_headings[kw] = []
+                            keyword_seen_headings[kw] = set()
+                            keyword_order.append(kw)
+                        keyword_to_parts[kw].append(rendered)
+                        _add_headings(
+                            keyword_to_headings[kw],
+                            keyword_seen_headings[kw],
+                            raw_hs,
+                        )
+
+        # ---- 3) 组装 groups 并并发 reduce 至 1 条 ----
+        groups: list[_StreamGroup] = [
+            _StreamGroup(
+                kind="self",
+                keyword="",
+                headings=self_headings,
+                parts=self_parts,
+            )
+        ]
+        for kw in keyword_order:
+            groups.append(_StreamGroup(
+                kind="keyword",
+                keyword=kw,
+                headings=keyword_to_headings[kw],
+                parts=keyword_to_parts[kw],
+            ))
+
+        logger.info(
+            f"[StreamingByGroup] 构组完成：self_parts={len(self_parts)}，"
+            f"keyword_groups={len(keyword_order)} ({keyword_order})"
+        )
+
+        # 跨组并发：每组用各自的 ThreadPoolExecutor 跑递归 reduce（_reduce_group_to_single
+        # 内部按 batch_size 并发）。组间用一个轻量 pool 并发执行各组的 reduce 入口。
+        if len(groups) <= 1:
+            for g in groups:
+                g.summary = self._reduce_group_to_single(
+                    g.parts, group_label=self._group_label(g),
+                )
+            return groups, ordered_parts
+
+        with ThreadPoolExecutor(
+            max_workers=min(len(groups), 8),
+            thread_name_prefix="reduce-grp",
+        ) as group_pool:
+            future_map: dict = {}
+            for g in groups:
+                if not g.parts:
+                    g.summary = ""
+                    continue
+                fut = group_pool.submit(
+                    self._reduce_group_to_single,
+                    g.parts, self._group_label(g),
+                )
+                future_map[fut] = g
+            for fut in as_completed(future_map):
+                g = future_map[fut]
+                try:
+                    g.summary = fut.result()
+                except Exception as e:
+                    logger.error(
+                        f"[StreamingByGroup] {self._group_label(g)} reduce 异常: {e}"
+                    )
+                    g.summary = f"（{self._group_label(g)} reduce 异常: {e}）"
+
+        return groups, ordered_parts
+
+    @staticmethod
+    def _group_label(group: _StreamGroup) -> str:
+        """给 group 起一个稳定、便于日志/step_scope 区分的短标签。"""
+        if group.kind == "self":
+            return "self"
+        kw = (group.keyword or "").replace("/", "_").replace("\\", "_").strip()
+        return f"kw·{kw}" if kw else "kw·"
+
+    def _reduce_group_to_single(
+        self, parts: list[str], group_label: str,
+        force_compress: bool = False,
+    ) -> str:
+        """单个 group 内部递归压缩到 1 条 summary。
+
+        - parts 为空：返回空串；
+        - parts 仅 1 条且 force_compress=False：直接返回原文（chunk LLM 的 analysis 已经
+          是有损压缩后的形态，再喂一次 BATCH_SUMMARY 是浪费）；
+        - parts 仅 1 条且 force_compress=True：仍走一次 BATCH_SUMMARY 做格式归一化（用于
+          orphan 新建组——所有 part 都是 RelationFragment 渲染原文，未经过任何 LLM 加工，
+          带 `【来自父章节 · …】/【命中关键词 · …】/【关联条款位置 · …】` 等元数据，
+          直接透传到 final corpus prompt 会破坏 final summary 训练样本风格）；
+        - parts > 1：按 self.summary_batch_size 切批并发 BATCH_SUMMARY，产物作为下一层
+          parts 继续递归，直到只剩 1 条。
+
+        每层批调用走 _streaming_submit_group_batch（同 BATCH_SUMMARY_PROMPT，但 step_scope
+        label 带 group_label 与层号，便于 verbose trace 区分）。
+        """
+        if not parts:
+            return ""
+        if len(parts) == 1 and not force_compress:
+            return parts[0]
+
+        batch_size = max(1, int(self.summary_batch_size or 1))
+        layer = 1
+        current = list(parts)
+        # force_compress=True 且 len==1 时，while len>1 循环不会执行，需要在第一层强制
+        # 跑一次 BATCH_SUMMARY；后续若产物仍 >1 才继续走原递归路径。
+        ran_once = False
+        while len(current) > 1 or (force_compress and not ran_once):
+            batches = [
+                current[i:i + batch_size]
+                for i in range(0, len(current), batch_size)
+            ]
+            next_layer: list[str] = [""] * len(batches)
+            with ThreadPoolExecutor(
+                max_workers=min(len(batches), 5),
+                thread_name_prefix=f"reduce-{group_label}-L{layer}",
+            ) as pool:
+                future_map = {
+                    pool.submit(
+                        self._streaming_submit_group_batch,
+                        group_label, layer, idx + 1, batch,
+                    ): idx
+                    for idx, batch in enumerate(batches)
+                }
+                for fut in as_completed(future_map):
+                    idx = future_map[fut]
+                    try:
+                        next_layer[idx] = fut.result()
+                    except Exception as e:
+                        logger.error(
+                            f"[ReduceGroup·{group_label}] L{layer} batch {idx + 1} 异常: {e}"
+                        )
+                        next_layer[idx] = (
+                            f"（{group_label} L{layer} batch {idx + 1} 异常: {e}）"
+                        )
+            logger.info(
+                f"[ReduceGroup·{group_label}] L{layer}：{len(current)} 条 → {len(next_layer)} 条"
+            )
+            current = next_layer
+            layer += 1
+            ran_once = True
+        return current[0]
+
+    def _streaming_submit_group_batch(
+        self,
+        group_label: str,
+        layer: int,
+        batch_index: int,
+        parts: list[str],
+    ) -> str:
+        """带 group_label / layer 标签的 BATCH_SUMMARY 调用。
+
+        与 _streaming_submit_batch 行为一致（同 BATCH_SUMMARY_PROMPT、同 system 拼装），
+        差异仅在 step_scope 标签上加入 group_label / layer，便于 verbose trace 把不同
+        组、不同层的中间压缩区分开。
+        """
+        batch_content = "\n\n".join(parts)
+        prompt = BATCH_SUMMARY_PROMPT.format(
+            batch_index=batch_index,
+            total_batches="?",
+            question=self.question,
+            batch_content=batch_content,
+        )
+        prompt = self._inject_pure_model_reference(prompt)
+        system_prompt = self._augment_system_for_extract(
+            BATCH_REDUCE_SYSTEM_PROMPT, BATCH_SUMMARY_SYSTEM_PROMPT
+        )
+        logger.info(
+            f"[ReduceGroup·{group_label}] L{layer} 第 {batch_index} 批 "
+            f"prompt 长度: {len(prompt)} 字符 ({len(parts)} 个 parts)"
+        )
+        try:
+            with step_scope(
+                f"reduce_group·{group_label}·L{layer}·b{batch_index}",
+                prompt_vars={
+                    "user": "BATCH_SUMMARY_PROMPT",
+                    "system": self._extract_system_prompt_vars(
+                        "BATCH_SUMMARY_SYSTEM_PROMPT"
+                    ),
+                },
+            ):
+                return chat(
+                    prompt, vendor=self.vendor, model=self.model,
+                    system=system_prompt,
+                )
+        except Exception as e:
+            logger.error(
+                f"[ReduceGroup·{group_label}] L{layer} 第 {batch_index} 批失败: {e}"
+            )
+            return (
+                f"（{group_label} L{layer} 第 {batch_index} 批压缩失败）\n"
+                f"原始内容:\n{batch_content}"
+            )
+
+    def _format_groups_for_corpus_evidence(
+        self, groups: list[_StreamGroup],
+    ) -> str:
+        """把 reduce 完毕的 groups 拼装为 final corpus prompt 的 evidence 段。
+
+        布局规则（与 plan §4 / 目标 evidence 段一致）：
+          - self 组：直接输出 `{summary}`；外层 `## 【参考知识】：` 由 CORPUS_USER_PROMPT
+            模板提供，不再在组内重复打 `【参考知识】` 内层标签；不列 headings bullet；
+            summary 为空时整组省略不渲染。
+          - keyword 组：`【关键词】{keyword}\\n【关键词相关知识】\\n- ...\\n\\n{summary}`；
+            headings 列表为空时省略 `【关键词相关知识】` 子段；keyword 为空（兜底桶遗漏，
+            理论上不该出现因为已并入 self 组）按 self 组同样不打内层标签处理。
+          - 区与区之间用 `\\n\\n---\\n\\n` 分隔。
+        """
+        blocks: list[str] = []
+        for g in groups:
+            summary = (g.summary or "").strip()
+            if not summary:
+                continue
+            kw = (g.keyword or "").strip()
+            if g.kind == "self" or not kw:
+                block = summary
+            else:
+                lines = [f"【关键词】{kw}"]
+                if g.headings:
+                    lines.append("【关键词相关知识】")
+                    for h in g.headings:
+                        lines.append(f"- {h}")
+                block = "\n".join(lines) + f"\n\n{summary}"
+            blocks.append(block)
+        return "\n\n---\n\n".join(blocks)
+
+    def _build_chunk_orphan_groups(self) -> dict[str, list[str]]:
+        """按 fragment.highlighted 把 HighlightPrecheck 兜底命中、未被任何 chunk slot 收纳的
+        RelationFragment 分桶为 part 字符串列表。
+
+        - 空 highlighted 落到 "" 桶，对应回落到 self 组；
+        - 与 _build_chunk_orphan_part 的差异：原方法把所有 orphan 拼成单个字符串 part，
+          会在 layer=2 reduce 时与不同关键词的 part 混合压缩；新方法按关键词分桶后，
+          调用方可把每个桶的 part 追加到对应 _StreamGroup.parts，再走 reduce。
+
+        返回：{keyword: [rendered_part_text, ...]}；如无 orphan 则返回空 dict。
+        """
+        if not self.enable_relations or self.relation_registry is None:
+            return {}
+        all_frags = self.relation_registry.get_all()
+        if not all_frags:
+            return {}
+
+        rendered_keys: set[tuple[str, str]] = set()
+        slots = getattr(self, "_chunk_slots", None) or []
+        for slot in slots:
+            for f in slot.relation_fragments:
+                rendered_keys.add((f.policy_id, f.clause_id))
+
+        orphan_frags = [
+            f for f in all_frags
+            if (f.policy_id, f.clause_id) not in rendered_keys
+        ]
+        if not orphan_frags:
+            return {}
+
+        from reasoner.v3.chunk_builder import _format_relation_fragment_text
+        out: dict[str, list[str]] = {}
+        for f in orphan_frags:
+            kw = (f.highlighted or "").strip()
+            text = _format_relation_fragment_text(
+                f, knowledge_root=self.knowledge_root,
+            )
+            out.setdefault(kw, []).append(text)
+
+        logger.info(
+            f"[HighlightPrecheck] chunk 模式补回 {len(orphan_frags)} 个未被任何 chunk slot "
+            f"收纳的 RelationFragment（按关键词分组：keys={list(out.keys())}）；"
+            f"将注入到对应 _StreamGroup.parts 后参与各自 reduce"
+        )
+        return out
+
+    def _merge_orphan_groups_into_groups(
+        self, groups: list[_StreamGroup], orphan_by_kw: dict[str, list[str]],
+    ) -> list[_StreamGroup]:
+        """把 _build_chunk_orphan_groups 的产物注入到现有 groups。
+
+        策略：
+          - "" 兜底桶 → 追加到 self 组（groups[0]）的 parts；
+          - 已存在的 keyword 组 → 追加到该组 parts；
+          - 新 keyword（chunk slot 内未出现） → 新建 _StreamGroup 追加到 groups 尾部。
+
+        注入完后，该 group 的 parts 重新需要 reduce 至 1 条；调用方负责重跑
+        _reduce_group_to_single（仅对发生注入的组）。
+        """
+        if not orphan_by_kw:
+            return groups
+        kw_to_group: dict[str, _StreamGroup] = {}
+        for g in groups:
+            if g.kind == "keyword":
+                kw_to_group[g.keyword] = g
+
+        # 同步记录每组在本轮注入"前"是否已有 chunk-LLM 摘要：
+        #   - True  → 该组之前已被 chunk-LLM 处理过、parts/summary 已是 LLM 加工后的形态，
+        #             即便加上 orphan 后只有 1 part 也无需强制再压；
+        #   - False → 该组此次纯靠 orphan 起步（新建 keyword 组 / 之前 summary 为空的桶），
+        #             所有 part 都是 RelationFragment 裸渲染文本，需要 force_compress=True
+        #             至少跑一次 BATCH_SUMMARY 把元数据头规整成 final summary 风格。
+        injected_groups: list[tuple[_StreamGroup, bool]] = []
+        for kw, parts in orphan_by_kw.items():
+            if not parts:
+                continue
+            if kw == "":
+                had_prior = bool((groups[0].summary or "").strip())
+                groups[0].parts.extend(parts)
+                injected_groups.append((groups[0], had_prior))
+            elif kw in kw_to_group:
+                g_existing = kw_to_group[kw]
+                had_prior = bool((g_existing.summary or "").strip())
+                g_existing.parts.extend(parts)
+                injected_groups.append((g_existing, had_prior))
+            else:
+                new_g = _StreamGroup(
+                    kind="keyword",
+                    keyword=kw,
+                    headings=[],  # orphan 无 chunk LLM 输出的 relevant_headings
+                    parts=list(parts),
+                )
+                groups.append(new_g)
+                kw_to_group[kw] = new_g
+                injected_groups.append((new_g, False))
+
+        # 对所有发生过注入（包括新建）的组，重跑 reduce_to_single（保留之前已 reduce 的
+        # 单条 summary 与 orphan parts 一起再压一次）。
+        for g, had_prior in injected_groups:
+            # 把已有 summary 也作为一条 part 喂回去（否则之前压缩出的内容会被丢失）；
+            # summary 为空（首次注入到空 group）则不补。
+            new_parts = list(g.parts)
+            if g.summary:
+                new_parts = [g.summary, *new_parts]
+            # had_prior=False 表示 parts 全是 RelationFragment 裸渲染文本，哪怕只 1 条也
+            # 必须走一次 BATCH_SUMMARY 把元数据头规整成 final summary 风格；
+            # had_prior=True 走原"len==1 直接透传"快路径。
+            g.summary = self._reduce_group_to_single(
+                new_parts, group_label=self._group_label(g),
+                force_compress=not had_prior,
+            )
+            g.parts = new_parts  # 保留供 trace 使用
+
+        return groups
+
+    def _chunk_streaming_assemble_final(
+        self, groups: list[_StreamGroup],
+    ) -> str:
+        """v3 final-summary 重构后的最终汇总：把 groups 拼成 corpus evidence → 单次 chat
+        → think/answer JSON 字符串，并保留 double-check 编排。
+
+        说明：v3 corpus path 设计上不向 user prompt 注入 skill_context（参考
+        _batch_final_merge / _retrieval_final_summary 实现），skill 结果通过
+        _finalize_with_double_check 内部的 phase-0 注入与 _all_in_answer 二次合并机制
+        体现，本方法保持一致。
+        """
+        evidence = self._format_groups_for_corpus_evidence(groups)
+        system_prompt, prompt = self._build_corpus_final_prompt(evidence)
+
+        logger.info(
+            f"[ChunkStreamingFinal·Corpus] groups={len(groups)} "
+            f"(self_parts={len(groups[0].parts) if groups else 0}, "
+            f"keyword_groups={sum(1 for g in groups if g.kind == 'keyword')}) "
+            f"evidence_chars={len(evidence)} prompt_chars={len(prompt)}"
+        )
+        logger.info(f"[ChunkStreamingFinal·Corpus] prompt 内容:\n{prompt}")
+
+        def _do_merge() -> str:
+            try:
+                return self._corpus_chat_to_think_answer_json(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    step_label="chunk_streaming_final",
+                )
+            except Exception as e:
+                logger.error(f"[ChunkStreamingFinal] 调用失败: {e}")
+                return f"chunk streaming final 调用失败：\n{evidence}"
+
+        return self._finalize_with_double_check(
+            final_summary_callable=_do_merge,
+            judge_evidence=evidence,
+            stage_label="ChunkStreamingFinal·Corpus",
+        )
 
     # ------------------- reduce_queue 模式（chunk + relations 通用） -------------------
 
@@ -2643,6 +3191,23 @@ class AgentGraph:
             lines.append("")
             lines.append(self._reduce_pipeline.render_trace_section())
 
+        # v3 final-summary 重构：layered + relations 路径下的「按组 reduce 产物」概览
+        groups = getattr(self, "_chunk_groups", None) or []
+        if groups:
+            lines.append("")
+            lines.append("=== Final-summary 各组 reduce 概览 ===")
+            for g in groups:
+                if g.kind == "self":
+                    label = "self 组"
+                else:
+                    label = f"关键词组「{g.keyword}」"
+                lines.append(
+                    f"- {label}：parts={len(g.parts)}, "
+                    f"headings={len(g.headings)}, summary 长度={len(g.summary or '')} 字符"
+                )
+                if g.headings:
+                    lines.append(f"    引用最细粒度章节: {' | '.join(g.headings)}")
+
         return "\n".join(lines)
 
     def _standard_pipeline(self, skill_context: str = "") -> str:
@@ -2737,12 +3302,13 @@ class AgentGraph:
             lines.append(f"【来自父章节 · {parent_label}】")
         for r in rels:
             target_label = build_target_location_label(r)
+            highlighted_label = build_highlighted_label(r)
             lines.append("")
-            if r.highlighted:
-                lines.append(f"【命中关键词 · {r.highlighted}】")
+            if highlighted_label:
+                lines.append(f"【命中关键词 · {highlighted_label}】")
             lines.append(f"【关联条款位置 · {target_label}】")
-            if r.highlighted:
-                lines.append(f"**{r.highlighted}的关联知识细节如下：**")
+            if highlighted_label:
+                lines.append(f"**{highlighted_label} 的关联知识细节如下：**")
             else:
                 lines.append("**关联知识细节如下：**")
             lines.append(r.content or "（关联条款内容为空）")

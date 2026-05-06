@@ -9,7 +9,7 @@
 
 import os
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 class ExploredRegistry:
@@ -115,7 +115,7 @@ class RelationFragment:
     clause_full_name: str          # searchLabels[0] 或拼接的可读名
     heading_path: list[str]        # 完整层级路径，本地解析时按目录拼出，远程时退化为 [full_name]
     content: str                   # markdownified clauseContent
-    highlighted: str               # 上一跳引用本节点时的 highlightedContent
+    highlighted: str               # 上一跳引用本节点时的 highlightedContent（"主关键词"，最先入队那条）
     parent_assessment: str         # 上一层 LLM 判定的 reason 摘要（用于 trace + 下一跳上下文）
     hop_depth: int                 # 1=直接关联, 2=二跳, ...
     source: str                    # "local" | "remote" | "missing"
@@ -123,6 +123,10 @@ class RelationFragment:
     parent_dir: str                # 触发本次展开的原始 dir 绝对路径
     target_dir: str = ""           # 本条款在本地知识库中的 dir 绝对路径（远程兜底时为空）
     target_knowledge_root: str = ""  # 本条款所属 policy 的 knowledge_root 绝对路径（page_knowledge_dir 下一层）
+    # 同一目标条款被多个不同 highlightedContent 引用时（典型场景：同一父 clause 的两个高亮指向同一附件），
+    # 后到者按 (policy_id, clause_id) 去重，但其关键词文本会合并到这里，避免在标题里丢失"是哪些词把它牵出来的"。
+    # 与 highlighted 一样保持去重 + 顺序；不与 highlighted 字面重复。
+    highlighted_aliases: list[str] = field(default_factory=list)
 
 
 class RelationRegistry:
@@ -138,6 +142,8 @@ class RelationRegistry:
         self._lock = threading.Lock()
         self._fragments: list[RelationFragment] = []
         self._seen_keys: set[tuple[str, str]] = set()
+        # O(1) 反查：(policy_id, clause_id) → fragment，供 merge_aliases 等接口避免 O(N) 扫描
+        self._by_key: dict[tuple[str, str], RelationFragment] = {}
         self._by_chunk: dict[int, list[RelationFragment]] = {}
         self._by_dir: dict[str, list[RelationFragment]] = {}
 
@@ -148,12 +154,54 @@ class RelationRegistry:
                 return False
             self._seen_keys.add(key)
             self._fragments.append(fragment)
+            self._by_key[key] = fragment
             self._by_chunk.setdefault(fragment.parent_chunk_index, []).append(fragment)
             if fragment.parent_dir:
                 self._by_dir.setdefault(
                     os.path.normpath(fragment.parent_dir), []
                 ).append(fragment)
             return True
+
+    def merge_aliases(
+        self, policy_id: str, clause_id: str, keywords: list[str],
+    ) -> bool:
+        """把额外的高亮关键词合并到已注册 fragment 的 highlighted_aliases。
+
+        当不同 highlightedContent 指向同一目标条款时（典型场景：同一父 clause 的两条 reference
+        解析到同一附件条款），RelationCrawler 按 (policy_id, clause_id) 全局去重只保留首个 fragment；
+        本接口允许把后到者的关键词合并上来，避免渲染时只看到"主关键词"那一个。
+
+        - 去重逻辑：只追加非空、与 fragment.highlighted / 已有 aliases 都不重复的关键词；
+        - 线程安全：拷贝 keywords + 持锁修改 list；
+        - 不存在的 key 直接返回 False（调用方一般用 has(...) 先确认过）。
+
+        返回是否真正写入了至少一个新关键词。
+        """
+        if not keywords:
+            return False
+        cleaned: list[str] = []
+        seen_local: set[str] = set()
+        for kw in keywords:
+            kw = (kw or "").strip()
+            if not kw or kw in seen_local:
+                continue
+            seen_local.add(kw)
+            cleaned.append(kw)
+        if not cleaned:
+            return False
+        with self._lock:
+            frag = self._by_key.get((policy_id, clause_id))
+            if frag is None:
+                return False
+            existing = {frag.highlighted, *frag.highlighted_aliases}
+            changed = False
+            for kw in cleaned:
+                if kw in existing:
+                    continue
+                frag.highlighted_aliases.append(kw)
+                existing.add(kw)
+                changed = True
+            return changed
 
     def get_by_chunk(self, chunk_index: int) -> list[RelationFragment]:
         with self._lock:

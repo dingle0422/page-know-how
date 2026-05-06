@@ -184,7 +184,7 @@ class ReasonRequest(BaseModel):
         description="知识分块模式的字符数上限，0 表示不启用（web 默认 3000 启用 chunk 模式）",
     )
     version: str = Field(
-        default="v2",
+        default="v3",
         description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt, "
                     "v3=v2 基础上把最终汇总节点 system prompt 切换为 _CORPUS_SYSTEM_PROMPT 训练样本风格；"
                     "默认 v2）",
@@ -297,7 +297,7 @@ class ReasonRequest(BaseModel):
                     "submit / reason 两个入口均生效；仅在 version=v1/v2 下生效。",
     )
     answerRefine: bool = Field(
-        default=True,
+        default=False,
         description="启用答案精简：在整体推理流程最末一步对最终 answer 做"
                     "「结论先行 + 核心证据/因果逻辑/注意事项」结构化精简，"
                     "保留核心因果链与硬性限制条件、不引入新事实、不改变判断结论。"
@@ -1005,7 +1005,7 @@ async def _reason_executor(request_payload: dict) -> dict:
             summary_pipeline_mode=request_payload.get("summaryPipelineMode", "layered"),
             reduce_max_part_depth=request_payload.get("reduceMaxPartDepth", 4),
             pure_model_result=request_payload.get("pureModelResult", False),
-            answer_refine=request_payload.get("answerRefine", True),
+            answer_refine=request_payload.get("answerRefine", False),
         )
 
         if req_verbose:

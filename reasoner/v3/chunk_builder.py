@@ -18,6 +18,7 @@ __all__ = [
     "split_relations_into_chunks",
     "build_parent_location_label",
     "build_target_location_label",
+    "build_highlighted_label",
     "natural_dir_sort_key",
 ]
 
@@ -25,6 +26,37 @@ __all__ = [
 def build_target_location_label(fragment: "RelationFragment") -> str:
     """公开入口：构造 RelationFragment 的本体业务定位（见 _build_target_location_label）。"""
     return _build_target_location_label(fragment)
+
+
+def build_highlighted_label(fragment: "RelationFragment") -> str:
+    """把 fragment.highlighted 与 highlighted_aliases 合并为单行展示文本。
+
+    场景：同一目标条款被多个不同 highlightedContent 引用时，crawler 按 (policy_id, clause_id)
+    去重保留首个 fragment，其余高亮文本沉淀到 highlighted_aliases。渲染【命中关键词】行时
+    应一并展示，避免 LLM 看到的标题信息丢失"是哪些关键词把这条关联牵出来的"。
+
+    输出格式（用 ` | ` 分隔，保持顺序：主关键词在前，aliases 按入队顺序追加）：
+        - 仅主关键词：           "蔬菜"
+        - 主+1 个别名：          "蔬菜 | 《蔬菜主要品种目录》"
+        - 仅 aliases、主为空：   "《蔬菜主要品种目录》"
+        - 全空：                 ""
+
+    去重不区分大小写之外的差异，仅去掉空白与重复字面量；不改 fragment 本身。
+    """
+    main = (fragment.highlighted or "").strip()
+    aliases_raw = getattr(fragment, "highlighted_aliases", None) or []
+    seen: set[str] = set()
+    parts: list[str] = []
+    if main:
+        parts.append(main)
+        seen.add(main)
+    for a in aliases_raw:
+        a = (a or "").strip()
+        if not a or a in seen:
+            continue
+        parts.append(a)
+        seen.add(a)
+    return " | ".join(parts)
 
 _KNOWLEDGE_NAME_CACHE: dict[str, str] = {}
 
@@ -342,21 +374,22 @@ def _format_relation_fragment_text(
     技术标识（UUID、数字跳深），对 LLM 的业务推理没有任何帮助，反而挤占 token 与干扰注意力。
     """
     target_label = _build_target_location_label(fragment)
+    highlighted_label = build_highlighted_label(fragment)
 
     heading_lines: list[str] = []
     parent_label = build_parent_location_label(knowledge_root, fragment.parent_dir)
     if parent_label:
         heading_lines.append(f"【来自父章节 · {parent_label}】")
-    if fragment.highlighted:
-        heading_lines.append(f"【命中关键词 · {fragment.highlighted}】")
+    if highlighted_label:
+        heading_lines.append(f"【命中关键词 · {highlighted_label}】")
     heading_lines.append(f"【关联条款位置 · {target_label}】")
 
     meta_lines: list[str] = []
     if fragment.parent_assessment:
         meta_lines.append(f"> 上层关联性判定: {_one_line(fragment.parent_assessment, 200)}")
 
-    if fragment.highlighted:
-        intro = f"**{fragment.highlighted}的关联知识细节如下：**"
+    if highlighted_label:
+        intro = f"**{highlighted_label} 的关联知识细节如下：**"
     else:
         intro = "**关联知识细节如下：**"
 
