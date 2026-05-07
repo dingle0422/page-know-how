@@ -1,0 +1,24 @@
+{
+  "clauseId": "40442e3a7a0c4fc599ba19c35c6df260",
+  "clauseName": "2.3.6 附加税费_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.3.6 附加税费",
+  "clauseContent": "2.3.6.  <span style=\"color: rgb(26, 26, 26);\">附加税费</span>\n<span style=\"color: rgb(51, 51, 51);\">企业转让使用过的固定资产涉及缴纳增值税的，也同时涉及缴纳城建税、附加税。城建税、教育费附加和地方教育费附加的计税依据是实际应缴纳的增值税（包括免抵税额）和消费税的合计金额，也就是按享受增值税减免优惠后实缴的金额计算缴纳的。</span>\n<span style=\"color: rgb(51, 51, 51);\">若一般纳税人抵扣进项税额后或者小规模纳税人月销售额小于10万元（季30万元）无需缴纳增值税的，也不涉及缴纳消费税的，则也无需缴纳附加税费。</span>\n<span style=\"color: rgb(51, 51, 51);\">一般纳税人月销售额不超过10万元（≤10万元），可以免征教育费附加、地方教育费附加；月销售额超10万元，教育费附加、地方教育费附加需据实缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">自2022年1月1日至2027年12月31日，对增值税小规模纳税人、小型微利企业和个体工商户减半征收城市维护建设税、教育费附加、地方教育附加。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第三款|第六项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

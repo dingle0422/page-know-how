@@ -1,0 +1,24 @@
+{
+  "clauseId": "8760323a88754997b981a4f540be39c1",
+  "clauseName": "5.25_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.25",
+  "clauseContent": "5.25.  <span style=\"color: rgb(26, 26, 26);\">固定资产入账并开始计提折旧后做了进项税额转出，是否需要调整固定资产原值？</span>\n<span style=\"color: rgb(51, 51, 51);\">固定资产入账后，因用于不得抵扣项目等原因做了进项税额转出，应增加固定资产原值，借记“固定资产”科目，贷记“应交税费-应交增值税（进项税额转出）”科目。参考《&lt;企业会计准则第4号——固定资产&gt;应用指南（2006年）》第一条第二款的规定，增加固定资产原值后，无需调整原已计提的折旧额。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十五款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "62479abbbbd34173b735d59efb84d9f0",
+  "clauseName": "2.1.1.3 与研发加计扣除叠加_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.1.3 与研发加计扣除叠加",
+  "clauseContent": "2.1.1.3.  <span style=\"color: rgb(26, 26, 26);\">与研发加计扣除叠加</span>\n<span style=\"color: rgb(51, 51, 51);\">用于研发的设备，若已享受加速折旧/一次性扣除，符合研发加计扣除条件的话，仍可以按照会计处理的折旧、费用等金额进行加计扣除，享受双重的优惠。</span>\n<span style=\"color: rgb(51, 51, 51);\">用于研发活动的仪器、设备，同时用于非研发活动的，企业应对其仪器设备使用情况做必要记录，并将其实际发生的折旧费按实际工时占比等合理方法在研发费用和生产经营费用间分配，未分配的不得加计扣除，分配用于研发费用部分可以享受研发费用加计扣除。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第一项|第三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "aa521db42f4b48b88b35cac370432505",
+  "clauseName": "1.1.4.4 暂估入账_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.4.4 暂估入账",
+  "clauseContent": "1.1.4.4.  <span style=\"color: rgb(26, 26, 26);\">暂估入账</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）触发条件： 固定资产已达到预定可使用状态但尚未办理竣工决算或未取得发票。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）会计处理： 应按估计价值（如合同金额）暂估入账，并从次月起计提折旧。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）后续调整： 取得正式发票后，按实际成本调整暂估价值，但不需要调整原已计提的折旧额。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）具体分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">①一般纳税人（假设适用13%增值税税率）</span>\n<span style=\"color: rgb(51, 51, 51);\">未开票部分暂估入账：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产—XX设备 （未开票部分暂估，暂估部分不估税）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应付账款—暂估应付账款（XX供应商）（未开票部分暂估不含税）</span>\n<span style=\"color: rgb(51, 51, 51);\">新增资产次月进行折旧：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：管理费用等</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：累计折旧</span>\n<span style=\"color: rgb(51, 51, 51);\">后续收到专用发票与暂估金额一致时，冲销暂估并确认对应进项税额：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应付账款—暂估应付账款（XX供应商） （未开票部分暂估不含税）</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—应交增值税（进项税额）（取得发票计提税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应付账款—XX供应商 </span>\n<span style=\"color: rgb(51, 51, 51);\">如发票金额与暂估金额不一致：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应付账款—暂估应付账款（XX供应商） </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：固定资产—XX设备（原估价入账金额）</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产—XX设备（发票金额）</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—应交增值税（进项税额）（一般纳税人取得专票时）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款/应付账款—XX供应商</span>\n<span style=\"color: rgb(51, 51, 51);\">②小规模纳税人</span>\n<span style=\"color: rgb(51, 51, 51);\">未开票部分暂估入账：：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产—XX设备 （未开票部分暂估)</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应付账款—暂估应付账款（XX供应商） （未开票部分暂估）</span>\n<span style=\"color: rgb(51, 51, 51);\">新增资产次月进行折旧：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：管理费用等</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：累计折旧</span>\n<span style=\"color: rgb(51, 51, 51);\">后续收到发票与暂估金额一致时，仅需调整应付账款明细科目，无需调整固定资产金额：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应付账款—暂估应付账款（XX供应商） </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应付账款—XX供应商 </span>\n<span style=\"color: rgb(51, 51, 51);\">如发票金额与暂估金额不一致：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应付账款—暂估应付账款（XX供应商） </span>\n<span style=\"color: rgb(51, 51, 51);\">贷：固定资产—XX设备（原估价入账金额）</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产—XX设备（发票金额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款/应付账款—XX供应商</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第四项|第四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

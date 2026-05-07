@@ -1,0 +1,24 @@
+{
+  "clauseId": "f97e04c0469442a7aa502306192293b0",
+  "clauseName": "4.2 企业所得税年度预缴申报表填写_机械设备专题经验（20260507110105）",
+  "clauseNumber": "4.2 企业所得税年度预缴申报表填写",
+  "clauseContent": "4.2.  <span style=\"color: rgb(26, 26, 26);\">企业所得税年度预缴申报表填写</span>\n<span style=\"color: rgb(51, 51, 51);\">企业购入固定资产选择一次性扣除，季度预缴时 在《固定资产加速折旧（扣除）优惠明细表》（A201020）中填报。</span>\n<span style=\"color: rgb(51, 51, 51);\">第2行“二、一次性扣除”：</span>\n<span style=\"color: rgb(51, 51, 51);\">第2列“资产原值”：填写会计原值。</span>\n<span style=\"color: rgb(51, 51, 51);\">第4列“享受加速折旧优惠计算的折旧金额”：填写税务一次性扣除的金额（即资产原值）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第5列“纳税调减金额”：系统自动计算（第4列 - 会计折旧额）。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：固定资产加速折旧（非一次性扣除，如缩短年限）填报方式与一次性扣除类似，在第1行“一、加速折旧、摊销”对应列次填写。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第四条|第二款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

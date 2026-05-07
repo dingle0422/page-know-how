@@ -1,0 +1,24 @@
+{
+  "clauseId": "78c6f8c97c5c47f78e1ba33aa7530957",
+  "clauseName": "5.1 可以把个人的车卖给公司吗_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.1 可以把个人的车卖给公司吗",
+  "clauseContent": "5.1.  <span style=\"color: rgb(26, 26, 26);\">可以把个人的车卖给公司吗</span>\n<span style=\"color: rgb(51, 51, 51);\">属于正常交易，是可以的。如果个人（如老板）把车卖给公司之后，是用于企业经营而非个人使用，有合理的商业目的，是可以的。但是如果个人把车卖给公司之后并非用于公司，而是私人使用，则存在相应的折旧企业所得税无法税前列支的风险，且可能会被税局认为是变相股东分红从而按20%缴纳个人所得税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第一款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

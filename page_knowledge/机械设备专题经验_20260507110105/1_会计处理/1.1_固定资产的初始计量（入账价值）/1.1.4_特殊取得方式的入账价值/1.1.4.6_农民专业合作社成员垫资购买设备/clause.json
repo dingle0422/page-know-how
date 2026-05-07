@@ -1,0 +1,24 @@
+{
+  "clauseId": "0edc3d02cfa842efb4eb3f4b8e15b63c",
+  "clauseName": "1.1.4.6 农民专业合作社成员垫资购买设备_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.4.6 农民专业合作社成员垫资购买设备",
+  "clauseContent": "1.1.4.6.  <span style=\"color: rgb(26, 26, 26);\">农民专业合作社成员垫资购买设备</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）收到社员交来的垫资款：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：成员往来—社员名字</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）购买机器：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固资定产等</span>\n<span style=\"color: rgb(51, 51, 51);\">       应交税费—应交增值税（进项税额）（一般纳税人取得专票时）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第四项|第六目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

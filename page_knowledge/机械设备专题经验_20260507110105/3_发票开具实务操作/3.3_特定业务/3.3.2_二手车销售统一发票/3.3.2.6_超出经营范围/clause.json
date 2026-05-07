@@ -1,0 +1,24 @@
+{
+  "clauseId": "a043c1764dc24a16bcf9fb1d4c8c0f50",
+  "clauseName": "3.3.2.6 超出经营范围_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.3.2.6 超出经营范围",
+  "clauseContent": "3.3.2.6.  <span style=\"color: rgb(26, 26, 26);\">超出经营范围</span>\n<span style=\"color: rgb(51, 51, 51);\">企业发生应税行为，即使超出营业执照经营范围，也可以据实开具发票。企业销售机械设备等货物，如果不属于自产农产品、成品油等特定业务，不需要和税局额外进行申请，可以直接按照相应的税收分类编码开具发票。</span>\n<span style=\"color: rgb(15, 17, 21);\">操作建议：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）临时性业务： 确认开票系统中是否有对应品目和税率，如有可直接开具；若无，需向主管税务机关申请核定征收品目。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）长期性业务： 建议及时变更营业执照经营范围，再到税务机关办理税务信息变更。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第三款|第二项|第六目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

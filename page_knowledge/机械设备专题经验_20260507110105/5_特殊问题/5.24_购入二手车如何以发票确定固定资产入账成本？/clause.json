@@ -1,0 +1,24 @@
+{
+  "clauseId": "93457f3f4570498b81e230f0749079c2",
+  "clauseName": "5.24_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.24",
+  "clauseContent": "5.24.  <span style=\"color: rgb(26, 26, 26);\">购入二手车如何以发票确定固定资产入账成本？</span>\n<span style=\"color: rgb(51, 51, 51);\">企业购入二手车，应取得二手车销售统一发票，该发票不显示税额，票面的“车价合计”额并不一定是实际交易金额。将车辆作为固定资产入账时，不应直接按照二手车销售统一发票“车价合计”额计量，仍然按照会计准则的规定，以车辆达到预定可使用状态前所发生的可归属于该车辆的实际支出为基础入账。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十四款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

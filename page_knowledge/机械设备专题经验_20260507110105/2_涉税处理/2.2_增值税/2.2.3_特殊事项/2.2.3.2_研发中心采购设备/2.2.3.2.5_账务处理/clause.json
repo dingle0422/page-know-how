@@ -1,0 +1,24 @@
+{
+  "clauseId": "9600d01ef2da4a1ba36ca9e0e8855ec1",
+  "clauseName": "2.2.3.2.5 账务处理_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.2.5 账务处理",
+  "clauseContent": "2.2.3.2.5.  <span style=\"color: rgb(26, 26, 26);\">账务处理</span>\n<span style=\"color: rgb(51, 51, 51);\">内资研发机构采购国产设备，全额退还增值税的账务处理如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）购进设备时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—应交增值税（进项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款等</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）申报退税，确认退税款：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：其他应收款</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应交税费—应交增值税（进项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）取得退税款时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：其他应收款</span>\n<span style=\"color: rgb(51, 51, 51);\">注：内资研发机构采购国产设备取得增值税专用发票，如果不申请退税，则对应的进项税额可以抵扣；如果要申请退税，该发票只认证不得抵扣，勾选时选择“退税勾选”。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第二目|第五点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

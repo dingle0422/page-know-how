@@ -1,0 +1,24 @@
+{
+  "clauseId": "7788dedf05624de985f659caf6e76472",
+  "clauseName": "2.1.1.2 加速折旧（缩短折旧年限/双倍余额递减等）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.1.2 加速折旧（缩短折旧年限/双倍余额递减等）",
+  "clauseContent": "2.1.1.2.  <span style=\"color: rgb(26, 26, 26);\">加速折旧（缩短折旧年限/双倍余额递减等）</span>\n<span style=\"color: rgb(51, 51, 51);\">符合条件（如技术进步、强震动高腐蚀）的设备，可缩短折旧年限（不得低于税法规定年限的60%）。</span>\n集成电路生产企业的生产设备，其折旧年限可以适当缩短，最短可为3年(含)。\n<span style=\"color: rgb(51, 51, 51);\">六大行业或四大领域的固定资产享受加速折旧，需要留存资料如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）企业属于重点行业、领域企业的说明材料（以某重点行业业务为主营业务，固定资产投入使用当年主营业务收入占企业收入总额50%（不含）以上）；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）购进固定资产的发票、记账凭证（购入已使用过的固定资产，应提供已使用年限的相关说明）；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）核算有关资产税法与会计差异的台账。</span>\n<span style=\"color: rgb(51, 51, 51);\">六大行业：生物药品制造业，专用设备制造业，铁路、船舶、航空航天和其他运输设备制造业，计算机、通信和其他电子设备制造业，仪器仪表制造业，信息传输、软件和信息技术服务业等六大行业；四大领域：轻工、纺织、机械、汽车等四个领域重点行业。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第一项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

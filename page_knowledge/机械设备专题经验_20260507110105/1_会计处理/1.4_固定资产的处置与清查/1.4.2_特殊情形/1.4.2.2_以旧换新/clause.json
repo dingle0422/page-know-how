@@ -1,0 +1,24 @@
+{
+  "clauseId": "8c63077c9d094a6c8cc7de8bfdf7f865",
+  "clauseName": "1.4.2.2 以旧换新_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.4.2.2 以旧换新",
+  "clauseContent": "1.4.2.2.  <span style=\"color: rgb(26, 26, 26);\">以旧换新</span>\n<span style=\"color: rgb(51, 51, 51);\">视为两项交易，先处置旧车（通过“固定资产清理”），再购入新车。</span>\n<span style=\"color: rgb(51, 51, 51);\">具体会计分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）将旧车结转记入固定资产清理：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产清理（旧车的账面价值）</span>\n<span style=\"color: rgb(51, 51, 51);\">      累计折旧</span>\n<span style=\"color: rgb(51, 51, 51);\">      固定资产减值准备</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：固定资产（旧车原值）</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）取得新资产：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产（新车）</span>\n<span style=\"color: rgb(51, 51, 51);\">      应交税费—应交增值税（进项税额）【一般纳税人】</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：固定资产清理（旧车折价金额）</span>\n<span style=\"color: rgb(51, 51, 51);\">      应交税费—应交增值税（销项税额）【一般纳税人】/应交税费——应交增值税【小规模纳税人】</span>\n<span style=\"color: rgb(51, 51, 51);\">      银行存款（补差价）</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）最后将旧车涉及的固定资产清理科目余额结转到“资产处置损益”科目。执行小企业会计准则的，不涉及“固定资产减值准备”科目，固定资产清理科目余额结转到“营业外收入”或“营业外支出”科目。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第四款|第二项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

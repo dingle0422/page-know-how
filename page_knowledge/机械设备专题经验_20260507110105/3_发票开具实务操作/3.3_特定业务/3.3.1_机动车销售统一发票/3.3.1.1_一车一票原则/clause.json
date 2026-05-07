@@ -1,0 +1,24 @@
+{
+  "clauseId": "8925b5906371430e8ed3518df95f964a",
+  "clauseName": "3.3.1.1 一车一票原则_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.3.1.1 一车一票原则",
+  "clauseContent": "3.3.1.1.  <span style=\"color: rgb(26, 26, 26);\">一车一票原则</span>\n<span style=\"color: rgb(51, 51, 51);\">向消费者销售机动车，销售方应当开具机动车销售统一发票；其他销售机动车（新车）行为，销售方应当开具增值税专用发票。一辆机动车只能开具一张机动车销售统一发票，数量栏不能写小数。若车价超过开票限额，应申请提高开票限额，而非分多张开具。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第三款|第一项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

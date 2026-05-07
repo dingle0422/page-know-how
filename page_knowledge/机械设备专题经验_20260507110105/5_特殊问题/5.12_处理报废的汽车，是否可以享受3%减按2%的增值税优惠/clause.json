@@ -1,0 +1,24 @@
+{
+  "clauseId": "0c211b952967417392e930d0c8e70616",
+  "clauseName": "5.12 处理报废的汽车，是否可以享受3%减按2%的增值税优惠_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.12 处理报废的汽车，是否可以享受3%减按2%的增值税优惠",
+  "clauseContent": "5.12.  <span style=\"color: rgb(26, 26, 26);\">处理报废的汽车，是否可以享受3%减按2%的增值税优惠</span>\n<span style=\"color: rgb(51, 51, 51);\">处理报废的汽车，是否可以享受3%减按2%的增值税优惠，目前是存在争议的，有以下两种观点：</span>\n<span style=\"color: rgb(51, 51, 51);\">观点一：报废的汽车通常是已经报废或者达到了报废的标准，处理报废的汽车就不属于销售自己使用过的固定资产了，不能适用3%减按2%的优惠，应按废旧物资适用相应税率计算税款，一般纳税人税率为13%，小规模纳税人征收率为3%（2027年12月31日前减按1%）；</span>\n<span style=\"color: rgb(51, 51, 51);\">观点二：处理报废的汽车只要属于自己使用过的固定资产，符合条件的可以选择3%减按2%的优惠；不符合减按2%条件的一般纳税人税率为13%，小规模纳税人征收率为3%（2027年12月31日前减按1%）。</span>\n<span style=\"color: rgb(51, 51, 51);\">建议征询当地主管税务机关意见后再做处理。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：这里的“报废”是指汽车完全丧失了使用功能被作为废品销售或者丢弃，因此也不涉及产权转移（即过户），实务中客户说的“报废”也可能是转让，需要明确后给出建议。开票时可能会涉及到以下税收分类编码：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）1110701000000000000*报废汽车*报废汽车；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）1110702000000000000*报废摩托车*报废摩托车；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）1110799000000000000*其他报废机动车*其他报废机动车。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第十二款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

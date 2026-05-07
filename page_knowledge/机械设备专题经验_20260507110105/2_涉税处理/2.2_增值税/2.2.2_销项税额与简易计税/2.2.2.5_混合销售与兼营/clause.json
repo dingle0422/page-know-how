@@ -1,0 +1,24 @@
+{
+  "clauseId": "ac2b3b0d77ed4923a41673dcdad356c5",
+  "clauseName": "2.2.2.5 混合销售与兼营_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.2.5 混合销售与兼营",
+  "clauseContent": "2.2.2.5.  <span style=\"color: rgb(26, 26, 26);\">混合销售与兼营</span>\n<span style=\"color: rgb(51, 51, 51);\">2026年新法后， 一项应税交易涉及两个以上税率的，按主要业务适用税率。</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）销售自产货物同时提供建筑、安装服务： 不属于混合销售，应分别核算，分别适用税率（货物13%，建筑服务9%）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）销售设备并安装： 应按主要业务“销售设备”适用13%税率全额开票，不能分拆为设备13%+安装9%，安装服务不再单独适用简易计税了。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）出租设备并配备操作人员： 属于“建筑服务”，一般纳税人税率为9%。不配备操作人员，则属于“有形动产经营租赁”，税率为13%。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第二项|第五目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

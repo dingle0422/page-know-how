@@ -1,0 +1,24 @@
+{
+  "clauseId": "4a4920d9416944f1a616203e0bd44df6",
+  "clauseName": "2.2.3.5 销售工期超过12个月的机械设备_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.5 销售工期超过12个月的机械设备",
+  "clauseContent": "2.2.3.5.  <span style=\"color: rgb(26, 26, 26);\">销售工期超过12个月的机械设备</span>\n<span style=\"color: rgb(51, 51, 51);\">纳税人生产销售生产工期超过12个月的大型机械设备、船舶、飞机等货物，纳税义务发生时间为收到款项或者书面合同确定的付款日期的当日。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第五目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

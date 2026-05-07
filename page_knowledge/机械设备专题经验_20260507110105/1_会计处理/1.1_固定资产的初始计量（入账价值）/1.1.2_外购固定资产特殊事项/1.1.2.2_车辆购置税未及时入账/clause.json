@@ -1,0 +1,24 @@
+{
+  "clauseId": "bfdd727c018a4efd9eb191aa27f679e3",
+  "clauseName": "1.1.2.2 车辆购置税未及时入账_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.2.2 车辆购置税未及时入账",
+  "clauseContent": "1.1.2.2.  <span style=\"color: rgb(26, 26, 26);\">车辆购置税未及时入账</span>\n<span style=\"color: rgb(51, 51, 51);\">车辆购置税属于车辆达到预定可使用状态发生的必要支出，可以计入到车辆的入账价值中。车辆购置税未及时入账，处理方法可参考：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）属于本年度的差错，直接调整固定资产原值、补提折旧即可；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）属于以前年度的差错，按照重要性划分：</span>\n<span style=\"color: rgb(51, 51, 51);\">①不重要的前期差错，可以采用未来适用法更正，调整固定资产的原值，并将之前需要计提的折旧计入当期损益；</span>\n<span style=\"color: rgb(51, 51, 51);\">②重要的前期差错，应当采用追溯重述法更正，同时调整固定资产的原值和之前已经计提的折旧金额。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）车辆购置税金额很小，实务中也可以直接费用化计入当期损益。</span>\n<span style=\"color: rgb(51, 51, 51);\">注1：重要的前期差错，是指足以影响财务报表使用者对企业财务状况、经营成果和现金流量做出正确判断的前期差错；适用小企业会计准则不论以前年度差错是否重要，都可以采用未来适用法。</span>\n<span style=\"color: rgb(51, 51, 51);\">注2：根据《中华人民共和国道路交通安全法》国家对机动车实行登记制度，机动车经公安机关交通管理部门登记后，方可上道路行驶，此时即达到了预定可使用状态。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第二项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

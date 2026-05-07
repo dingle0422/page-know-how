@@ -1,0 +1,24 @@
+{
+  "clauseId": "87091ce5a6254f91bb5c189aab158287",
+  "clauseName": "2.1.3.4.3 专用设备_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.3.4.3 专用设备",
+  "clauseContent": "2.1.3.4.3.  <span style=\"color: rgb(26, 26, 26);\">专用设备</span>\n<span style=\"color: rgb(51, 51, 51);\">环境保护节能节水安全生产等专用设备投资抵免企业所得税中，“专用设备投资额”是指购买专用设备发票价税合计价格，但不包括按有关规定退还的增值税税款以及设备运输、安装和调试等费用。具体可以根据取得发票类型来确定：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）取得的是增值税专用发票如果增值税进项税额允许抵扣，其专用设备投资额不包括增值税进项税额；如果增值税进项税额不允许抵扣，其专用设备投资额应为增值税专用发票上注明的价税合计金额；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）取得的是增值税普通发票：其专用设备投资额为普通发票上注明的金额，即价税合计金额。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第三项|第四目|第三点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

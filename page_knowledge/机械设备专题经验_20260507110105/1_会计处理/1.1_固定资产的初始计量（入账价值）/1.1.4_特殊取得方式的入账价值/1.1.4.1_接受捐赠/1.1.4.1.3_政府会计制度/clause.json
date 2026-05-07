@@ -1,0 +1,24 @@
+{
+  "clauseId": "7f5ec1085b1a496e82c749f5cc7a5854",
+  "clauseName": "1.1.4.1.3 政府会计制度_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.4.1.3 政府会计制度",
+  "clauseContent": "1.1.4.1.3.  <span style=\"color: rgb(26, 26, 26);\">政府会计制度</span>\n<span style=\"color: rgb(51, 51, 51);\">接受捐赠的固定资产按照确定的成本或者名义金额入账，具体分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）接受捐赠的固定资产按照确定的成本入账</span>\n<span style=\"color: rgb(51, 51, 51);\">①财务会计：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产 /在建工程</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款/零余额账户用款额度等 （发生的相关税费、运输费等）</span>\n<span style=\"color: rgb(51, 51, 51);\"> 捐赠收入</span>\n<span style=\"color: rgb(51, 51, 51);\">②预算会计：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：其他支出（支付的相关税费、运输费等）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：资金结存</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）接受捐赠的固定资产按照名义金额入账：</span>\n<span style=\"color: rgb(51, 51, 51);\">①财务会计：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产（名义金额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：捐赠收入</span>\n<span style=\"color: rgb(51, 51, 51);\">借：其他费用</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款/零余额账户用款额度等（发生的相关税费、运输费等）</span>\n<span style=\"color: rgb(51, 51, 51);\">②预算会计：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：其他支出（支付的相关税费、运输费等）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：资金结存</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第四项|第一目|第三点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

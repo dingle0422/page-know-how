@@ -1,0 +1,24 @@
+{
+  "clauseId": "c256ca89121545b5945e16a336372827",
+  "clauseName": "6.24 票面金额_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.24 票面金额",
+  "clauseContent": "6.24.  <span style=\"color: rgb(26, 26, 26);\">票面金额</span>\n<span style=\"color: rgb(51, 51, 51);\">票面金额通常是指不含税销售额，但是免税情形下，票面金额和含税销售额也是相等的，不需要做价税分离。价税合计是指含税销售额，需要做价税分离，不含税销售额=价税合计÷(1+税率或征收率）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第二十四款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

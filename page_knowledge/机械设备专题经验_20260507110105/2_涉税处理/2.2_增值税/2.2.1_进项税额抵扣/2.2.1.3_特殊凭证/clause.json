@@ -1,0 +1,24 @@
+{
+  "clauseId": "ada5de02a7394c7da8b03a5a686b75c3",
+  "clauseName": "2.2.1.3 特殊凭证_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.1.3 特殊凭证",
+  "clauseContent": "2.2.1.3.  <span style=\"color: rgb(26, 26, 26);\">特殊凭证</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）机动车销售统一发票： 一般纳税人可凭此票抵扣进项税。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）二手车销售统一发票： 用于过户登记，不具有增值税抵扣功能，购买方如需抵扣，须向销售方索取增值税专用发票。二手车经销企业销售、拍卖企业拍卖二手车时，应当按规定向买方开具二手车销售统一发票。进行二手车直接交易和通过二手车经纪机构进行二手车交易的，应当由二手车交易市场经营者按规定向买方开具税务机关监制的统一发票。\u0005</span>\n<span style=\"color: rgb(51, 51, 51);\">目前无论是机动车销售统一发票还是二手车销售统一发票，都可以开具数电发票（发票名称为“电子发票（机动车销售统一发票）”、“电子发票（二手车销售统一发票）”），只有非常少量的纳税人仍然在开具税控纸质发票。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第一项|第三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

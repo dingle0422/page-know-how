@@ -1,0 +1,24 @@
+{
+  "clauseId": "9a974e23e33048a3a50f8294f3248c6e",
+  "clauseName": "5.9 买车是用公司的买还是个体买_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.9 买车是用公司的买还是个体买",
+  "clauseContent": "5.9.  <span style=\"color: rgb(26, 26, 26);\">买车是用公司的买还是个体买</span>\n<span style=\"color: rgb(51, 51, 51);\">原则上是看车辆用于哪个主体的业务，除此之外还可以结合各主体的税负情况，如果公司所得税率以及增值税税率高于个体户，放在公司名下，能扣除的税额相对较高。但是需要注意的是，如果车辆就是用于个体户的经营业务，则放在公司名下是不合适的。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第九款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

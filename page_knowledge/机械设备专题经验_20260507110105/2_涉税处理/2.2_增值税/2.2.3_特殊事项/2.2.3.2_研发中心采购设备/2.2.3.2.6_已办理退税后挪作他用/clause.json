@@ -1,0 +1,24 @@
+{
+  "clauseId": "42cd679c8bbf43058c857d70e83d6cc7",
+  "clauseName": "2.2.3.2.6 已办理退税后挪作他用_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.2.6 已办理退税后挪作他用",
+  "clauseContent": "2.2.3.2.6.  <span style=\"color: rgb(26, 26, 26);\">已办理退税后挪作他用</span>\n<span style=\"color: rgb(51, 51, 51);\">已办理增值税退税的国产设备，自增值税发票开具之日起3年内，设备所有权转移或移作他用的，研发机构须按照下列计算公式，向主管税务机关补缴已退税款。应补缴税款＝增值税发票上注明的税额×（设备折余价值÷设备原值）。设备折余价值＝增值税发票上注明的金额-累计已提折旧；累计已提折旧按照企业所得税法的有关规定计算。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第二目|第六点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

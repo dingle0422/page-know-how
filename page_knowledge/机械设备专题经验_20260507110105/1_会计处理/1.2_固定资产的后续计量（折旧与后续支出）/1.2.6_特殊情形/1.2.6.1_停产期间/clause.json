@@ -1,0 +1,24 @@
+{
+  "clauseId": "41ff7f70b4c046cdaffd2a9aa8f17b35",
+  "clauseName": "1.2.6.1 停产期间_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.1 停产期间",
+  "clauseContent": "1.2.6.1.  <span style=\"color: rgb(26, 26, 26);\">停产期间</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）会计上：永久停用或闲置的固定资产，只要未提足折旧，必须继续计提折旧。因需求不足、检修、季节性停工等，折旧计入“管理费用”或“制造费用”。计提折旧时，自制固定资产折旧明细表作为备查资料。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）税务上： 设备购入后正常投入使用，后来因某些原因停产了（一般是临时性的停产），这种情况下该设备的折旧可以在税前扣除；若是永久性停产，属于与经营活动无关的固定资产了，其折旧就不能税前扣除了。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "a872215945664435b02b0294bbeba702",
+  "clauseName": "3.3.2.2 发票联次_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.3.2.2 发票联次",
+  "clauseContent": "3.3.2.2.  <span style=\"color: rgb(26, 26, 26);\">发票联次</span>\n<span style=\"color: rgb(15, 17, 21);\">（1）二手车销售统一发票的纸质发票共五联：存根联、记账联、入库联（开票方留存）；发票联、转移登记联（购车方用于记账和过户）。</span>\n<span style=\"color: rgb(15, 17, 21);\">（2）销售方（企业）无法取得此发票的记账联，应凭自己开具的增值税发票记账联入账，或留存二手车发票复印件。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第三款|第二项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

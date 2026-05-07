@@ -1,0 +1,24 @@
+{
+  "clauseId": "cda7388b901644a6a82352975b933cad",
+  "clauseName": "5.27 企业销售二手车涉及哪些税_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.27 企业销售二手车涉及哪些税",
+  "clauseContent": "5.27.  <span style=\"color: rgb(26, 26, 26);\">企业销售二手车涉及哪些税</span>\n<span style=\"color: rgb(51, 51, 51);\">企业销售二手车会涉及增值税、附加税、印花税和企业所得税。</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）增值税</span>\n<span style=\"color: rgb(51, 51, 51);\">①如果属于小规模纳税人，销售自己使用过的二手车，可以享受3%减按2%缴纳增值税优惠，2027年底之前可以减按1%，未达起征点的免征增值税；</span>\n<span style=\"color: rgb(51, 51, 51);\">②如果属于一般纳税人，2026年及之后，销售的是自己使用过的二手车，用于不得抵扣项目且未抵扣时，可以享受3%减按2%缴纳增值税优惠，否则增值税税率为13%。2026年之前，销售2013年8月1日前购进的车，或之后购进的按税法规定不得抵扣且没有抵扣进项税的，可按简易办法依3%减按2%征收增值税；销售2013年8月1日后购进的车（不是用于不得抵扣且没有抵扣进项税的），适用一般计税13%的税率。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：2026年之后，销售2013年8月1日前购进的车能否减按2%增值税法新政衔接期间有争议，建议以当地税局的要求为准。</span>\n<span style=\"color: rgb(51, 51, 51);\">③如果属于从事二手车经销的纳税人销售其收购的二手车，2020年5月1日至2027年12月31日期间减按0.5%征收增值税。（财政部 税务总局公告2020年第17号、财政部 税务总局公告2023年第63号）</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）附加税费</span>\n<span style=\"color: rgb(51, 51, 51);\">根据实际缴纳的流转税（增值税、消费税）计算相应的城建税（7%、5%、1%）及教育费附加（3%）地方教育费附加（2%）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）印花税</span>\n<span style=\"color: rgb(51, 51, 51);\">若属于公司之间签订的二手车买卖合同，按“买卖合同”价款的万分之三缴纳印花税；若属于公司与个人（含个体户）之间签订的二手车买卖合同，不需要缴纳印花税。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）企业所得税</span>\n<span style=\"color: rgb(51, 51, 51);\">法定税率为25%。税额=应纳税所得额×税率。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十七款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

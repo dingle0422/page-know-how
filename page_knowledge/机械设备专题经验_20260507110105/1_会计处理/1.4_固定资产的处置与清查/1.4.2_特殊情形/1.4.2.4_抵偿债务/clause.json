@@ -1,0 +1,24 @@
+{
+  "clauseId": "8c73ae5380ae4e44a201ff0f682b0ca3",
+  "clauseName": "1.4.2.4 抵偿债务_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.4.2.4 抵偿债务",
+  "clauseContent": "1.4.2.4.  <span style=\"color: rgb(26, 26, 26);\">抵偿债务</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）企业会计准则： 通过“固定资产清理”核算，差额计入“其他收益”（债务重组利得）或“资产处置损益”（资产转让损益）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）小企业会计准则： 差额计入“营业外收入/支出”。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第四款|第二项|第四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

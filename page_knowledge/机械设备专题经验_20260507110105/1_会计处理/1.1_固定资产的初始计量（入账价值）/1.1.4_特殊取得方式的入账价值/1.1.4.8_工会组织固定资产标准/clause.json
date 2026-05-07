@@ -1,0 +1,24 @@
+{
+  "clauseId": "4aed09f4433545f99692883fd7c862c1",
+  "clauseName": "1.1.4.8 工会组织固定资产标准_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.4.8 工会组织固定资产标准",
+  "clauseContent": "1.1.4.8.  <span style=\"color: rgb(26, 26, 26);\">工会组织固定资产标准</span>\n<span style=\"color: rgb(51, 51, 51);\">工会会计制度下，工会组织的固定资产是指工会使用年限超过1年（不含1年），单位价值在规定标准以上，并在使用过程中基本保持原有物质形态的资产，一般包括：房屋及构筑物；专用设备；通用设备；文物和陈列品；图书、档案；家具、用具、装具及动植物。</span>\n<span style=\"color: rgb(51, 51, 51);\">通用设备单位价值在1000元以上，专用设备单位价值在1500元以上的，应当确认为固定资产。通用设备指计算机设备、办公设备、车辆、图书档案设备、通信设备等；专用设备指安全生产设备、环境污染防治设备、医疗设备等。单位价值虽未达到规定标准，但是使用时间超过1年（不含1年）的大批同类物资，应当按照固定资产进行核算和管理。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第四项|第八目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

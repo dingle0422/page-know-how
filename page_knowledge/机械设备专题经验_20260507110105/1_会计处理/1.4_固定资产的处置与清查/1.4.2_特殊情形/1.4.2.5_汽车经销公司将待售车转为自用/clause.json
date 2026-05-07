@@ -1,0 +1,24 @@
+{
+  "clauseId": "4b9a75de67a94f76a644a93ea3249e92",
+  "clauseName": "1.4.2.5 汽车经销公司将待售车转为自用_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.4.2.5 汽车经销公司将待售车转为自用",
+  "clauseContent": "1.4.2.5.  <span style=\"color: rgb(26, 26, 26);\">汽车经销公司将待售车转为自用</span>\n<span style=\"color: rgb(51, 51, 51);\">汽车销售公司用于销售的汽车转为自用，需要给自己单位开具《机动车销售统一发票》，进行车辆登记并缴纳相关税费（如车辆购置税、车辆牌照费），机动车发票认证后未专用于不得抵扣项目（简易计税、免税、集体福利、个人消费等）的可以按规定抵扣。</span>\n<span style=\"color: rgb(51, 51, 51);\">账务处理具体如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产</span>\n<span style=\"color: rgb(51, 51, 51);\">      应交税费—应交增值税（进项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：主营业务收入</span>\n<span style=\"color: rgb(51, 51, 51);\">      应交税费—应交增值税（销项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">      银行存款等</span>\n<span style=\"color: rgb(51, 51, 51);\">借：主营业务成本</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：库存商品</span>\n<span style=\"color: rgb(51, 51, 51);\">注：缴纳的车辆购置税、车辆牌照费等应计入固定资产入账价值中。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第四款|第二项|第五目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

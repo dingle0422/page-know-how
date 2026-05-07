@@ -1,0 +1,24 @@
+{
+  "clauseId": "bce507fcd65b4880823e38b4c7d36a60",
+  "clauseName": "2.2.1.1 购进机械设备的进项税额_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.1.1 购进机械设备的进项税额",
+  "clauseContent": "2.2.1.1.  <span style=\"color: rgb(26, 26, 26);\">购进机械设备的进项税额</span>\n<span style=\"color: rgb(51, 51, 51);\">进项税额抵扣的规则如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）用于一般计税业务的，单项长期资产的价值无论高低，进项税额均可以抵扣；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）同时用于免税业务和一般计税业务的，进项抵扣参考以下：</span>\n<span style=\"color: rgb(51, 51, 51);\">①原值不超过500万元的单项长期资产，对应的进项税额可以全额从销项税额中抵扣；</span>\n<span style=\"color: rgb(51, 51, 51);\">②原值超过500万元的单项长期资产，购进时先全额抵扣进项税额，此后在用于混合用途期间，根据调整年限计算五类不允许抵扣项目对应的不得从销项税额中抵扣的进项税额，逐年调整。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：纳税人（出租方）从事融资租赁业务购进机器设备，取得进项税发票可以认证抵扣。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第一项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

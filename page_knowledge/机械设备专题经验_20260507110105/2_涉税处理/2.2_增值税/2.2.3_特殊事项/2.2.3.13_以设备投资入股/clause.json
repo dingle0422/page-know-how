@@ -1,0 +1,24 @@
+{
+  "clauseId": "9fb2fe88a839405b879ab30a38e837bc",
+  "clauseName": "2.2.3.13 以设备投资入股_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.13 以设备投资入股",
+  "clauseContent": "2.2.3.13.  <span style=\"color: rgb(26, 26, 26);\">以设备投资入股</span>\n<span style=\"color: rgb(51, 51, 51);\">以设备进行投资入股属于增值税应税行为，投资方应缴纳增值税并开具增值税发票，以发票作为入账凭证；被投资方取得专用发票，没有用于规定的不得抵扣项目（如专用于简易计税、免税等项目）时，是可以进行抵扣的。若投资方未开具发票，被投资方可以凭资产评估证明资料、投资协议、章程等据实入账。被投资方汇算清缴前未取得发票的，不得税前扣除需要纳税调增。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：自然人股东以货物、设备等实物进行投资，为避免争议，建议申请代开普票。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第十三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

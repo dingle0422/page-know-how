@@ -1,0 +1,24 @@
+{
+  "clauseId": "b168b4151ea149498e02f6ea39aed27c",
+  "clauseName": "1.2.6.11 固定资产一次性扣除（递延所得税）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.11 固定资产一次性扣除（递延所得税）",
+  "clauseContent": "1.2.6.11.  <span style=\"color: rgb(26, 26, 26);\">固定资产一次性扣除（递延所得税）</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）企业会计准则</span>\n<span style=\"color: rgb(51, 51, 51);\">借：所得税费用</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：递延所得税负债</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—应交企业所得税（若涉及，当期实际缴纳的金额）</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）小企业会计准则</span>\n<span style=\"color: rgb(51, 51, 51);\">执行小企业会计准则，固定资产一次性扣除，不需要确认税会暂时性差异产生的递延所得税，同时小企业会计准则也未设置“递延所得税”相关科目。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第十一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -56,22 +56,20 @@ class SkillResultRegistry:
             return any(r.skill_name == skill_name for r in self._records)
 
     def format_context(self) -> str:
-        """将所有 skill 结果格式化为可注入 LLM prompt 的自然语言文本"""
+        """将所有 skill 结果格式化为可注入 LLM prompt 的事实依据文本"""
         records = self.get_all()
         if not records:
-            return "（暂无 skill 调用结果）"
+            return "（暂无事实依据）"
 
         lines: list[str] = []
         for i, rec in enumerate(records, 1):
-            lines.append(f"【Skill 调用 {i}】{rec.skill_name}")
-            lines.append(f"命令: {rec.command}")
+            lines.append(f"【依据{i}】")
             if rec.result.success:
-                lines.append("结果:")
-                lines.append(rec.result.stdout or "（无输出）")
+                lines.append((rec.result.stdout or "（该依据未返回有效内容）").strip())
             else:
-                lines.append(f"调用失败 (exit={rec.result.exit_code}):")
+                lines.append(f"该依据获取失败（exit={rec.result.exit_code}）。")
                 if rec.result.stderr:
-                    lines.append(rec.result.stderr)
+                    lines.append(rec.result.stderr.strip())
             lines.append("")
 
         return "\n".join(lines).rstrip()

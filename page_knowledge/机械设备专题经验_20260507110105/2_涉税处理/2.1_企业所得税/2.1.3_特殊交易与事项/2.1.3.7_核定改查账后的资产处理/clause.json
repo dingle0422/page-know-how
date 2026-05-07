@@ -1,0 +1,24 @@
+{
+  "clauseId": "79fc53f414dc42f5b3d0cb12050ca856",
+  "clauseName": "2.1.3.7 核定改查账后的资产处理_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.3.7 核定改查账后的资产处理",
+  "clauseContent": "2.1.3.7.  <span style=\"color: rgb(26, 26, 26);\">核定改查账后的资产处理</span>\n<span style=\"color: rgb(51, 51, 51);\">企业所得税核定征收改为查账征收后有关资产的处理如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）企业能够提供资产购置发票的，以发票载明金额为计税基础；不能提供资产购置发票的，可以凭购置资产的合同（协议）、资金支付证明、会计核算资料等记载金额，作为计税基础。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）企业核定征税期间投入使用的资产，改为查账征税后，按照税法规定的折旧、摊销年限，扣除该资产投入使用年限后，就剩余年限继续计提折旧、摊销额并在税前扣除。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第三项|第七目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "0ca71cb3484e4fe899d9a95cf5af0ef8",
+  "clauseName": "2.2.3.14 增值税与企业所得税收入不一致的说明_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.14 增值税与企业所得税收入不一致的说明",
+  "clauseContent": "2.2.3.14.  <span style=\"color: rgb(26, 26, 26);\">增值税与企业所得税收入不一致的说明</span>\n<span style=\"color: rgb(51, 51, 51);\"> 处置固定资产，增值税按全额不含税收入申报，企业所得税/利润表按净收益（或净损失） 体现。 无需调整一致，这是正常的税会口径差异。若税务系统预警，提供书面说明即可，模板如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">“我公司于X年X月处置固定资产（设备/车辆）一项，取得处置收入XX元。根据增值税规定，我公司已按全额不含税收入XX元申报增值税；根据会计准则，该资产处置净损益XX元计入‘资产处置损益’，未计入‘营业收入’。因此导致增值税申报收入与企业所得税申报收入存在口径差异，特此说明。”</span>\n<span style=\"color: rgb(51, 51, 51);\">税法对于固定资产的定义：是指使用期限超过12个月的机器、机械、运输工具以及其他与生产经营有关的设备、工具、器具等有形动产。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第十四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

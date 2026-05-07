@@ -1,0 +1,24 @@
+{
+  "clauseId": "5c7da1cbccf4454d9349cf51ea76ebae",
+  "clauseName": "6.13 【发票】自然人开具发票类型_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.13 【发票】自然人开具发票类型",
+  "clauseContent": "6.13.  <span style=\"color: rgb(26, 26, 26);\">【发票】自然人开具发票类型</span>\n<span style=\"color: rgb(51, 51, 51);\">应税交易的购买方为自然人，不得开具增值税专用发票；自然人销售其取得的不动产、出租不动产，购买方或承租方不属于自然人的，以及保险企业按规定代保险代理人汇总开具及证券经纪人、信用卡和旅游等行业的个人代理人按规定让支付方企业汇总代开的增值税专用发票，其他情况个人不能申请代开增值税专用发票。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第十三款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

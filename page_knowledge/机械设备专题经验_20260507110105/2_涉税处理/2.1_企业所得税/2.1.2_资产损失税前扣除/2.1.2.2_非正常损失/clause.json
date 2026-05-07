@@ -1,0 +1,24 @@
+{
+  "clauseId": "01e8e934d0b842a7bc8646526e3804fd",
+  "clauseName": "2.1.2.2 非正常损失_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.2.2 非正常损失",
+  "clauseContent": "2.1.2.2.  <span style=\"color: rgb(26, 26, 26);\">非正常损失</span>\n<span style=\"color: rgb(51, 51, 51);\">管理不善造成的固定资产盘亏、被盗等，其损失可以按规定税前扣除，但对应的进项税额需转出。不是因管理不善造成的报废不属于非正常损失。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第二项|第二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

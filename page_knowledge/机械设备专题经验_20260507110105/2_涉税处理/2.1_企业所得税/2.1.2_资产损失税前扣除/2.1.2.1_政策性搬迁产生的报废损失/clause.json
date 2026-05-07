@@ -1,0 +1,24 @@
+{
+  "clauseId": "e42179f126324f9195fc15fea25fe74d",
+  "clauseName": "2.1.2.1 政策性搬迁产生的报废损失_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.2.1 政策性搬迁产生的报废损失",
+  "clauseContent": "2.1.2.1.  <span style=\"color: rgb(26, 26, 26);\">政策性搬迁产生的报废损失</span>\n<span style=\"color: rgb(51, 51, 51);\">因搬迁发生的设备报废损失，属于搬迁支出，应于搬迁完成年度统一处理，不得在损失发生当年扣除。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第二项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

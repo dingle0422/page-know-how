@@ -1,0 +1,24 @@
+{
+  "clauseId": "2cf1e09707b24b0f84e2dc393195f4ee",
+  "clauseName": "1.4.2.1 已提足折旧的固定资产处置_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.4.2.1 已提足折旧的固定资产处置",
+  "clauseContent": "1.4.2.1.  <span style=\"color: rgb(26, 26, 26);\">已提足折旧的固定资产处置</span>\n<span style=\"color: rgb(51, 51, 51);\">账务处理请参考1.4.1.通用账务处理，此时固定资产清理的借方金额为预计净残值（若有）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第四款|第二项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

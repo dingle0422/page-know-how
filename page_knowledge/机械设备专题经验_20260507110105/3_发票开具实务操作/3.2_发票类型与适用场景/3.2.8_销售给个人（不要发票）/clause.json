@@ -1,0 +1,24 @@
+{
+  "clauseId": "aa509fd7c5d94e25a4a905acffb37da8",
+  "clauseName": "3.2.8 销售给个人（不要发票）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.2.8 销售给个人（不要发票）",
+  "clauseContent": "3.2.8.  <span style=\"color: rgb(26, 26, 26);\">销售给个人（不要发票）</span>\n<span style=\"color: rgb(51, 51, 51);\">发票类型：需要通过二手车交易市场开具二手车销售统一发票，个人没有索取的情况下可以不开增值税发票，但需按未开票收入申报增值税。给自然人只能开具普票，不能开具专票。</span>\n<span style=\"color: rgb(51, 51, 51);\">企业必须如实申报税费，不得因为个人未索取发票隐瞒收入。 </span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第二款|第八项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

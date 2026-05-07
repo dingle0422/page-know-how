@@ -1,0 +1,24 @@
+{
+  "clauseId": "f3a659b6adce41469faf90d3aad216dd",
+  "clauseName": "1.4.2.7.1 盘盈_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.4.2.7.1 盘盈",
+  "clauseContent": "1.4.2.7.1.  <span style=\"color: rgb(26, 26, 26);\">盘盈</span>\n<span style=\"color: rgb(51, 51, 51);\">查明原因， 如为接受捐赠未入账，按公允价值入账，贷记“营业外收入”；如为购进未入账，暂估入账，贷记“应付账款-暂估”；如无法查明原因，则按以下分录记账：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）企业会计准则</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产（重置成本）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：以前年度损益调整</span>\n<span style=\"color: rgb(51, 51, 51);\">借：以前年度损益调整</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：盈余公积</span>\n<span style=\"color: rgb(51, 51, 51);\"> 利润分配—未分配利润</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）小企业会计准则</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产（重置成本）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：待处理财产损溢</span>\n<span style=\"color: rgb(51, 51, 51);\">借：待处理财产损溢</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：营业外收入</span>\n<span style=\"color: rgb(51, 51, 51);\">注1：折旧补提应从投入使用次月起补提本年度折旧。</span>\n<span style=\"color: rgb(51, 51, 51);\">注2：盘盈手续上，关键是要履行内部资产清查程序，查明原因并形成书面记录。作为入账附件，建议至少包括：资产盘点表（记录盘盈资产信息）、盘盈原因调查及说明、以及确定入账价值的相关依据（如类似资产近期采购发票、市场价查询记录或评估报告等）。</span>\n<span style=\"color: rgb(51, 51, 51);\">注3：增值税方面，盘盈固定资产未发生增值税应税行为，不涉及增值税；企业所得税方面，能找到原购置发票的，以前年度折旧可追补至所属年度扣除，当年及以后折旧正常扣除；无法取得发票的，先将盘盈重置价值计入应纳税所得额完税（账面计入营业外收入或通过A105000纳税调增），完税之后按税法规定计提的折旧允许税前扣除（原理是盘盈利得已缴企业所得税，形成合法计税基础，其折旧属于正常成本分摊，准予扣除）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第四款|第二项|第七目|第一点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

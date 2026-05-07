@@ -1,0 +1,24 @@
+{
+  "clauseId": "520d5849237f42bf9c1a7c37f382bf38",
+  "clauseName": "5.23_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.23",
+  "clauseContent": "5.23.  <span style=\"color: rgb(26, 26, 26);\">购入新车如何以发票确定固定资产入账成本？</span>\n<span style=\"color: rgb(51, 51, 51);\"> 企业购入新车，应取得机动车销售统一发票。机动车销售统一发票不属于增值税专用发票，它属于发票类型中的一种，其税额可以和增值税专用发票一样做为进项税额按规定抵扣。如企业是一般纳税人一般计税法方法，可以抵扣进项税额，以发票的“不含税价”为基础确定固定资产入账成本；如企业是一般纳税人简易计税方法或小规模纳税人不符合抵扣条件的，以发票的“价税合计”为基础确定固定资产入账成本。</span>\n<span style=\"color: rgb(51, 51, 51);\">问答对：【机动车销售统一发票是否属于专票】【公司购置车辆，车辆入账价值包括哪些】</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十三款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

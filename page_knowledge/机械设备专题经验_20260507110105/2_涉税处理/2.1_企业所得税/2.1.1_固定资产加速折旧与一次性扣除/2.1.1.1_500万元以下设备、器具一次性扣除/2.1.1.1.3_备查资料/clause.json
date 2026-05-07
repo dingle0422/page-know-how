@@ -1,0 +1,24 @@
+{
+  "clauseId": "4b99d809f19146279722564c9f73f9cb",
+  "clauseName": "2.1.1.1.3 备查资料_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.1.1.3 备查资料",
+  "clauseContent": "2.1.1.1.3.  <span style=\"color: rgb(26, 26, 26);\">备查资料</span>\n<span style=\"color: rgb(51, 51, 51);\">享受单位价值不超过500万元固定资产税前一次性扣除政策，不需要向税局备案，留存资料备查即可。主要留存备查资料如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）有关固定资产购进时点的资料（如以货币形式购进固定资产的发票，以分期付款或赊销方式购进固定资产的到货时间说明，自行建造固定资产的竣工决算情况说明等）；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）固定资产记账凭证；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）核算有关资产税务处理与会计处理差异的台账。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第一项|第一目|第三点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

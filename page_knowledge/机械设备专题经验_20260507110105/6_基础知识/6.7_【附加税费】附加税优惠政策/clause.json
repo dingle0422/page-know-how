@@ -1,0 +1,24 @@
+{
+  "clauseId": "70097c08a7a64a2eb17066aa2e5e4e4e",
+  "clauseName": "6.7 【附加税费】附加税优惠政策_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.7 【附加税费】附加税优惠政策",
+  "clauseContent": "6.7.  <span style=\"color: rgb(26, 26, 26);\">【附加税费】附加税优惠政策</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）针对增值税一般纳税人，月销售额≤10万时，可以免征教育附加和地方教育附加，但不免城建税；针对小规模纳税人，按季销售额不超过30万元，免征教育费附加、地方教育附加（城建税不享受该优惠）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）针对一般纳税人，小型微利企业和个体工商户可以在50%的税额幅度内减征城市维护建设税、教育费附加、地方教育附加（财政部 税务总局公告2023年第12号）；针对小规模纳税人（也包括登记为小规模纳税人的个体工商户），额外享受减免50%的附加税（即如附加税有税款，城建税、教育附加和地方教育附加三项税额都可以减半，软件自动计算，无需填写减免代码和减免税额）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）对实行增值税期末留抵退税的纳税人，允许其从城市维护建设税、教育费附加和地方教育附加的计税（征）依据中扣除退还的增值税税额，使用扣除退还税额后的计税依据乘以对应税率计算缴纳附加税。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）纳税人享受增值税免税优惠时，随增值税附征的城市维护建设税、教育费附加和地方教育附加也一并免征。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第七款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

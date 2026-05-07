@@ -1,0 +1,24 @@
+{
+  "clauseId": "2b31bcd0a6694188820e860ab5695252",
+  "clauseName": "5.4 个人通过公司买辆车，公司是否能扣除相应费用_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.4 个人通过公司买辆车，公司是否能扣除相应费用",
+  "clauseContent": "5.4.  <span style=\"color: rgb(26, 26, 26);\">个人通过公司买辆车，公司是否能扣除相应费用</span>\n<span style=\"color: rgb(51, 51, 51);\">前提是这辆车要用于公司经营，车辆产生的各项费用才可以扣除。如果是企业老板，以企业名义购买车辆并挂在企业名下，实际上车辆都是用于老板的私人用途，则哪怕挂在企业名下，被税局发现，也可能会被要求做企业所得税纳税调增，存在补税风险。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第四款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

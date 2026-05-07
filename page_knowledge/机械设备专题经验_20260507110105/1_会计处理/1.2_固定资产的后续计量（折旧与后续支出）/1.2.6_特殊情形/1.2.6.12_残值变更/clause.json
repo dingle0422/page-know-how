@@ -1,0 +1,24 @@
+{
+  "clauseId": "1080e4e061914602949fdaad065d9b0d",
+  "clauseName": "1.2.6.12 残值变更_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.12 残值变更",
+  "clauseContent": "1.2.6.12.  <span style=\"color: rgb(26, 26, 26);\">残值变更</span>\n<span style=\"color: rgb(51, 51, 51);\">企业应当根据固定资产的性质和使用情况，合理确定固定资产的预计净残值。执行《企业会计准则》的企业，除符合《企业会计准则第4号——固定资产（2006）》第十九条规定之外，固定资产的预计净残值一经确定，不得随意变更。执行《小企业会计准则》的企业，固定资产的预计净残值一经确定，不得随意变更。即固定资产净残值可以变更，但不得随意变更。固定资产预计净残值变更属于会计估计变更。</span>\n<span style=\"color: rgb(51, 51, 51);\">根据《企业会计准则第28号——会计政策、会计估计变更和差错更正（2006）》第九条、《财政部关于印发&lt;小企业会计准则&gt;的通知》（财会[2011]17号）第八十八条的相关规定，预计净残值变更应当采用未来适用法处理。即以前已计提的折旧不需要做调整，自变更之日起按照新残值重新计算以后各期的折旧。如采用直线法计算折旧，残值变更后每月折旧=（固定资产原值-新残值-原已计提折旧）÷预计剩余使用寿命（年）÷12。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第十二目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

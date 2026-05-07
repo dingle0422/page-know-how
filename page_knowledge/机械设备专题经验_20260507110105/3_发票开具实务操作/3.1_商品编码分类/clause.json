@@ -1,0 +1,24 @@
+{
+  "clauseId": "e5edbaca48904896906430204c6ff410",
+  "clauseName": "3.1 商品编码分类_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.1 商品编码分类",
+  "clauseContent": "3.1.  <span style=\"color: rgb(26, 26, 26);\">商品编码分类</span>\n<span style=\"color: rgb(51, 51, 51);\">在增值税的商品编码体系中，机械设备大类下，有通用设备、专用设备、交通运输设备、电气机械及器材、通信设备、计算机及其他电子设备、仪器仪表及文化办公用机械、其他机械设备类产品这几个中类。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第一款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

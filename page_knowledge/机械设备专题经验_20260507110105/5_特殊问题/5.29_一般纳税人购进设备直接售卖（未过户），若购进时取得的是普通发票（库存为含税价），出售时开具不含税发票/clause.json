@@ -1,0 +1,24 @@
+{
+  "clauseId": "14b5d5a0527544199704b80b36857857",
+  "clauseName": "5.29_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.29",
+  "clauseContent": "5.29.  <span style=\"color: rgb(26, 26, 26);\"></span>一般纳税人购进设备直接售卖（未过户），若购进时取得的是普通发票（库存为含税价），出售时开具不含税发票，库存成本应如何结转以确保账目平衡？\n一般纳税人、购进设备用于转卖、收普票（进项不能抵扣，含税入库存）、销售开专票/普票做不含税收入。结转成本时，直接按含税的库存金额全额结转主营业务成本即可，账目不会不平，不需要人为 “价税分离”。具体分录如下：\n<span style=\"color: rgb(51, 51, 51);\">（1）购进设备并取得增值税普通发票</span>\n<span style=\"color: rgb(51, 51, 51);\">借：库存商品—设备 （含税全额）113万元</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款/应付账款 （含税全额）113万元</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）销售设备并开具13%的增值税发票</span>\n<span style=\"color: rgb(51, 51, 51);\">①确认收入</span>\n<span style=\"color: rgb(51, 51, 51);\">借：银行存款/应收账款  226万元</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：主营业务收入  200万元</span>\n<span style=\"color: rgb(51, 51, 51);\">       应交税费—应交增值税（销项税额） 26万元</span>\n注：不管开专票还是普票，会计上都要做价税分离，销项税额 = 含税销售额÷ (1+税率)×税率。\n<span style=\"color: rgb(51, 51, 51);\">②结转成本</span>\n<span style=\"color: rgb(51, 51, 51);\">借：主营业务成本 113万元</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：库存商品—设备 113万元</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十九款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

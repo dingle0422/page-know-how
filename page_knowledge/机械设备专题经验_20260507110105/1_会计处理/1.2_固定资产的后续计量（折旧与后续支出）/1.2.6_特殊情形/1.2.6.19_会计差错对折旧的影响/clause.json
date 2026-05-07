@@ -1,0 +1,24 @@
+{
+  "clauseId": "3e3c0bfe945446afbdab53311fe760eb",
+  "clauseName": "1.2.6.19 会计差错对折旧的影响_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.19 会计差错对折旧的影响",
+  "clauseContent": "1.2.6.19.  <span style=\"color: rgb(26, 26, 26);\">会计差错对折旧的影响</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第十九目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

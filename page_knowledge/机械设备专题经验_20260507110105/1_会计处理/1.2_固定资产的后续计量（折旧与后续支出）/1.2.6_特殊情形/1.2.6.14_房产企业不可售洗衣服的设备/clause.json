@@ -1,0 +1,24 @@
+{
+  "clauseId": "5a70b3ebc9524ec190b8dd71e58cb83d",
+  "clauseName": "1.2.6.14 房产企业不可售洗衣服的设备_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.14 房产企业不可售洗衣服的设备",
+  "clauseContent": "1.2.6.14.  <span style=\"color: rgb(26, 26, 26);\">房产企业不可售洗衣服的设备</span>\n<span style=\"color: rgb(51, 51, 51);\">实务中房地产企业不可售洗衣房相关设备的账务处理如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）如果是无偿移交业主，属于规划内的配套设备，纳入规划的建设，比如饮水系统、消防等，计入开发成本，最终结转到销售成本里面。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）如果是规划外的设备，洗衣机，烘干机等，计入销售费用。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第十四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

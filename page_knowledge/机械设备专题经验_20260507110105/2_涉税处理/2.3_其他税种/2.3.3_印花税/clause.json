@@ -1,0 +1,24 @@
+{
+  "clauseId": "cc01aa119a51402cb9b534471f43e9e5",
+  "clauseName": "2.3.3 印花税_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.3.3 印花税",
+  "clauseContent": "2.3.3.  <span style=\"color: rgb(26, 26, 26);\">印花税</span>\n<span style=\"color: rgb(51, 51, 51);\">企业购买车辆、设备、电脑、机器、路灯等机械设备，属于《印花税税目税率表》中的买卖合同，书立双方均需缴纳印花税，税率为价款的万分之三。但合同一方为个人的，双方均不缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">具体场景：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）企业间买卖车辆、设备，需要缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）企业与个人（含个体户、自然人股东、员工）买卖车辆、设备等，不需要缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）个人之间买卖，不需要缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）融资租赁合同，按租金的万分之零点五缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">（5）经营性租赁合同（设备、车辆），按租金的千分之一缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">（6）建筑设备+操作人员租赁，主流口径按“租赁合同”千分之一缴纳，少数按“建设工程合同”，建议与当地税局确认。</span>\n<span style=\"color: rgb(51, 51, 51);\">（7）机动车登记证不属于印花税的列举范围，不需要缴纳印花税。</span>\n<span style=\"color: rgb(51, 51, 51);\">税收优惠：2023.1.1-2027.12.31，小规模纳税人以及小微企业，可享受减半征收印花税。</span>\n<span style=\"color: rgb(51, 51, 51);\">印花税的纳税义务发生时间为签订合同的当日，是否开票不影响纳税义务履行时间。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第三款|第三项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

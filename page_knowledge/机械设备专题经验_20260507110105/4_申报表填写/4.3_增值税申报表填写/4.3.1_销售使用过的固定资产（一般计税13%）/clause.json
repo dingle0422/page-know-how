@@ -1,0 +1,24 @@
+{
+  "clauseId": "ae8595ee25bd430990776b6843ce461b",
+  "clauseName": "4.3.1 销售使用过的固定资产（一般计税13%）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "4.3.1 销售使用过的固定资产（一般计税13%）",
+  "clauseContent": "4.3.1.  <span style=\"color: rgb(26, 26, 26);\">销售使用过的固定资产（一般计税13%）</span>\n<span style=\"color: rgb(15, 17, 21);\">（1）填写《增值税及附加税费申报表附列资料（一）》（本期销售情况明细）</span>\n<span style=\"color: rgb(51, 51, 51);\">第1行“13%税率的货物及加工修理修配劳务”：</span>\n<span style=\"color: rgb(51, 51, 51);\">第1列“开具增值税专用发票销售额”：填开专票的不含税金额。</span>\n<span style=\"color: rgb(51, 51, 51);\">第2列“开具增值税专用发票销项(应纳)税额”：自动计算。</span>\n<span style=\"color: rgb(51, 51, 51);\">第3列“开具其他发票销售额”：填开普票的不含税金额。</span>\n<span style=\"color: rgb(51, 51, 51);\">第4列“开具其他发票销项(应纳)税额”：自动计算。</span>\n<span style=\"color: rgb(51, 51, 51);\">第5列“未开具发票销售额”：填未开票收入的不含税金额。</span>\n<span style=\"color: rgb(51, 51, 51);\">第6列“未开具发票销项(应纳)税额”：自动计算。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）数据汇总至主表：主表第1行“按适用税率计税销售额”及第11行“销项税额”。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：销售一手设备、车辆等也是按照以上填表方式。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第四条|第三款|第一项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "631b0b8830ac4240a7389c4a9c5f6f6d",
+  "clauseName": "1.2.6.7 购买手机_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.7 购买手机",
+  "clauseContent": "1.2.6.7.  <span style=\"color: rgb(26, 26, 26);\">购买手机</span>\n<span style=\"color: rgb(51, 51, 51);\">企业应根据财务制度，符合固定资产确认条件的，可以作为固定资产中的电子设备核算，记入“固定资产”科目；如果金额不大，达不到企业财务制度中固定资产标准的，可以一次性计入费用，通过台账进行管理。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第七目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

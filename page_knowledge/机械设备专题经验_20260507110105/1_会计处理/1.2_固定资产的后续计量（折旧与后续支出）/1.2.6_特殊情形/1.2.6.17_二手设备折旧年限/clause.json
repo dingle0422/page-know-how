@@ -1,0 +1,24 @@
+{
+  "clauseId": "f893585ce72542c68ebfd8f60ff4ccf6",
+  "clauseName": "1.2.6.17 二手设备折旧年限_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.17 二手设备折旧年限",
+  "clauseContent": "1.2.6.17.  <span style=\"color: rgb(26, 26, 26);\">二手设备折旧年限</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）企业取得尚未提足折旧的二手设备：</span>\n<span style=\"color: rgb(51, 51, 51);\">会计上：可以在预计可使用的寿命内计提折旧；</span>\n<span style=\"color: rgb(51, 51, 51);\">税法上：此设备的折旧年限不得低于《企业所得税法实施条例》第六十条规定的最低折旧年限减去已经使用年限。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）企业取得已提足折旧的二手设备：</span>\n<span style=\"color: rgb(51, 51, 51);\">会计上：可以在预计可使用的寿命内计提折旧；</span>\n<span style=\"color: rgb(51, 51, 51);\">税法上：按照与会计上一样的折旧期限确定即可。</span>\n<span style=\"color: rgb(51, 51, 51);\">以下是两种常见的会计上确认剩余折旧年限的方法：</span>\n<span style=\"color: rgb(51, 51, 51);\">方法一：按照新取得该项固定资产的预计可使用年限减去该二手设备实际已使用的年限。实际已使用年限可参考该二手设备原拥有企业的原始入账发票，出厂时间证明等资料。</span>\n<span style=\"color: rgb(51, 51, 51);\">方法二：按照二手设备的新旧磨损程度、使用情况以及是否进行改良等因素合理估计新旧程度（成新率），然后与一手情况下该设备的预计使用年限相乘确定。</span>\n<span style=\"color: rgb(51, 51, 51);\">若企业无法提供专业评估，税务机关可能会参照同类设备的行业平均剩余寿命（如建筑行业二手设备通常按5-8年估算）。对于明显超期使用的设备（如已远超新设备法定年限），税务机关可能不认可其折旧扣除，需按“一次性费用”或极低残值处理。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第十七目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

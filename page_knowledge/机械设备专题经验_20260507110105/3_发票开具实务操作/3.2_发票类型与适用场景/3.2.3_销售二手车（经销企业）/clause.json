@@ -1,0 +1,24 @@
+{
+  "clauseId": "d58a1957be9e4cdea0a679cd94e441df",
+  "clauseName": "3.2.3 销售二手车（经销企业）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.2.3 销售二手车（经销企业）",
+  "clauseContent": "3.2.3.  <span style=\"color: rgb(26, 26, 26);\">销售二手车（经销企业） </span>\n<span style=\"color: rgb(51, 51, 51);\">发票类型：二手车销售统一发票（必须开具）；购买方索取专票时，再开具征收率为0.5%的增值税专用发票。</span>\n<span style=\"color: rgb(51, 51, 51);\">经销企业销售其收购的二手车，减按0.5%征收。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第二款|第三项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

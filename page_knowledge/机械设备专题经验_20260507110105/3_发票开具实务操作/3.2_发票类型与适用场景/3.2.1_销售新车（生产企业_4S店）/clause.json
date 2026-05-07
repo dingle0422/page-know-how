@@ -1,0 +1,24 @@
+{
+  "clauseId": "abcb9a0d3f5e48e381e939cf92bd765e",
+  "clauseName": "3.2.1 销售新车（生产企业/4S店）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.2.1 销售新车（生产企业/4S店）",
+  "clauseContent": "3.2.1.  <span style=\"color: rgb(26, 26, 26);\">销售新车（生产企业/4S店） </span>\n<span style=\"color: rgb(51, 51, 51);\">发票类型：机动车销售统一发票。</span>\n<span style=\"color: rgb(51, 51, 51);\">一车一票，一张发票只能填写一辆车的车架号，数量栏不得为小数。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第二款|第一项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

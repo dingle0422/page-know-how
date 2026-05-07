@@ -1,0 +1,24 @@
+{
+  "clauseId": "c85c2e28631d407c9696730836c98c24",
+  "clauseName": "5.21_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.21",
+  "clauseContent": "5.21.  <span style=\"color: rgb(26, 26, 26);\">企业购置车辆入账价值包括哪些？</span>\n<span style=\"color: rgb(51, 51, 51);\">企业购置车辆，车辆入账价值通常包括：购买价款、相关税费（车辆购置税、牌照费等）、使车辆达到预定可使用状态前所发生的可归属于该车的运输费、装卸费、安装费和专业人员服务费、购买手续费、装饰费等。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：车辆购置税实行一次性征收，如果是购置已缴纳过车辆购置税的二手车，不需要再重复缴纳，因此，二手车入账价值通常不包括车辆购置税（购置没有完税的二手车除外）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十一款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

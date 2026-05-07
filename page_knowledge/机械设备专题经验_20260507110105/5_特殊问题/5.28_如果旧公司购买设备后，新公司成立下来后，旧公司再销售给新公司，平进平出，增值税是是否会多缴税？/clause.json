@@ -1,0 +1,24 @@
+{
+  "clauseId": "8bba7a1f26b14f308f543f42cce64325",
+  "clauseName": "5.28_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.28",
+  "clauseContent": "5.28.  <span style=\"color: rgb(26, 26, 26);\">如果旧公司购买设备后，新公司成立下来后，旧公司再销售给新公司，平进平出，增值税是是否会多缴税？</span>\n<span style=\"color: rgb(51, 51, 51);\">增值税影响取决于旧公司是一般纳税人还是小规模纳税人，以及购进凭证情况。如果新旧公司都是一般纳税人，新公司取得的旧公司开具的增值税专用发票，可以抵扣进项税额，平进平出是不会多交税的；如果新公司是一般纳税人，旧公司是小规模纳税人，由于小规模纳税人无法抵扣进项税额，相对来说是多交税了。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十八款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

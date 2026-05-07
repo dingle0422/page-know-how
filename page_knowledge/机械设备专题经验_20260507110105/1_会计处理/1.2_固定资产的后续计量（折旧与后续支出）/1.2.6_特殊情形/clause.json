@@ -1,0 +1,24 @@
+{
+  "clauseId": "290c591923184e0cb9f6e6de6befeb3c",
+  "clauseName": "1.2.6 特殊情形_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6 特殊情形",
+  "clauseContent": "1.2.6.  <span style=\"color: rgb(26, 26, 26);\">特殊情形</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "eef36a6eb62f4913a98f3fdf644c47e6",
+  "clauseName": "5.17_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.17",
+  "clauseContent": "5.17.  <span style=\"color: rgb(26, 26, 26);\">员工培训费是否计入固定资产入账成本？</span>\n<span style=\"color: rgb(51, 51, 51);\">购买固定资产后支付的员工操作培训费，不属于固定资产达到预定可使用状态前的必要支出，需要根据受益对象计入当期损益，不计入固定资产成本。例如：固定资产用于企业办公，员工培训费直接计入管理费用即可。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第十七款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

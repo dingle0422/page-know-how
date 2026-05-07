@@ -440,6 +440,7 @@ class AgentGraph:
         check_pitfalls: bool = False,
         chunk_size: int = 0,
         enable_skills: bool = True,
+        enable_skill_double_check: bool = False,
         summary_clean_answer: bool = False,
         answer_system_prompt: str | None = None,
         think_mode: bool = False,
@@ -468,6 +469,12 @@ class AgentGraph:
         self.check_pitfalls = check_pitfalls
         self.chunk_size = chunk_size
         self.enable_skills = enable_skills
+        # 二次校验（judge → extra-skill → all_in_answer）独立开关，默认 False。
+        # 关闭后：phase-0 预评估 + 注入到 final summary 的事实依据段保持不变；
+        # 但 final summary 完成后不再触发 judge / extra-skill / all_in_answer，
+        # 直接采用 final summary 输出，节省 1~2 次 LLM 调用。
+        # 仅当 enable_skills=True 时才有意义；False + enable_skills=True 是默认状态。
+        self.enable_skill_double_check = bool(enable_skill_double_check)
         self.summary_clean_answer = summary_clean_answer
         # think_mode：作用于【所有最终节点】的 *_AND_CLEAN_PROMPT，统一切换为
         # *_AND_CLEAN_THINK_PROMPT，要求模型按 <think>/<answer> 双标签输出。
@@ -888,10 +895,10 @@ class AgentGraph:
 
         - system 直接采用 CORPUS_SYSTEM_PROMPT，不再叠加 answer_system_prompt /
           PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS / 输出格式段。
-        - user 使用模板「## 【用户问题】 + （可选）## 参考事实 + ## 【参考知识】」。
+        - user 使用模板「## 【用户问题】 + （可选）## 事实依据 + ## 【参考知识】」。
           skill_context 由 `_build_skill_context_for_summary` 产出（内含
-          `## 参考事实（外部 Skill 结果）` 节标题），插在用户问题与参考知识之间，
-          让 phase-0 跑出的 Skill 结果作为权威事实进入最终 LLM 上下文。
+          `## 事实依据` 节标题），插在用户问题与参考知识之间，
+          让 phase-0 跑出的外部核验结果以中性事实形式进入最终 LLM 上下文。
           空字符串时整段省略。
         """
         skill_block = ""
@@ -1088,27 +1095,26 @@ class AgentGraph:
 
     @staticmethod
     def _render_skill_records(records: list[SkillRecord]) -> str:
-        """将 SkillRecord 列表渲染为可读文本（与 SkillResultRegistry.format_context 对齐，但只取指定 records）。
+        """将 SkillRecord 列表渲染为「事实依据」文本。
 
-        命令行不展示，避免污染面向 LLM 的事实段；只保留 skill 名与结果/失败信息。
+        面向 LLM 只保留依据内容本身，不暴露 skill 名称/命令等调用元信息。
         """
         if not records:
             return ""
         lines: list[str] = []
         for i, rec in enumerate(records, 1):
-            lines.append(f"【Skill 调用 {i}】{rec.skill_name}")
+            lines.append(f"【依据{i}】")
             if rec.result.success:
-                lines.append("结果:")
-                lines.append(rec.result.stdout or "（无输出）")
+                lines.append((rec.result.stdout or "（该依据未返回有效内容）").strip())
             else:
-                lines.append(f"调用失败 (exit={rec.result.exit_code}):")
+                lines.append(f"该依据获取失败（exit={rec.result.exit_code}）。")
                 if rec.result.stderr:
-                    lines.append(rec.result.stderr)
+                    lines.append(rec.result.stderr.strip())
             lines.append("")
         return "\n".join(lines).rstrip()
 
     def _build_skill_context_for_summary(self, records: list[SkillRecord]) -> str:
-        """把 skill records 包装成可插入到 summary prompt 头部的参考事实段。空 records → 空串。
+        """把 skill records 包装成可插入到 summary prompt 头部的事实依据段。空 records → 空串。
 
         只给一个节标题；每条 skill 结果的适用范围/免责声明由各 skill 的 format_result
         内部自行附带（见 e.g. standard_product_name_verification/service.py 中的
@@ -1117,12 +1123,12 @@ class AgentGraph:
         body = self._render_skill_records(records)
         if not body:
             return ""
-        return "## 参考事实（外部 Skill 结果）\n" + body
+        return "## 事实依据\n" + body
 
     @staticmethod
     def _append_skill_context_to_prompt(prompt: str, skill_context: str) -> str:
         """把 skill_context 插入到 prompt 的「用户问题」段之后、下一个小节标题之前，
-        让 Skill 结果作为"参考事实"紧跟在用户问题下方出现。
+        让依据内容紧跟在用户问题下方出现。
 
         所有最终 summary/merge 模板都遵循
             "## 用户问题\\n{question}\\n\\n{下一个 # 或 ## 小节}\\n...\\n---\\n{输出要求}"
@@ -1295,6 +1301,16 @@ class AgentGraph:
           起 extra-skill 并行跑，等 summary 与 extra-skill 都完成后走 _all_in_answer 拼接
         """
         if not self.enable_skills or not self.skill_registry:
+            return final_summary_callable()
+
+        if not self.enable_skill_double_check:
+            done_records_snapshot = self.skill_registry.get_all()
+            logger.info(
+                f"[{stage_label}] enable_skill_double_check=False，"
+                f"跳过 judge / extra-skill / all_in_answer，直接采用 final summary 输出"
+                f"（phase-0 完成的 {len(done_records_snapshot)} 条事实依据已由调用方"
+                f"注入 final summary user prompt）"
+            )
             return final_summary_callable()
 
         done_records_snapshot = self.skill_registry.get_all()

@@ -1,0 +1,24 @@
+{
+  "clauseId": "321dc628675f41a3833f83f3f20f7eb1",
+  "clauseName": "2.1.2.3 扣除凭证与备查资料_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.2.3 扣除凭证与备查资料",
+  "clauseContent": "2.1.2.3.  <span style=\"color: rgb(26, 26, 26);\">扣除凭证与备查资料</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）税前扣除凭证包括：发票、合同、付款凭证、内部审批单等。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）资产损失（如报废、毁损）需留存备查资料，如：企业内部有关责任认定和核销资料、固定资产盘点表、固定资产的计税基础相关资料、固定资产盘亏、丢失情况说明、损失金额较大的，应自行出具的有法定代表人、主要负责人和财务负责人签章证实有关损失的书面申明。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第二项|第三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

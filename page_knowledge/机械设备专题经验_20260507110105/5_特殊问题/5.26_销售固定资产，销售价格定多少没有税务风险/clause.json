@@ -1,0 +1,24 @@
+{
+  "clauseId": "b7e2237fc3894dc68e01cce23bd1323f",
+  "clauseName": "5.26 销售固定资产，销售价格定多少没有税务风险_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.26 销售固定资产，销售价格定多少没有税务风险",
+  "clauseContent": "5.26.  <span style=\"color: rgb(26, 26, 26);\">销售固定资产，销售价格定多少没有税务风险</span>\n<span style=\"color: rgb(51, 51, 51);\">一般按市场公允价进行销售都是无风险的。若税务局认为销售价格偏低，可能会按如下方法来核定计税依据：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）按出售前账面的净值确定计税依据；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）按第1年折旧20%，以后每年各折旧10%计算出售前的净值为计税依据。如果认为税局按此方法核定金额偏高，可以通过市场询价或评估机构评估来证明销售价格的公允性。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：以上信息仅供了解，各地税局的风控指标会所有差异</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十六款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "dc783cc7a24e4856aeafc50dbf77b158",
+  "clauseName": "5.11_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.11",
+  "clauseContent": "5.11.  <span style=\"color: rgb(26, 26, 26);\">如果现在先开具1套机械设备的全额发票，后续再开具剩余5%尾款对应的发票时，是否还需要再开一套的发票？</span>\n<span style=\"color: rgb(51, 51, 51);\">收尾款时，不需要再开具1套机械设备的发票。在分期收款销售机械设备的情况下，如果iye已经就全部货款开具了发票，增值税纳税义务在开票当天即已全额发生。会计上，收入应在设备控制权转移时一次性确认，与开票次数无关。因此，首次开具的发票已完整反映了该笔交易，后续收取尾款仅是应收账款的收回，无需就尾款部分重复开具发票。请确保首次开具的发票信息准确，并以此作为双方记账凭证即可。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第十一款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -39,11 +39,6 @@ python -m skills.standard_product_name_verification "马粪" "电脑" "理发服
 
 多条结果之间以空行分隔。
 
-### 查看帮助
-
-```bash
-python -m skills.standard_product_name_verification --help
-```
 
 ## 注意事项
 

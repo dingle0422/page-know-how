@@ -1,0 +1,24 @@
+{
+  "clauseId": "199060197d324458b04b05e4a68eb27c",
+  "clauseName": "1.4.2.9.1 小企业会计准则_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.4.2.9.1 小企业会计准则",
+  "clauseContent": "1.4.2.9.1.  <span style=\"color: rgb(26, 26, 26);\">小企业会计准则</span>\n<span style=\"color: rgb(51, 51, 51);\">执行小企业会计准则的纳税人，处置使用过的固定资产选择3%减按2%。</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）转入固定资产清理</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产清理</span>\n<span style=\"color: rgb(51, 51, 51);\">      累计折旧</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：固定资产</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）清理发生收入、费用、和结转1%减免税额</span>\n<span style=\"color: rgb(51, 51, 51);\">清理收入：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：固定资产清理</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—简易计税 （2%的税款）【一般纳税人】/应交税费—应交增值税（2%的税款）【小规模纳税人】</span>\n<span style=\"color: rgb(51, 51, 51);\">清理发生的费用：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产清理</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）结转固定资产清理：</span>\n<span style=\"color: rgb(51, 51, 51);\">净损失：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：营业外支出</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：固定资产清理</span>\n<span style=\"color: rgb(51, 51, 51);\">净收益：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产清理</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：营业外收入</span>\n<span style=\"color: rgb(51, 51, 51);\">次月缴纳增值税：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费—简易计税（2%的税款）【一般纳税人】/应交税费—应交增值税（2%的税款）【小规模纳税人】</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">注：2%的税款是指含税金额/（1+2%）×2% 。如果采用3%减按1%，则是1%的税款，即，含税金额/（1+1%）×1%。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第四款|第二项|第九目|第一点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

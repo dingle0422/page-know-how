@@ -1,0 +1,24 @@
+{
+  "clauseId": "8acf1f75cc624b65a901a5251ced89c3",
+  "clauseName": "1.1.4.10 购买固定资产未取得发票_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.4.10 购买固定资产未取得发票",
+  "clauseContent": "1.1.4.10.  <span style=\"color: rgb(26, 26, 26);\">购买固定资产未取得发票</span>\n<span style=\"color: rgb(51, 51, 51);\">购买固定资产未取得发票或者销售固定资产未开具发票，仍然需要做账务处理。购买时应按照实际支付的款项（包括车辆购置税、交易费用等税费）计入固定资产，销售时，将固定资产账面价值转入固定资产清理，净损益计入“资产处置损益”或“营业外收入”/“营业外支出”。需要注意的是，购买时未取得合规的税前扣除凭证（如发票等），企业所得税是无法税前列支的；未取得增值税专用发票，相应的进项税额也不能抵扣。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第四项|第十目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

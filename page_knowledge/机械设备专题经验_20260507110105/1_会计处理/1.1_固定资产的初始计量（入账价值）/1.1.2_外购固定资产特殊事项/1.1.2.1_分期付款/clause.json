@@ -1,0 +1,24 @@
+{
+  "clauseId": "14c2e83d66094fa4bb3303cb09130270",
+  "clauseName": "1.1.2.1 分期付款_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.2.1 分期付款",
+  "clauseContent": "1.1.2.1.  <span style=\"color: rgb(26, 26, 26);\">分期付款</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）分期付款（具有融资性质）： 以购买价款的现值为基础确定入账价值，实际支付的价款与现值之间的差额作为“未确认融资费用”，在付款期内采用实际利率法摊销，计入财务费用。具体分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">①借：固定资产</span>\n<span style=\"color: rgb(51, 51, 51);\"> 未确认融资费用</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—待认证进项税额（一般纳税人确认取得专票时）</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：长期应付款（合同约定价款）</span>\n<span style=\"color: rgb(51, 51, 51);\"> 银行存款（首付款）</span>\n<span style=\"color: rgb(51, 51, 51);\">②分期付款时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：长期应付款</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">③取得专票认证后确认进项税额：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费—应交增值税（进项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应交税费—待认证进项税额</span>\n<span style=\"color: rgb(51, 51, 51);\">④按月分摊未确认融资费用时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：财务费用</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：未确认融资费用</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）分期付款（不具有融资性质）： 直接按合同约定的付款总额和相关税费确定成本。小企业会计准则一般是按照不具有融资性质简化处理的。具体分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">①借：固定资产</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应交税费—待认证进项税额（一般纳税人确认取得专票时）</span>\n<span style=\"color: rgb(51, 51, 51);\"> 贷：长期应付款</span>\n<span style=\"color: rgb(51, 51, 51);\"> 银行存款（首付款）</span>\n<span style=\"color: rgb(51, 51, 51);\">②按期计提利息，分期付款还利息时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：财务费用</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应付利息</span>\n<span style=\"color: rgb(51, 51, 51);\">借：长期应付款</span>\n<span style=\"color: rgb(51, 51, 51);\"> 应付利息</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：银行存款</span>\n<span style=\"color: rgb(51, 51, 51);\">③取得专票认证后确认进项税额：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：应交税费—应交增值税（进项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应交税费—待认证进项税额</span>\n<span style=\"color: rgb(51, 51, 51);\">注：取得的贷款利息发票不能进项抵扣。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第二项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

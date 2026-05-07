@@ -794,6 +794,7 @@ def _run_reasoning(
     check_pitfalls: bool = False,
     chunk_size: int = 0,
     enable_skills: bool = True,
+    enable_skill_double_check: bool = False,
     summary_clean_answer: bool = False,
     answer_system_prompt: str | None = None,
     think_mode: bool = False,
@@ -824,7 +825,13 @@ def _run_reasoning(
         extra_kwargs["reduce_max_part_depth"] = reduce_max_part_depth
         extra_kwargs["pure_model_result"] = pure_model_result
         extra_kwargs["answer_refine"] = answer_refine
-    else:
+    if version == "v3":
+        extra_kwargs["enable_skill_double_check"] = enable_skill_double_check
+    elif enable_skill_double_check:
+        logger.warning(
+            "enableSkillDoubleCheck 仅在 version=v3 下生效，本次将被忽略"
+        )
+    if version not in ("v1", "v2", "v3"):
         if summary_clean_answer:
             logger.warning("summaryCleanAnswer 仅在 version=v1/v2/v3 下生效，本次将被忽略")
         if answer_system_prompt:
@@ -993,6 +1000,7 @@ async def _reason_executor(request_payload: dict) -> dict:
             check_pitfalls=request_payload.get("checkPitfalls", True),
             chunk_size=request_payload.get("chunkSize", 3000),
             enable_skills=request_payload.get("enableSkills", True),
+            enable_skill_double_check=request_payload.get("enableSkillDoubleCheck", False),
             summary_clean_answer=request_payload.get("summaryCleanAnswer", True),
             answer_system_prompt=request_payload.get("answerSystemPrompt"),
             think_mode=request_payload.get("thinkMode", True),

@@ -1,0 +1,24 @@
+{
+  "clauseId": "8ca6e117faa944b096e55dddde0a5d7f",
+  "clauseName": "5.6 做POS机业务，POS机过账流水抽点，POS机办理是免费的，进项票采购的POS机可以抵扣吗_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.6 做POS机业务，POS机过账流水抽点，POS机办理是免费的，进项票采购的POS机可以抵扣吗",
+  "clauseContent": "5.6.  <span style=\"color: rgb(26, 26, 26);\">做POS机业务，POS机过账流水抽点，POS机办理是免费的，进项票采购的POS机可以抵扣吗</span>\n<span style=\"color: rgb(51, 51, 51);\">长期资产（固定资产、无形资产、不动产）同时用于免税业务和一般计税业务的，原值不超过500万元的单项长期资产，对应的进项税额可以全额从销项税额中抵扣。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：原值超过500万元的单项长期资产，购进时先全额抵扣进项税额，此后在用于混合用途期间，根据调整年限计算五类不允许抵扣项目对应的不得从销项税额中抵扣的进项税额，逐年调整。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第六款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

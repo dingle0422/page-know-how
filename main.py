@@ -82,6 +82,13 @@ def cmd_reason(args):
     print(f"使用 reasoner {version} 版本")
 
     enable_skills = not getattr(args, "disable_skills", False)
+    enable_skill_double_check = bool(
+        getattr(args, "enable_skill_double_check", False)
+    )
+    if enable_skill_double_check and version != "v3":
+        print(
+            "警告：--enable-skill-double-check 仅在 --version v3 下生效，本次将被忽略"
+        )
     common_kwargs = dict(
         knowledge_dir=args.knowledge_dir,
         max_rounds=args.max_rounds,
@@ -94,6 +101,8 @@ def cmd_reason(args):
         enable_skills=enable_skills,
         last_think=args.last_think,
     )
+    if version == "v3":
+        common_kwargs["enable_skill_double_check"] = enable_skill_double_check
     if version in ("v1", "v2", "v3"):
         common_kwargs["chunk_size"] = args.chunk_size
         common_kwargs["summary_clean_answer"] = args.summary_clean_answer
@@ -256,6 +265,13 @@ def main():
     reason_parser.add_argument(
         "--disable-skills", action="store_true", default=False,
         help="关闭 skill 功能：默认开启，会在推理前对问题做 skill 评估，并在 summary 后做 skill double-check 优化答案"
+    )
+    reason_parser.add_argument(
+        "--enable-skill-double-check", action=argparse.BooleanOptionalAction, default=False,
+        help="（仅 v3 生效）开启 skill 二次校验：summary 完成后再走 judge / extra-skill / all_in_answer 流程；"
+             "默认关闭，关闭后 final summary 阶段直接采用 phase-0 已注入的事实依据出最终答案，节省 1~2 次 LLM 调用。"
+             "phase-0 预评估与事实依据注入不受此开关影响。"
+             "可显式 --no-enable-skill-double-check 关闭"
     )
     reason_parser.add_argument(
         "--summary-clean-answer", action=argparse.BooleanOptionalAction, default=True,

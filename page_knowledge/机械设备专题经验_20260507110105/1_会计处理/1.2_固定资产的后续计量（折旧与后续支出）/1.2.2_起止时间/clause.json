@@ -1,0 +1,24 @@
+{
+  "clauseId": "2a60c0f094264904b953debb27ac1702",
+  "clauseName": "1.2.2 起止时间_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.2 起止时间",
+  "clauseContent": "1.2.2.  <span style=\"color: rgb(26, 26, 26);\">起止时间</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）当月增加的固定资产，当月不计提折旧，从下月起计提。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）当月减少的固定资产，当月仍计提折旧，从下月起不计提。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第二项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

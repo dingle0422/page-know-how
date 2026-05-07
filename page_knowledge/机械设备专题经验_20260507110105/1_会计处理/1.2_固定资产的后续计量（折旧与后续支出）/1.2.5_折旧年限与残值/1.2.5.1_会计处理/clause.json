@@ -1,0 +1,24 @@
+{
+  "clauseId": "9f365462bdc8470ab699fdc3c27aa3e1",
+  "clauseName": "1.2.5.1 会计处理_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.5.1 会计处理",
+  "clauseContent": "1.2.5.1.  <span style=\"color: rgb(26, 26, 26);\">会计处理</span>\n<span style=\"color: rgb(51, 51, 51);\">企业应根据资产预计使用寿命合理确定，无强制年限（如汽车常用4-8年）。</span>\n<span style=\"color: rgb(51, 51, 51);\">残值率通常为3%-5%或0%，不是固定比例。但是一经确定，不得随意变更。企业至少应当于每年年度终了，对固定资产的预计净残值进行复核。预计净残值预计数与原先估计数有差异的，应当调整预计净残值。</span>\n<span style=\"color: rgb(51, 51, 51);\">注1：随同房屋的热水器、中央空调、电梯等设备可以按照房屋、建筑物的预计或实际可使用年限确认折旧年限。</span>\n<span style=\"color: rgb(51, 51, 51);\">注2：政府会计主体应当按照《政府会计准则第3号—固定资产》应用指南（财会[2017]4号）确认折旧年限</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第五项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

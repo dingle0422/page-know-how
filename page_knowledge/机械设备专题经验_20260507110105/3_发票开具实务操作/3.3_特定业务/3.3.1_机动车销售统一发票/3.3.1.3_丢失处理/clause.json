@@ -1,0 +1,24 @@
+{
+  "clauseId": "cecbdb2a5ce8423699937bdf509502ed",
+  "clauseName": "3.3.1.3 丢失处理_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.3.1.3 丢失处理",
+  "clauseContent": "3.3.1.3.  <span style=\"color: rgb(26, 26, 26);\">丢失处理</span>\n<span style=\"color: rgb(51, 51, 51);\">丢失纸质机动车发票时，需要根据具体丢失的联次来处理：</span>\n<span style=\"color: rgb(51, 51, 51);\">①同时丢失已开具机动车销售统一发票的发票联和抵扣联，可凭加盖销售方发票专用章的相应发票记账联复印件，作为增值税进项税额的抵扣凭证、退税凭证或记账凭证。</span>\n<span style=\"color: rgb(51, 51, 51);\">②丢失已开具机动车销售统一发票的抵扣联，可凭相应发票的发票联复印件，作为增值税进项税额的抵扣凭证或退税凭证；</span>\n<span style=\"color: rgb(51, 51, 51);\">③丢失已开具机动车销售统一发票的发票联，可凭相应发票的抵扣联复印件，作为记账凭证。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第三款|第一项|第三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

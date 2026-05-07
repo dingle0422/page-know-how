@@ -1,0 +1,24 @@
+{
+  "clauseId": "1ed3511f6aeb477e8735f72a10d3b256",
+  "clauseName": "2.3.7 消费税_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.3.7 消费税",
+  "clauseContent": "2.3.7.  <span style=\"color: rgb(26, 26, 26);\">消费税</span>\n<span style=\"color: rgb(51, 51, 51);\">根据《财政部 税务总局关于调整超豪华小汽车消费税政策的公告》规定，自2025年7月20日起，对纳税人销售二手超豪华小汽车，不征收消费税。二手车是指从办理完注册登记手续至达到国家强制报废标准之前进行交易并转移所有权的车辆。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第三款|第七项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

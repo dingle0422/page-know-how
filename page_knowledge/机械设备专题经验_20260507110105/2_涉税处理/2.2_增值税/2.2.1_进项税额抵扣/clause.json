@@ -1,0 +1,24 @@
+{
+  "clauseId": "4c39225fd73a46539be969cdb807e865",
+  "clauseName": "2.2.1 进项税额抵扣_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.1 进项税额抵扣",
+  "clauseContent": "2.2.1.  <span style=\"color: rgb(26, 26, 26);\">进项税额抵扣</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第一项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

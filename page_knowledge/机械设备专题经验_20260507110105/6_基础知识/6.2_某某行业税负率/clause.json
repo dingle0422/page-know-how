@@ -1,0 +1,24 @@
+{
+  "clauseId": "fb7f3360dbfc4a86ab6b8ee0259ed52f",
+  "clauseName": "6.2 某某行业税负率_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.2 某某行业税负率",
+  "clauseContent": "6.2.  <span style=\"color: rgb(26, 26, 26);\">某某行业税负率</span>\n<span style=\"color: rgb(51, 51, 51);\">由于不同地区不同行业的税负率各有不同，不同时期税负率也是不断变化的，目前税局并未对外给出官方的查询渠道和数据，您可以咨询下所属税局或者和同行业的交流一下税负情况。</span>\n<span style=\"color: rgb(51, 51, 51);\">税负率的计算公式：</span>\n<span style=\"color: rgb(51, 51, 51);\">增值税税负率=分析期内增值税应纳税额/分析期内销售额×100%</span>\n<span style=\"color: rgb(51, 51, 51);\">企税月季报税负率=应纳所得税额/（利润总额+特定业务计算的应纳税所得额)×100%</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第二款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

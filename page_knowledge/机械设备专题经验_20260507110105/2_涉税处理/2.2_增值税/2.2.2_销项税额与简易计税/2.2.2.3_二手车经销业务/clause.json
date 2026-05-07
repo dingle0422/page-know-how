@@ -1,0 +1,24 @@
+{
+  "clauseId": "6da8a70533fd4163a0d23eb6110fbc53",
+  "clauseName": "2.2.2.3 二手车经销业务_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.2.3 二手车经销业务",
+  "clauseContent": "2.2.2.3.  <span style=\"color: rgb(26, 26, 26);\">二手车经销业务</span>\n<span style=\"color: rgb(51, 51, 51);\">政策： 2020.5.1—2027.12.31，从事二手车经销的纳税人销售其收购的二手车，减按0.5%征收率征收增值税。</span>\n<span style=\"color: rgb(51, 51, 51);\">销售额计算： 销售额=含税销售额 / (1+0.5%)。</span>\n<span style=\"color: rgb(51, 51, 51);\">发票开具： 应开具“二手车销售统一发票”；购买方索取专票的，应再开具征收率为0.5%的增值税专用发票。</span>\n<span style=\"color: rgb(51, 51, 51);\">注： 企业从个人处收购二手车，若未过户至自己名下，销售二手车时可能被税局要求按“经纪代理服务”（6%或3%）征税，而非0.5%。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第二项|第三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

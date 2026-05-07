@@ -1,0 +1,24 @@
+{
+  "clauseId": "73752d848d1a46b88792077022f2880d",
+  "clauseName": "6.8 【增值税】纳税人凭增值税扣税凭证从销项税额中抵扣的进项税额_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.8 【增值税】纳税人凭增值税扣税凭证从销项税额中抵扣的进项税额",
+  "clauseContent": "6.8.  <span style=\"color: rgb(26, 26, 26);\">【增值税】纳税人凭增值税扣税凭证从销项税额中抵扣的进项税额</span>\n<span style=\"color: rgb(51, 51, 51);\">纳税人凭增值税扣税凭证从销项税额中抵扣的进项税额，包括：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）从销售方取得的增值税专用发票上列明的增值税税额；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）从海关取得的海关进口增值税专用缴款书上列明的增值税税额；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）自境外单位或者个人购进服务、无形资产或者境内不动产取得的完税凭证上列明的增值税税额；</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）购进农产品时，除取得增值税专用发票或者海关进口增值税专用缴款书外，按照农产品收购发票或者农产品销售发票计算的进项税额，国务院另有规定的除外；</span>\n<span style=\"color: rgb(51, 51, 51);\">（5）从销售方取得的其他增值税扣税凭证上列明或者包含的增值税税额。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第八款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

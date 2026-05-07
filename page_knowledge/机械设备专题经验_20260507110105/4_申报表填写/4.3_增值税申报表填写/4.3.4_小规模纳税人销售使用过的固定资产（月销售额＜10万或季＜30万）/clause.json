@@ -1,0 +1,24 @@
+{
+  "clauseId": "ac76e63eb87a4607b914ccc9d0981918",
+  "clauseName": "4.3.4 小规模纳税人销售使用过的固定资产（月销售额＜10万或季＜30万）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "4.3.4 小规模纳税人销售使用过的固定资产（月销售额＜10万或季＜30万）",
+  "clauseContent": "4.3.4.  <span style=\"color: rgb(26, 26, 26);\">小规模纳税人销售使用过的固定资产（月销售额＜10万或季＜30万）</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）若未开具专票且未超过起征点： 销售额填写在主表“免税销售额” 相关栏次（如“小微企业免税销售额”），无需缴纳增值税。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）若开具专票或超过起征点： 按3%减按2%或按1%征收，填写在“应征增值税不含税销售额”栏次，并填写减免税明细表；减按0.5%征收率征收，增值税的销售额应当填写在“应征增值税不含税销售额(3%征收率)”栏次；18栏“本期应纳税额减征额”手工填写2.5%的减征额，同时需填写减免税明细表。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第四条|第三款|第四项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

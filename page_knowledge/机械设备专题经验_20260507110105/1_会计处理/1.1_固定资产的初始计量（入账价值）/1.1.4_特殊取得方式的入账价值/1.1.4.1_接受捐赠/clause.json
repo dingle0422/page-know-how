@@ -1,0 +1,24 @@
+{
+  "clauseId": "cb6ee450fc4d45968fbe13b2e9340280",
+  "clauseName": "1.1.4.1 接受捐赠_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.4.1 接受捐赠",
+  "clauseContent": "1.1.4.1.  <span style=\"color: rgb(26, 26, 26);\">接受捐赠</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第四项|第一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

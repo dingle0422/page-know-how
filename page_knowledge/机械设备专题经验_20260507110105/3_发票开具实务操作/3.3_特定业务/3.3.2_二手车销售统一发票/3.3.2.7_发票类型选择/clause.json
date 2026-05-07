@@ -1,0 +1,24 @@
+{
+  "clauseId": "41feb5bf962a430aa1af61bf0797dcb6",
+  "clauseName": "3.3.2.7 发票类型选择_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.3.2.7 发票类型选择",
+  "clauseContent": "3.3.2.7.  <span style=\"color: rgb(26, 26, 26);\">发票类型选择</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）一般纳税人购买设备用于可抵扣项目： 应索取增值税专用发票。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）小规模纳税人购买设备： 索取普通发票即可，无需专票（不能抵扣）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）销售给自然人： 只能开具普通发票（或不开票做无票收入），不得开具专用发票。</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）简易计税项目（3%减按2%）：2026年1月1日前只能开具普通发票。若放弃减税按3%计税，可开具专用发票；2026年1月1日起，纳税人可以开具2%的增专用发票。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第三款|第二项|第七目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "6e36278eebfe49a2855559cfffc89688",
+  "clauseName": "1.1.2.4 以一笔款项购入多项没有单独标价的固定资产_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.2.4 以一笔款项购入多项没有单独标价的固定资产",
+  "clauseContent": "1.1.2.4.  <span style=\"color: rgb(26, 26, 26);\">以一笔款项购入多项没有单独标价的固定资产</span>\n<span style=\"color: rgb(51, 51, 51);\">以一笔款项购入多项没有单独标价的固定资产，执行企业会计准则的企业应当按照各项固定资产公允价值比例对总成本进行分配；执行小企业会计准则的企业应当按照各项固定资产或类似资产的市场价格或评估价值比例对总成本进行分配，根据分配好的比例分别确定各项固定资产的成本。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第二项|第四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

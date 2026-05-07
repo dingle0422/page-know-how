@@ -1,0 +1,24 @@
+{
+  "clauseId": "2cc19a7b84714e3f81106f1b99b83255",
+  "clauseName": "1.2.6.3 融资租入（使用权资产）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.3 融资租入（使用权资产）",
+  "clauseContent": "1.2.6.3.  <span style=\"color: rgb(26, 26, 26);\">融资租入（使用权资产）</span>\n<span style=\"color: rgb(51, 51, 51);\">会计上承租人确定租赁资产的折旧年限，可以参考下述规则：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）承租人能够合理确定租赁期届满时取得租赁资产所有权的，应当在租赁资产剩余使用寿命内计提折旧；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）无法合理确定租赁期届满时能够取得租赁资产所有权的，应当在租赁期与租赁资产剩余使用寿命两者孰短的期间内计提折旧（留购权存在时按资产使用寿命）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第三目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

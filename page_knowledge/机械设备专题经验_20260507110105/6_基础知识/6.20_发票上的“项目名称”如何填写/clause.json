@@ -1,0 +1,24 @@
+{
+  "clauseId": "e88965553f834dcaadc648a77f6e109f",
+  "clauseName": "6.20 发票上的“项目名称”如何填写_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.20 发票上的“项目名称”如何填写",
+  "clauseContent": "6.20.  <span style=\"color: rgb(26, 26, 26);\">发票上的“项目名称”如何填写</span>\n<span style=\"color: rgb(51, 51, 51);\">纳税人开具发票时，发票上的“项目名称”由“商品和服务税收分类”+“名称”两部分组成，其中“税收分类”需按照开票系统中预设的编码选择；“名称”由开票人手工录入，需要体现业务实质（例如：*建筑服务*房屋修缮费）。</span>\n<span style=\"color: rgb(51, 51, 51);\">参考文件：《国家税务总局关于增值税发票管理若干事项的公告》（国家税务总局公告2017年第45号 ）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第二十款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

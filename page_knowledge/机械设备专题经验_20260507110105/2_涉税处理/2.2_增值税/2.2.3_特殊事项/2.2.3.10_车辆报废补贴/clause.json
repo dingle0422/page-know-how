@@ -1,0 +1,24 @@
+{
+  "clauseId": "5bfe756317ed40b3aafa7d76ea79b056",
+  "clauseName": "2.2.3.10 车辆报废补贴_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.10 车辆报废补贴",
+  "clauseContent": "2.2.3.10.  <span style=\"color: rgb(26, 26, 26);\">车辆报废补贴</span>\n<span style=\"color: rgb(51, 51, 51);\">车辆达到使用年限，自愿报废，按照有关规定取得的政府补贴，不属于增值税的应税交易，不需要缴纳增值税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第十目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

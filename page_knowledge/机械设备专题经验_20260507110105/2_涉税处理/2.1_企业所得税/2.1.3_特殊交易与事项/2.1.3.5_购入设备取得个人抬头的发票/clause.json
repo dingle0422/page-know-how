@@ -1,0 +1,24 @@
+{
+  "clauseId": "b574c105916441e3bf37cf1c12567956",
+  "clauseName": "2.1.3.5 购入设备取得个人抬头的发票_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.3.5 购入设备取得个人抬头的发票",
+  "clauseContent": "2.1.3.5.  <span style=\"color: rgb(26, 26, 26);\">购入设备取得个人抬头的发票</span>\n<span style=\"color: rgb(51, 51, 51);\">公司买的国补打印机、电脑等电器，收到的是个人抬头的发票，如果实质是公司购买使用，只是用了个人名义，这种可以报销入账，但因为未取得公司抬头发票，打印机、电脑等电器的折旧在企业所得税税前是不能扣除的，需要在所得税汇算清缴的时候做纳税调增处理。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：国补是针对的个人消费给予的补贴，发票只能开给个人。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第三项|第五目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "516476a513bb4a4996309336ea031086",
+  "clauseName": "3.3.2.4 金额不一致_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.3.2.4 金额不一致",
+  "clauseContent": "3.3.2.4.  <span style=\"color: rgb(26, 26, 26);\">金额不一致</span>\n<span style=\"color: rgb(51, 51, 51);\">二手车发票金额与增值税专用发票金额不一致时，以增值税专用发票金额为准进行抵扣和入账，二手车发票仅用于过户。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第三款|第二项|第四目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

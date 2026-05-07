@@ -1,0 +1,24 @@
+{
+  "clauseId": "6fa7496fe9184588bb10076853d3bba3",
+  "clauseName": "6.5 【增值税】小规模30万元以下免税_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.5 【增值税】小规模30万元以下免税",
+  "clauseContent": "6.5.  <span style=\"color: rgb(26, 26, 26);\">【增值税】小规模30万元以下免税</span>\n<span style=\"color: rgb(51, 51, 51);\">小规模纳税人达到起征点（月报10万，季报30万）后需要按照实际销售额全额缴纳增值税。</span>\n<span style=\"color: rgb(51, 51, 51);\">具体缴纳的税率（征收率），开具专票的，以专票税率为准；开具1%（2027年12月31日前原3%的按1%）普票的，按1%缴纳。</span>\n<span style=\"color: rgb(51, 51, 51);\">注意：①免征增值税的业务除外。</span>\n<span style=\"color: rgb(51, 51, 51);\">②转让、出租不动产，转让土地使用权不可以享受3%减按1%优惠。</span>\n<span style=\"color: rgb(51, 51, 51);\">举例：比如单位销售猪肉免增值税，2026年2季度开具了免税发票25万，另有其他业务开具了1%10万（不含税）普通发票，假设不涉及其他业务，季度增值税申报时，销售额合计35万，超过了起征点，其中免税业务的25万继续享受免税，单位仅就10万1%普票，按1%缴纳增值税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第五款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

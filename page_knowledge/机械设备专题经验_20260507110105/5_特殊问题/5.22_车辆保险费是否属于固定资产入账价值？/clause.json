@@ -1,0 +1,24 @@
+{
+  "clauseId": "ba933cacbd6b42989c3fdf59f7a29c9d",
+  "clauseName": "5.22_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.22",
+  "clauseContent": "5.22.  <span style=\"color: rgb(26, 26, 26);\">车辆保险费是否属于固定资产入账价值？</span>\n<span style=\"color: rgb(51, 51, 51);\">车辆保险费（包括购车首次保险费）不属于固定资产达到预定可供使用状态前所发生的支出，可以根据受益对象计入对应的费用类科目（比如管理费用—车辆使用费/管理费用—保险费），无需计入“固定资产”。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二十二款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

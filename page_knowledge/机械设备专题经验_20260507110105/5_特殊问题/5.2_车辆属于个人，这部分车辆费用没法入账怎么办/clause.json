@@ -1,0 +1,24 @@
+{
+  "clauseId": "c6e73de6c49042b0bcd3586bcb681703",
+  "clauseName": "5.2 车辆属于个人，这部分车辆费用没法入账怎么办_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.2 车辆属于个人，这部分车辆费用没法入账怎么办",
+  "clauseContent": "5.2.  <span style=\"color: rgb(26, 26, 26);\">车辆属于个人，这部分车辆费用没法入账怎么办</span>\n<span style=\"color: rgb(51, 51, 51);\">车辆属于个人，企业想扣除费用，有以下两种方式：</span>\n方式一 将车辆无偿出租给企业\n<span style=\"color: rgb(51, 51, 51);\">车主（个人）无偿将车辆提供给公司日常经营公务使用；</span>\n<span style=\"color: rgb(51, 51, 51);\">公务使用期间产生的油费、路桥、停车、维修由公司承担（车船税、车检费用等车辆所有权产生的费用不能企业承担）。个人无偿提供服务不属于视同销售（视同应税交易）的范围，不需要缴纳增值税。个人未取得应税收入，无需缴纳个人所得税。</span>\n方式二、将车辆出售给企业\n<span style=\"color: rgb(51, 51, 51);\">油费、保险、保养、维修、车船税、车检费用等全部可以扣除，固定资产折旧还能在企业所得税税前列支。</span>\n<span style=\"color: rgb(51, 51, 51);\">个人销售二手车给企业，增值税上，销售自己使用过的物品免征增值税；个人所得税上，财产转让所得个人所得税=（收入总额－财产原值－合理税费）×20%，只要个人销售出去的车辆价格低于买价，是不需要缴纳个人所得税的；印花税上，如果是公司与个人之间签订的车辆买卖合同，则属于个人和企业签订的动产买卖合同，按规定，书立双方均不缴纳印花税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第二款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

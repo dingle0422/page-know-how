@@ -1,0 +1,24 @@
+{
+  "clauseId": "dce2125d9e8c4f7db5e0e9f293497695",
+  "clauseName": "1.4.2.7 资产清查（盘盈与盘亏）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.4.2.7 资产清查（盘盈与盘亏）",
+  "clauseContent": "1.4.2.7.  <span style=\"color: rgb(26, 26, 26);\">资产清查（盘盈与盘亏）</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第四款|第二项|第七目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

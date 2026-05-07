@@ -1,0 +1,24 @@
+{
+  "clauseId": "1fb8abf9405c43f8b4c38320b4e40d14",
+  "clauseName": "6.22 能否为了适用低税率而选择低税率货物的税收分类编码_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.22 能否为了适用低税率而选择低税率货物的税收分类编码",
+  "clauseContent": "6.22.  <span style=\"color: rgb(26, 26, 26);\">能否为了适用低税率而选择低税率货物的税收分类编码</span>\n<span style=\"color: rgb(51, 51, 51);\">不能为了适用低税率，脱离实际业务，将高税率的货物的税收分类编码调整成低税率的税收分类编码，例如将建筑施工设备开具成农机，属于不合规发票，同时也涉嫌虚开发票，购买方无法抵扣增值税进项税额和企业所得税税前列支。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第二十二款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

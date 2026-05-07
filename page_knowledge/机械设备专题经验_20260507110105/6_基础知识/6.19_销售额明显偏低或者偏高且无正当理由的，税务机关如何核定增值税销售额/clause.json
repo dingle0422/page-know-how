@@ -1,0 +1,24 @@
+{
+  "clauseId": "eba95ad5250040409d2b76f454349eff",
+  "clauseName": "6.19 销售额明显偏低或者偏高且无正当理由的，税务机关如何核定增值税销售额_机械设备专题经验（20260507110105）",
+  "clauseNumber": "6.19 销售额明显偏低或者偏高且无正当理由的，税务机关如何核定增值税销售额",
+  "clauseContent": "6.19.  <span style=\"color: rgb(26, 26, 26);\">销售额明显偏低或者偏高且无正当理由的，税务机关如何核定增值税销售额</span>\n<span style=\"color: rgb(51, 51, 51);\">销售额明显偏低或者偏高且无正当理由的，税务机关可以按顺序依照下列方法核定销售额：</span>\n<span style=\"color: rgb(51, 51, 51);\">（一）按照纳税人最近时期销售同类货物、服务、无形资产或者不动产的平均价格确定;</span>\n<span style=\"color: rgb(51, 51, 51);\">（二）按照其他纳税人最近时期销售同类货物、服务、无形资产或者不动产的平均价格确定;</span>\n<span style=\"color: rgb(51, 51, 51);\">（三）按照组成计税价格确定。组成计税价格的公式为：组成计税价格=成本×（1+成本利润率）+消费税税额公式中成本利润率为10%，国务院税务主管部门可以根据行业成本利润实际情况调整成本利润率。</span>\n<span style=\"color: rgb(51, 51, 51);\">参考文件：《中华人民共和国增值税法》(中华人民共和国主席令第四十一号)第二十条；《中华人民共和国增值税法实施条例》(中华人民共和国国务院令第826号)第十八条。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第六条|第十九款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

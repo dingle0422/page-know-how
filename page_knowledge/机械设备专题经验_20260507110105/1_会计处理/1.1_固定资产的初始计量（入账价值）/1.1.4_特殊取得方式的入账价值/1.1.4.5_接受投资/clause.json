@@ -1,0 +1,24 @@
+{
+  "clauseId": "d91204ca0f9143e49f87c72cd69c43d7",
+  "clauseName": "1.1.4.5 接受投资_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.4.5 接受投资",
+  "clauseContent": "1.1.4.5.  <span style=\"color: rgb(26, 26, 26);\">接受投资</span>\n<span style=\"color: rgb(51, 51, 51);\">企业收到股东机械设备投资，账务处理如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产/库存商品等</span>\n<span style=\"color: rgb(51, 51, 51);\">  应交税费—应交增值税（进项税额）</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：实收资本/股本</span>\n<span style=\"color: rgb(51, 51, 51);\">  资本公积-资本溢价/资本公积-股本溢价</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第四项|第五目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

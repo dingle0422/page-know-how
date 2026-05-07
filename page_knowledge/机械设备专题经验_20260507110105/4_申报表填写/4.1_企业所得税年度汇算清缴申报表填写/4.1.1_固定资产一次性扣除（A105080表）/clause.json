@@ -1,0 +1,24 @@
+{
+  "clauseId": "98a332836cc641a7a40257ae7e1338d9",
+  "clauseName": "4.1.1 固定资产一次性扣除（A105080表）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "4.1.1 固定资产一次性扣除（A105080表）",
+  "clauseContent": "4.1.1.  <span style=\"color: rgb(26, 26, 26);\">固定资产一次性扣除（A105080表）</span>\n<span style=\"color: rgb(51, 51, 51);\">场景： 企业新购进单位价值500万元以下的设备/器具，选择在税务上一次性扣除，但会计上按月折旧。</span>\n<span style=\"color: rgb(51, 51, 51);\">填报步骤：</span>\n<span style=\"color: rgb(51, 51, 51);\">第一步：填写《资产折旧、摊销及纳税调整明细表》（A105080）</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）第1行“一、固定资产” -&gt; 对应资产类别行（如第5行“飞机、火车、轮船以外的运输工具”，或第6行“电子设备”，或第3行“机器设备”）</span>\n<span style=\"color: rgb(51, 51, 51);\">第1列“资产原值”：填写会计入账原值（不含税）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第2列“本年折旧、摊销额”：填写会计口径的本年折旧额。</span>\n<span style=\"color: rgb(51, 51, 51);\">第3列“累计折旧、摊销额”：填写会计口径的累计折旧额。</span>\n<span style=\"color: rgb(51, 51, 51);\">第4列“资产计税基础”：填写税务认可的计税基础（通常等于资产原值）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第5列“税收折旧、摊销额”：填写税务口径的本年折旧额。享受一次性扣除的，此栏填写资产原值（全额）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第8列“累计折旧、摊销额”：填写税务口径的累计折旧额（一次性扣除则为资产原值）。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）第11行“四、固定资产加速折旧、一次性扣除” —&gt; 第12.1行“500万元以下设备器具一次性扣除”</span>\n<span style=\"color: rgb(51, 51, 51);\">第1列“资产原值”：同上。</span>\n<span style=\"color: rgb(51, 51, 51);\">第2列“本年折旧、摊销额”：会计本年折旧额。</span>\n<span style=\"color: rgb(51, 51, 51);\">第3列“累计折旧、摊销额”：会计累计折旧额。</span>\n<span style=\"color: rgb(51, 51, 51);\">第4列“资产计税基础”：资产原值。</span>\n<span style=\"color: rgb(51, 51, 51);\">第5列“税收折旧、摊销额”：资产原值（全额）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第6列“享受加速折旧政策的资产按税收一般规定计算的折旧、摊销额”：按税法正常折旧年限计算的折旧额（如设备10年，则填原值/10）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第7列“加速折旧、摊销统计额”：第5列 - 第6列。</span>\n<span style=\"color: rgb(51, 51, 51);\">第8列“累计折旧、摊销额”：资产原值。</span>\n<span style=\"color: rgb(51, 51, 51);\">第二步：数据自动或手动填写《纳税调整项目明细表》（A105000）</span>\n<span style=\"color: rgb(51, 51, 51);\">第32行“资产折旧、摊销（填写A105080）”：系统会根据A105080自动生成纳税调整金额（调减为负数）。</span>\n<span style=\"color: rgb(51, 51, 51);\">注1：以后各年度，会计继续计提折旧，税务上不再有折旧（计税基础已为0），需在A105080表中将税收折旧填0，会计折旧全额做纳税调增。</span>\n<span style=\"color: rgb(51, 51, 51);\">注2：若资产提前处置，应在处置当年将未转回的税会差异一次性纳税调增。</span>\n<span style=\"color: rgb(51, 51, 51);\">注3：固定资产加速折旧（非一次性扣除，如缩短年限）填报方式与一次性扣除类似，在A105080表第11行对应行次填写，第7列“加速折旧、摊销统计额”填列加速折旧额与按税法一般规定计算折旧额的差额。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第四条|第一款|第一项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

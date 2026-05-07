@@ -1,0 +1,24 @@
+{
+  "clauseId": "e8cf2b1133274eb8bcebe3996ae7491e",
+  "clauseName": "5.16_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.16",
+  "clauseContent": "5.16.  <span style=\"color: rgb(26, 26, 26);\">外购固定资产的成本包含哪些税种？</span>\n<span style=\"color: rgb(51, 51, 51);\">外购固定资产的成本，包括关税、契税、耕地占用税、车辆购置税。</span>\n<span style=\"color: rgb(51, 51, 51);\">固定资产的采购成本不包含按照税法规定可以抵扣的增值税进项税额。</span>\n<span style=\"color: rgb(51, 51, 51);\">房产税、城镇土地使用税属于房产土地持有过程中的税款，不属于固定资产购入成本，计入“税金及附加”科目，不计入“固定资产”科目。</span>\n<span style=\"color: rgb(51, 51, 51);\">根据《财政部关于印发&lt;增值税会计处理规定&gt;》的通知》（财会[2016]22号）的规定，购买固定资产发生的印花税，计入“税金及附加”科目，不计入“固定资产”科目。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第十六款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

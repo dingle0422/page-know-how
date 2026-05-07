@@ -1,0 +1,24 @@
+{
+  "clauseId": "7c72546f828844a29a6b5d2d2aa09f95",
+  "clauseName": "2.1.1.1.2 税会差异处理_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.1.1.1.2 税会差异处理",
+  "clauseContent": "2.1.1.1.2.  <span style=\"color: rgb(26, 26, 26);\">税会差异处理</span>\n<span style=\"color: rgb(51, 51, 51);\">会计上仍需按准则分年折旧，税务上一次性扣除，产生可抵扣暂时性差异，具体处理如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）购入当年：纳税调减。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）以后各年度：会计折旧，税务无折旧，纳税调增。</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）处置当年：若设备提前处置，即会计折旧未计提完，则需将剩余未转回的税会差异一次性纳税调增。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第一款|第一项|第一目|第二点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

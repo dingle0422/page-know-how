@@ -1,0 +1,24 @@
+{
+  "clauseId": "504bb36ccea04c8ba42491b79074bc8c",
+  "clauseName": "1.2.6.16 购买汽车_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.16 购买汽车",
+  "clauseContent": "1.2.6.16.  <span style=\"color: rgb(26, 26, 26);\">购买汽车</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）购买汽车取得返利，按取得发票金额（即厂家返利后实付的金额）计入固定资产即可；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）购买二手车，固定资产入账价值（原值）包括购买价款（二手车销售统一发票上的价税合计金额）、过户费、换牌费用等使车辆达到预定可使用状态前的必要支出。但是保险费不能计入固定资产原值。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第十六目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

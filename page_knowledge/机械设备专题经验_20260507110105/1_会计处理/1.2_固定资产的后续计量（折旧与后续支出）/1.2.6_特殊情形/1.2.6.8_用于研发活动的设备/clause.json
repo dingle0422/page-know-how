@@ -1,0 +1,24 @@
+{
+  "clauseId": "bd3e0a1aa1c8466d8e4d28bc3a9162d7",
+  "clauseName": "1.2.6.8 用于研发活动的设备_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.8 用于研发活动的设备",
+  "clauseContent": "1.2.6.8.  <span style=\"color: rgb(26, 26, 26);\">用于研发活动的设备</span>\n<span style=\"color: rgb(51, 51, 51);\">企业研发用的设备，如电脑等，根据企业财务制度，符合固定资产确认条件的，可以作为固定资产核算，记入“固定资产”科目，用于研发的，折旧费可以计入研发支出中；如果金额达不到企业财务制度中固定资产标准的，可以一次性计入研发支出中。</span>\n<span style=\"color: rgb(51, 51, 51);\">记入固定资产的研发活动设备，计提折旧的账务处理如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）研究阶段</span>\n<span style=\"color: rgb(51, 51, 51);\">借：研发支出-费用化支出</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：累计折旧</span>\n<span style=\"color: rgb(51, 51, 51);\">期末时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：管理费用</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：研发支出-费用化支出</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）开发阶段</span>\n<span style=\"color: rgb(51, 51, 51);\">借：研发支出-资本化支出</span>\n<span style=\"color: rgb(51, 51, 51);\">       研发支出-费用化支出</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：累计折旧</span>\n<span style=\"color: rgb(51, 51, 51);\">期末时：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：管理费用</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：研发支出-费用化支出</span>\n<span style=\"color: rgb(51, 51, 51);\">研发活动完成：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产/无形资产</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：研发支出-资本化支出</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第八目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

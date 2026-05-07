@@ -1,0 +1,24 @@
+{
+  "clauseId": "94ebdfcaa3d54e5798fe81e62216357f",
+  "clauseName": "1.2.5.2.1 企业所得税最低年限_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.5.2.1 企业所得税最低年限",
+  "clauseContent": "1.2.5.2.1.  <span style=\"color: rgb(26, 26, 26);\">企业所得税最低年限</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）房屋、建筑物（以及随同房屋的热水器、中央空调、电梯等）：可以按“房屋、建筑物”，最低折旧年限为20年</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）飞机/火车/轮船、机器/机械/其他生产设备（如高空作业吊篮（建筑机械）、起重机、农机、变压器、停车场等使用的洗车机等）：10年</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）与生产经营活动有关的器具、工具、家具等（如冰箱、小型环保装置、不随同房屋的热水器/空调、移动厕所、活动板房、充电桩、测量仪/检测仪/分析仪等测试仪器、饮水机、等）：5年</span>\n<span style=\"color: rgb(51, 51, 51);\">（4）飞机、火车、轮船以外的运输工具（如汽车、叉车、皮卡车、三轮车、铲车）：4年</span>\n<span style=\"color: rgb(51, 51, 51);\">（5）电子设备（如电脑、监控、交换机、网络布线系统（硬件部分））：3年</span>\n<span style=\"color: rgb(51, 51, 51);\">注：《固定资产等资产基础分类与代码》国家标准（GB/T 14885-2022）发布前，旧的固定资产国家标准设有“专用设备”、“通用设备” 等进行分类并确定折旧年限，2022年新国标发布后，“专用设备”和“通用设备”合并在了一起。另外，在亿企赢代账的固定资产模块“资产类别”有器具工具家具、运输工具、电子设备、通用设备、专用设备、其他固定资产这6类，该分类和税收最低折旧年限不是强相关的。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第五项|第二目|第一点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

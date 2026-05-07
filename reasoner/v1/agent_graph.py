@@ -667,27 +667,26 @@ class AgentGraph:
 
     @staticmethod
     def _render_skill_records(records: list[SkillRecord]) -> str:
-        """将 SkillRecord 列表渲染为可读文本（与 SkillResultRegistry.format_context 对齐，但只取指定 records）。
+        """将 SkillRecord 列表渲染为「事实依据」文本。
 
-        命令行不展示，避免污染面向 LLM 的事实段；只保留 skill 名与结果/失败信息。
+        面向 LLM 只保留依据内容本身，不暴露 skill 名称/命令等调用元信息。
         """
         if not records:
             return ""
         lines: list[str] = []
         for i, rec in enumerate(records, 1):
-            lines.append(f"【Skill 调用 {i}】{rec.skill_name}")
+            lines.append(f"【依据{i}】")
             if rec.result.success:
-                lines.append("结果:")
-                lines.append(rec.result.stdout or "（无输出）")
+                lines.append((rec.result.stdout or "（该依据未返回有效内容）").strip())
             else:
-                lines.append(f"调用失败 (exit={rec.result.exit_code}):")
+                lines.append(f"该依据获取失败（exit={rec.result.exit_code}）。")
                 if rec.result.stderr:
-                    lines.append(rec.result.stderr)
+                    lines.append(rec.result.stderr.strip())
             lines.append("")
         return "\n".join(lines).rstrip()
 
     def _build_skill_context_for_summary(self, records: list[SkillRecord]) -> str:
-        """把 skill records 包装成可插入到 summary prompt 头部的参考事实段。空 records → 空串。
+        """把 skill records 包装成可插入到 summary prompt 头部的事实依据段。空 records → 空串。
 
         只给一个节标题；每条 skill 结果的适用范围/免责声明由各 skill 的 format_result
         内部自行附带（见 e.g. standard_product_name_verification/service.py 中的
@@ -696,12 +695,12 @@ class AgentGraph:
         body = self._render_skill_records(records)
         if not body:
             return ""
-        return "## 参考事实（外部 Skill 结果）\n" + body
+        return "## 事实依据\n" + body
 
     @staticmethod
     def _append_skill_context_to_prompt(prompt: str, skill_context: str) -> str:
         """把 skill_context 插入到 prompt 的「用户问题」段之后、下一个小节标题之前，
-        让 Skill 结果作为"参考事实"紧跟在用户问题下方出现。
+        让依据内容紧跟在用户问题下方出现。
 
         所有最终 summary/merge 模板都遵循
             "## 用户问题\\n{question}\\n\\n{下一个 # 或 ## 小节}\\n...\\n---\\n{输出要求}"

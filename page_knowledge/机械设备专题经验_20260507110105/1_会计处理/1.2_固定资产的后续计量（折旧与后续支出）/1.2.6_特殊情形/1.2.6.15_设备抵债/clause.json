@@ -1,0 +1,24 @@
+{
+  "clauseId": "d5ebfce63f8e4eebabdbfcc8e4082203",
+  "clauseName": "1.2.6.15 设备抵债_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.15 设备抵债",
+  "clauseContent": "1.2.6.15.  <span style=\"color: rgb(26, 26, 26);\">设备抵债</span>\n<span style=\"color: rgb(51, 51, 51);\">用固定资产/货物抵债，债权人的账务处理：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：固定资产等</span><span style=\"color: rgba(0, 0, 0, 0.65);\">（放弃债权的公允价值+为取得资产的相关税费）</span>\n<span style=\"color: rgb(51, 51, 51);\">      应交税费—应交增值税（进项税额）（一般纳税人取得专票时）</span>\n<span style=\"color: rgb(51, 51, 51);\">      银行存款（取得对方支付的差额，如支付给对方计入贷方）</span>\n<span style=\"color: rgb(51, 51, 51);\">      投资收益（企业会计准则）/营业外支出（小企业会计准则）（借方差额）</span>\n<span style=\"color: rgb(51, 51, 51);\">      坏账准备</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应收账款等</span>\n<span style=\"color: rgb(51, 51, 51);\">投资收益（企业会计准则）/营业外收入（小企业会计准则）（贷方差额）</span>\n<span style=\"color: rgb(51, 51, 51);\">注1：执行小企业会计准则的企业，也可以参考新债务重组企业会计准则的规定，将差额计入投资收益科目。</span>\n注2：取得抵债的设备是计入固定资产还是库存商品，可以根据固定资产以及存货的会计定义。固定资产，是指企业或小企业为生产产品、提供劳务、出租或经营管理而持有的，使用寿命超过1年的有形资产。存货，是指企业或小企业在日常活动中持有以备出售的产成品或商品、处在生产过程中的在产品、在生产过程或提供劳务过程中耗用的材料和物料等。\n<span style=\"color: rgb(51, 51, 51);\">用货物抵债，债务人的账务处理：</span>\n<span style=\"color: rgba(0, 0, 0, 0.65);\">借：应付账款等</span>\n<span style=\"color: rgba(0, 0, 0, 0.65);\">其他收益（企业会计准则）/营业外支出（小企业会计准则）（借方差额时）</span>\n<span style=\"color: rgba(0, 0, 0, 0.65);\">贷：固定资产/库存商品（成本价）</span>\n<span style=\"color: rgba(0, 0, 0, 0.65);\">应交税费—应交增值税（销项税额）/应交税费—应交增值税（按照公允价值确认增值税）</span>\n<span style=\"color: rgba(0, 0, 0, 0.65);\">其他收益（企业会计准则）/营业外收入（小企业会计准则）（贷方差额时）</span>\n用固定资产抵债，债务人的账务处理：\n（1）固定资产转入清理：\n借：固定资产清理\n累计折旧\n固定资产减值准备\n贷：固定资产\n（2）发生清理费用时：\n借：固定资产清理\n贷：银行存款\n（3）固定资产抵债：\n借：应付账款\n其他收益（企业会计准则）/营业外支出（小企业会计准则）（借方差额时）\n贷：固定资产清理\n应交税费-应交增值税（销项税额）/应交税费-简易计税/应交税费-应交增值税（以公允价值为基础确认增值税）\n其他收益（企业会计准则）/营业外收入（小企业会计准则）（贷方差额时）\n注：执行小企业会计准则的企业，不涉及“固定资产减值准备”科目。",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第十五目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

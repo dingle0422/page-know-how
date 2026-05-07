@@ -1,0 +1,24 @@
+{
+  "clauseId": "39adbec0f9414759a96ad928429a95a8",
+  "clauseName": "2.2.3.9.2 购买农机_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.9.2 购买农机",
+  "clauseContent": "2.2.3.9.2.  <span style=\"color: rgb(26, 26, 26);\">购买农机</span>\n<span style=\"color: rgb(51, 51, 51);\">企业购买农机取得9%的增值税专用发票时，是否可以抵扣区分以下情况：</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）购进后用于销售的，且不属于简易计税、免税等不可抵扣项目，可以进项抵扣；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）购进后作为固定资产的：①如用于一般计税项目的，可以进项抵扣；②用于简易计税、免税等不得抵扣项目的，不能进项抵扣；③混合用途的（既用于一般计税，又用于简易计税方法计税项目、免征增值税项目、不得抵扣非应税交易、集体福利或者个人消费的），需要看农机原值，具体参考：原值不超过500万元的单项长期资产，对应的进项税额可以全额从销项税额中抵扣；原值超过500万元的单项长期资产，购进时先全额抵扣进项税额，此后在用于混合用途期间，根据调整年限计算五类不允许抵扣项目对应的不得从销项税额中抵扣的进项税额，逐年调整。</span>\n<span style=\"color: rgb(51, 51, 51);\">增值税法执行前，不看资产原值，企业购进固定资产只要没有专门用于不得抵扣项目的，就可以进项抵扣。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：超500万元混合用途的农机，每年做进项调整时，进项税额转出的金额可以根据用途情况计入成本费用科目。分录如下：</span>\n<span style=\"color: rgb(51, 51, 51);\">借：管理费用/制造费用等</span>\n<span style=\"color: rgb(51, 51, 51);\">贷：应交税费—应交增值税（进项税额转出）</span>\n<span style=\"color: rgb(51, 51, 51);\">若涉及调整金额较大，将损益类科目替换成“以前年度损益调整”（企业会计准则）、“利润分配—未分配利润”（小企业会计准则）等类似科目入账。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第九目|第二点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

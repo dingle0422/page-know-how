@@ -1,0 +1,24 @@
+{
+  "clauseId": "3f2bfad6c73e4baeb13ee9831a528c6e",
+  "clauseName": "1.2.6.5 车辆挂靠_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.6.5 车辆挂靠",
+  "clauseContent": "1.2.6.5.  <span style=\"color: rgb(26, 26, 26);\">车辆挂靠</span>\n<span style=\"color: rgb(51, 51, 51);\">挂靠经营虽然在实务中普遍存在，但其本身并不属于合法经营，只能做到形式上合法化，即发票流、资金流以及车辆登记手续都通过被挂靠企业来实行。挂靠车辆的账务处理应视同企业自有固定资产，正常做即可，比如计入固定资产，照常计提折旧，车辆处置时按照固定资产清理处理。但是，现在金税四期比对较为严格，这样操作是存在一定风险的，不论会计账上怎么做都无法规避掉挂靠本身的经营风险。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第六项|第五目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

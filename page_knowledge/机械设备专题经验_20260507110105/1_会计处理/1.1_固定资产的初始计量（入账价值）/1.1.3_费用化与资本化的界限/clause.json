@@ -1,0 +1,24 @@
+{
+  "clauseId": "e4ad7833de004d50a37f4477e09aaba5",
+  "clauseName": "1.1.3 费用化与资本化的界限_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.1.3 费用化与资本化的界限",
+  "clauseContent": "1.1.3.  <span style=\"color: rgb(26, 26, 26);\">费用化与资本化的界限</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）应资本化（计入资产原值）： 车辆购置税、上牌费、使设备达到可使用状态的安装调试费。</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）应费用化（计入当期损益）： 车辆保险费、员工培训费（非设备运行必需）、日常维修保养费。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第一款|第三项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

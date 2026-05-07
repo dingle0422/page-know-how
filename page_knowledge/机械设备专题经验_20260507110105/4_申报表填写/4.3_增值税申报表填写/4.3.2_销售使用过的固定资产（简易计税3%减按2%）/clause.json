@@ -1,0 +1,24 @@
+{
+  "clauseId": "d4a73f4982a046b5abbb1f251b6067d9",
+  "clauseName": "4.3.2 销售使用过的固定资产（简易计税3%减按2%）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "4.3.2 销售使用过的固定资产（简易计税3%减按2%）",
+  "clauseContent": "4.3.2.  <span style=\"color: rgb(26, 26, 26);\">销售使用过的固定资产（简易计税3%减按2%）</span>\n<span style=\"color: rgb(51, 51, 51);\">涉及“一般纳税人销售固定资产减按2%”业务时，建议根据开票税率按如下情况填写，具体可与所属税局确认下更稳妥：</span>\n<span style=\"color: rgb(51, 51, 51);\">情况一 按3%开票</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）按3%采集发票（按照3%采集，选择简易征收，征税项目选择货物）；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）主表23栏录入1%减征税额（该固定资产不含税销售额×1%计算的税额）；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）最后填写减免表，减免代码选择“0001129924”，将1%的税额填写到“本期发生额”和“本期实际抵减税额”。</span>\n<span style=\"color: rgb(51, 51, 51);\">提示：从线上咨询情况来看，有的地区可能看不到“0001129924”的代码，可以选择原来的“0001129902”代码。</span>\n<span style=\"color: rgb(51, 51, 51);\">情况二 按2%开票</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）按2%采集发票（按照2%采集，选择简易征收，征税项目选择货物）；</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）附表一第11栏“3%征收率的货物及加工修理修配劳务”中，手工将2%按发票上的“销售额”和“税额”填写到对应列次；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）无需再填写主表23栏和减免表。\u0005</span>\n<span style=\"color: rgb(51, 51, 51);\">情况三 未开票时</span>\n<span style=\"color: rgb(51, 51, 51);\">（1）建议在“无票销售收入（未开具发票）”中按2%采集：</span>\n<span style=\"color: rgb(51, 51, 51);\">（2）附表一第11栏“3%征收率的货物及加工修理修配劳务”中，手工将2%按发票上的“销售额”和“税额”填写到对应列次；</span>\n<span style=\"color: rgb(51, 51, 51);\">（3）无需再填写主表23栏和减免表。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第四条|第三款|第二项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

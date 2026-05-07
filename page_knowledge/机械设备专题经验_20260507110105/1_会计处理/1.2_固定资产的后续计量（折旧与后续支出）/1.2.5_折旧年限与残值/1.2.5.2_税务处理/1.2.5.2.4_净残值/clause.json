@@ -1,0 +1,24 @@
+{
+  "clauseId": "9fc4fe77260048c99935922f5f92b6c0",
+  "clauseName": "1.2.5.2.4 净残值_机械设备专题经验（20260507110105）",
+  "clauseNumber": "1.2.5.2.4 净残值",
+  "clauseContent": "1.2.5.2.4.  <span style=\"color: rgb(26, 26, 26);\">净残值</span>\n<span style=\"color: rgb(51, 51, 51);\">企业应当根据固定资产的性质和使用情况，合理确定固定资产的预计净残值。固定资产的预计净残值一经确定，不得变更。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第一条|第二款|第五项|第二目|第四点"
+  ],
+  "level": "5",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

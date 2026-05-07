@@ -1,0 +1,24 @@
+{
+  "clauseId": "31b1ee9da3d34036b5a1c2ee1fca9039",
+  "clauseName": "3.2.2 销售二手车（非经销企业，如企业自用车辆）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "3.2.2 销售二手车（非经销企业，如企业自用车辆）",
+  "clauseContent": "3.2.2.  <span style=\"color: rgb(26, 26, 26);\">销售二手车（非经销企业，如企业自用车辆）</span>\n<span style=\"color: rgb(51, 51, 51);\">发票类型：增值税发票（普票或专票，根据购买方需求，但是购买方是自然人时不能开具增值税专用发票）、二手车销售统一发票（由二手车交易市场或经销企业开具，用于过户）。 </span>\n<span style=\"color: rgb(51, 51, 51);\">如果购买方索要增值税发票，企业应开具相应的发票，企业自身开具的增值税发票可作为销售车辆的入账凭证（购买方取得的发票可以作为购买车辆的入账凭证）；购买方未索要增值税发票，企业应按照实际收到的金额申报增值税未开票收入，将收款的银行流水作为入账凭证。二手车销售统一发票仅用于过户，购买方不能凭此抵扣进项。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第三条|第二款|第二项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

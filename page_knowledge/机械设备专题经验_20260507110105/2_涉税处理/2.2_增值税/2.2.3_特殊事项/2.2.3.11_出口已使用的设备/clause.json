@@ -1,0 +1,24 @@
+{
+  "clauseId": "131e876e57374a1ea6dfb34daa4d083c",
+  "clauseName": "2.2.3.11 出口已使用的设备_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.3.11 出口已使用的设备",
+  "clauseContent": "2.2.3.11.  <span style=\"color: rgb(26, 26, 26);\">出口已使用的设备</span>\n<span style=\"color: rgb(51, 51, 51);\">企业出口进项税额未计算抵扣的已使用过的设备增值税退（免）税的计税依据，按下列公式确定：增值税退（免）税的计税依据＝增值税专用发票上的金额或者海关进口增值税专用缴款书注明的计税价格×已使用过的设备固定资产净值÷已使用过的设备原值；</span>\n<span style=\"color: rgb(51, 51, 51);\">已使用过的设备固定资产净值＝已使用过的设备原值-已使用过的设备已提累计折旧。</span>\n<span style=\"color: rgb(51, 51, 51);\">注：已使用过的设备，是指出口企业根据财务会计制度已经计提折旧的固定资产。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第三项|第十一目"
+  ],
+  "level": "4",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

@@ -1,0 +1,24 @@
+{
+  "clauseId": "cb77f92f8b8f4edcadbfbf32f6e34f43",
+  "clauseName": "5.14_机械设备专题经验（20260507110105）",
+  "clauseNumber": "5.14",
+  "clauseContent": "5.14.  <span style=\"color: rgb(26, 26, 26);\">销售二手车要先开二手车销售统一发票，再开增值税发票吗？</span>\n<span style=\"color: rgb(51, 51, 51);\">二手车销售统一发票与增值税发票的功能不同，开具没有先后顺序，前者是要在交易后过户前开具，后者是在交易后购买方索取时开具。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第五条|第十四款"
+  ],
+  "level": "2",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

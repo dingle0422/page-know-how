@@ -1,0 +1,24 @@
+{
+  "clauseId": "a22ffa9b70b64498b8ac9c2cdc47a685",
+  "clauseName": "4.1.2 资产损失税前扣除（A105090表）_机械设备专题经验（20260507110105）",
+  "clauseNumber": "4.1.2 资产损失税前扣除（A105090表）",
+  "clauseContent": "4.1.2.  <span style=\"color: rgb(26, 26, 26);\">资产损失税前扣除（A105090表）</span>\n<span style=\"color: rgb(51, 51, 51);\">固定资产报废、毁损、盘亏等损失需要填写《资产损失税前扣除及纳税调整明细表》（A105090表。</span>\n<span style=\"color: rgb(51, 51, 51);\">第8行“四、固定资产损失” —&gt; 第9行“其中：固定资产盘亏、报废、毁损损失”：</span>\n<span style=\"color: rgb(51, 51, 51);\">第1列“资产损失直接计入本年损益金额”：填写会计上计入“营业外支出”或“资产处置损益”的净损失金额（注意：若会计上为处置收益，此栏不填或填0）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第2列“资产损失准备金核销金额”：一般不填。</span>\n<span style=\"color: rgb(51, 51, 51);\">第3列“资产处置收入”：填写处置收入（不含税）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第4列“赔偿收入”：填写保险赔偿或责任人赔偿。</span>\n<span style=\"color: rgb(51, 51, 51);\">第5列“资产计税基础”：填写资产的税务计税基础（原值 - 税务累计折旧）。</span>\n<span style=\"color: rgb(51, 51, 51);\">第6列“资产损失的税收金额”：自动计算或手动填写 = 第5列 - 第3列 - 第4列。</span>\n<span style=\"color: rgb(51, 51, 51);\">第7列“纳税调整金额”：第6列 - 第1列（若为正数，纳税调减；若为负数，纳税调增）。</span>\n<span style=\"color: rgb(15, 17, 21);\">注1：会计处置收益（贷方差额）与税务资产损失可能同时存在（如资产减值准备导致账面价值低于计税基础），此时在A105090表中会出现纳税调增。</span>\n<span style=\"color: rgb(15, 17, 21);\">注2：必须留存备查资料（内部鉴定、外部证明等）。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第四条|第一款|第二项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:07",
+  "updatedAt": "2026-05-07T11:01:07",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}

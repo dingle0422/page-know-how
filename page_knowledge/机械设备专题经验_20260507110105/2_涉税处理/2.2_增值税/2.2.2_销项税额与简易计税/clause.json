@@ -1,0 +1,24 @@
+{
+  "clauseId": "524d210e213a43a9a0015b4437f87833",
+  "clauseName": "2.2.2 销项税额与简易计税_机械设备专题经验（20260507110105）",
+  "clauseNumber": "2.2.2 销项税额与简易计税",
+  "clauseContent": "2.2.2.  <span style=\"color: rgb(26, 26, 26);\">销项税额与简易计税</span>\n<span style=\"color: rgb(51, 51, 51);\">销售机械设备，一般纳税人一般计税方式下，适用的税率有13%、9%（仅适用于农机，具体参考“附件：农机范围”）\u0005；小规模纳税人适用3%征收率减按1%征收率征收增值税，若放弃减按1%或者免税优惠，可以开具3%征收率专票。小规模纳税人季销售额小于30万元（＜30万元），免征增值税。</span>",
+  "subGraph": null,
+  "searchLabels": [
+    "机械设备专题经验|第二条|第二款|第二项"
+  ],
+  "level": "3",
+  "sortOrder": "0",
+  "createdBy": null,
+  "updatedBy": null,
+  "createdAt": "2026-05-07T11:01:06",
+  "updatedAt": "2026-05-07T11:01:06",
+  "parentClauseId": "0",
+  "isRelated": false,
+  "isHistory": false,
+  "isInterpretation": false,
+  "hasSubGraph": false,
+  "hasTable": false,
+  "tableHtml": null,
+  "references": []
+}
