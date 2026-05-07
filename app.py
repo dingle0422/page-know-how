@@ -193,6 +193,12 @@ class ReasonRequest(BaseModel):
         default=True,
         description="是否启用 skill 评估与 double-check（默认开启，对应 CLI 的 --disable-skills 取反）",
     )
+    enableSkillDoubleCheck: bool = Field(
+        default=False,
+        description="启用 skill double-check：在 v3 推理流程末尾追加一轮 skill 复核（默认关闭）；"
+                    "需 enableSkills=True 同时开启；仅在 version=v3 下生效，"
+                    "其他 version 收到该字段会被忽略并打 warning",
+    )
     summaryCleanAnswer: bool = Field(
         default=True,
         description="启用 summary+clean 一体化："
