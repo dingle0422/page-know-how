@@ -155,8 +155,8 @@ def _extract_deltas(chunk: dict) -> list[tuple[str, str]]:
 async def chat_stream(
     messages: str,
     *,
-    vendor: str = "qwen3.5-122b-a10b",
-    model: str = "Qwen3.5-122B-A10B",
+    vendor: str = "aliyun",
+    model: str = "deepseek-v3.2",
     system: Optional[str] = None,
     enable_thinking: bool = False,
     timeout_seconds: float = 360.0,

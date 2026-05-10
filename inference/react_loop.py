@@ -7,10 +7,12 @@
 - 按 ``CHUNK_SIZE`` 把 chunk 重新打包成"轮组"，每一轮喂给模型一组证据。
 - 每一轮：
   1. 从 redis 重读 preview / skills 快照（捕获最新进展）；
-  2. 渲染 user prompt；
-  3. 通过 :func:`inference.llm_stream.chat_stream` 流式拉取，一边走 router 拆 ``<think>``
-     / ``<answer>`` / ``<verdict>``，一边把对应增量写回 ``react.chunks[round_idx]``；
-  4. 读取 ``router.verdict``，如果 ``complete`` 或已是最终轮则结束。
+  2. 通过 :func:`inference.prompts.select_react_prompt` 选择 prompt：
+     - 中间轮：``REACT_INTERMEDIATE_*``，仅产 ``<think>+<verdict>``，禁止 ``<answer>``；
+     - 最终轮：纯 ``CORPUS_SYSTEM_PROMPT`` + ``CORPUS_USER_PROMPT``，产 ``<think>+<answer>``。
+  3. 通过 :func:`inference.llm_stream.chat_stream` 流式拉取，router 拆 ``<think>``
+     / ``<answer>`` / ``<verdict>``，对应增量写回 ``react.chunks[round_idx]``；
+  4. 读取 ``router.verdict``：``complete`` 或已是最终轮则结束。
 - ``REACT_INTERMEDIATE_THINK_ENABLED`` 默认关：
   - 中间轮 ``enable_thinking=False`` 且 ``chunk.think`` 不写（聚合规则也不会取到）；
   - 仅最终轮 ``enable_thinking=True``，think + answer 一起进 chunk。
@@ -28,7 +30,7 @@ from reasoner.v3.chunk_builder import KnowledgeChunk
 
 from . import config
 from .llm_stream import StreamTagRouter, chat_stream
-from .prompts import REACT_SYSTEM_PROMPT, format_react_user_prompt
+from .prompts import select_react_prompt
 from .redis_stream import RedisStream
 
 logger = logging.getLogger(__name__)
@@ -177,8 +179,8 @@ async def run(
     chunks: list[KnowledgeChunk],
     redis_stream: RedisStream,
     *,
-    vendor: str = "qwen3.5-122b-a10b",
-    model: str = "Qwen3.5-122B-A10B",
+    vendor: str = "aliyun",
+    model: str = "deepseek-v3.2",
     chunk_size: int = config.CHUNK_SIZE,
     max_rounds: int = config.REACT_MAX_ROUNDS,
     intermediate_think_enabled: Optional[bool] = None,
@@ -207,6 +209,7 @@ async def run(
 
     await redis_stream.set_status(task_id, "reasoning")
 
+    # 仅保留“上一轮”的思考摘要，避免跨轮无限膨胀。
     prev_think = ""
     last_verdict = ""
     last_answer = ""
@@ -223,13 +226,13 @@ async def run(
         preview_snapshot = snapshot.get("preview")
         skills_snapshot = snapshot.get("skills")
 
-        user_prompt = format_react_user_prompt(
+        system_prompt, user_prompt = select_react_prompt(
+            is_last_chunk=is_last_chunk,
             question=question,
             evidence=group_text,
             prev_think=prev_think,
             preview=preview_snapshot,
             skills=skills_snapshot,
-            is_last_chunk=is_last_chunk,
         )
 
         enable_thinking = is_last_chunk or flag
@@ -240,7 +243,7 @@ async def run(
                 task_id,
                 round_idx,
                 redis_stream,
-                system_prompt=REACT_SYSTEM_PROMPT,
+                system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 vendor=vendor,
                 model=model,
@@ -264,7 +267,9 @@ async def run(
         last_verdict = verdict
         last_answer = full_answer
         if full_think:
-            prev_think = (prev_think + "\n\n" + full_think).strip() if prev_think else full_think
+            # 下一轮只继承上一轮 think（由模型在本轮中自行完成降噪提炼），
+            # 不再累积所有历史轮次，避免 prompt 体积持续膨胀。
+            prev_think = full_think.strip()
 
         if verdict == "complete" or is_last_chunk:
             break

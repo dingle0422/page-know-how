@@ -13,7 +13,7 @@ import os
 CHUNK_SIZE: int = 5000
 """单轮 ReAct 喂给模型的拼接证据上限（字符数）。"""
 
-REACT_MAX_ROUNDS: int = 8
+REACT_MAX_ROUNDS: int = 5
 """ReAct 主循环硬上限：到顶后强制以"最终轮"语义出 answer。"""
 
 REACT_INTERMEDIATE_THINK_ENABLED: bool = (

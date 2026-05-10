@@ -43,8 +43,8 @@ async def run(
     question: str,
     redis_stream: RedisStream,
     *,
-    vendor: str = "qwen3.5-122b-a10b",
-    model: str = "Qwen3.5-122B-A10B",
+    vendor: str = "aliyun",
+    model: str = "deepseek-v3.2",
     skill_names: Optional[list[str]] = None,
 ) -> list[dict]:
     """执行 skills 阶段，返回序列化后的 skill 结果列表（已写入 redis）。
