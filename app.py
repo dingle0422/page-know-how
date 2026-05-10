@@ -498,6 +498,34 @@ class CleanupStaleRunningResponse(BaseModel):
     message: str
 
 
+# ---------------------------------------------- 手动清理指定 running 任务
+
+
+class CleanRunningTaskRequest(BaseModel):
+    taskId: str = Field(description="要清理的任务 ID")
+    errorMessage: str = Field(
+        default="manually cleaned running task",
+        description="写回 failed 时的错误信息",
+    )
+
+
+class CleanRunningTaskData(BaseModel):
+    taskId: str
+    previousStatus: str | None = Field(description="清理前任务状态；任务不存在时为 null")
+    updatedToFailed: bool = Field(description="是否成功把任务状态写回 failed")
+    removedFromRunning: int = Field(description="从 running 索引移除的 task_id 数量")
+    skippedReason: str | None = Field(
+        default=None,
+        description="未写回 failed 时的原因",
+    )
+
+
+class CleanRunningTaskResponse(BaseModel):
+    data: CleanRunningTaskData | None = None
+    status_code: int
+    message: str
+
+
 # ---------------------------------------------------- 异步化任务 submit / result
 
 
@@ -1390,6 +1418,78 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
         )
 
 
+@app.post("/api/cleanRunningTask", response_model=CleanRunningTaskResponse)
+async def clean_running_task(req: CleanRunningTaskRequest):
+    """手动清理单个 running 任务：写回 failed 并移出 running 索引。"""
+    try:
+        client = _require_redis()
+        task = await _tq.get_task(client, req.taskId)
+        if task is None:
+            return CleanRunningTaskResponse(
+                data=CleanRunningTaskData(
+                    taskId=req.taskId,
+                    previousStatus=None,
+                    updatedToFailed=False,
+                    removedFromRunning=0,
+                    skippedReason="task not found",
+                ),
+                status_code=404,
+                message=f"task_id={req.taskId} 不存在或已过期",
+            )
+
+
+        previous_status = task.get("status")
+
+        # 不管当前状态如何，都先尝试从 running 索引里清掉残留，避免 runningCount 偏大。
+        removed_from_running = await client.lrem(
+            _tq.QUEUE_REASON_RUNNING,
+            req.taskId,
+            count=0,
+        )
+
+        if previous_status != _tq.STATUS_RUNNING:
+            return CleanRunningTaskResponse(
+                data=CleanRunningTaskData(
+                    taskId=req.taskId,
+                    previousStatus=previous_status,
+                    updatedToFailed=False,
+                    removedFromRunning=int(removed_from_running or 0),
+                    skippedReason=f"task status is {previous_status}, not running",
+                ),
+                status_code=200,
+                message="success",
+            )
+
+        task["status"] = _tq.STATUS_FAILED
+        task["result"] = None
+        task["error"] = req.errorMessage
+        task["end_time"] = time.time()
+        await client.set(
+            f"{_tq.TASK_KEY_PREFIX}{req.taskId}",
+            task,
+            ttl_seconds=REASON_TASK_TTL_SECONDS,
+        )
+
+        return CleanRunningTaskResponse(
+            data=CleanRunningTaskData(
+                taskId=req.taskId,
+                previousStatus=previous_status,
+                updatedToFailed=True,
+                removedFromRunning=int(removed_from_running or 0),
+                skippedReason=None,
+            ),
+            status_code=200,
+            message="success",
+        )
+    except Exception as e:
+        logger.exception(f"清理指定 running 任务失败: {e}")
+        return CleanRunningTaskResponse(
+            data=None,
+            status_code=500,
+            message=f"清理指定 running 任务失败: {str(e)}",
+        )
+
+
 @app.get("/example")
 async def example():
     """
@@ -1405,6 +1505,128 @@ async def check():
     """
     return {"status": "ok", "message": "Server is running."}
 
+
+# ---------------------------------------------------------------- 快速流式推理 SSE
+#
+# POST /api/inference/stream
+# - 后台 pipeline.run 异步跑完整 inference 流水线（preview/skills/检索/ReAct）；
+# - 主协程仅负责轮询 redis 快照并把 (think, answer, status) 增量以 SSE 推给客户端；
+# - taskId 复用：如果 redis 中已存在该 task，则不再重启后台、直接接力转发，实现断点续连。
+
+from fastapi.responses import StreamingResponse  # noqa: E402  按位置追加，避开顶部依赖
+from inference import config as _inference_config  # noqa: E402
+from inference.pipeline import InferenceOptions as _InferenceOptions  # noqa: E402
+from inference.pipeline import run as _inference_run  # noqa: E402
+from inference.redis_stream import RedisStream as _InferenceRedisStream  # noqa: E402
+
+
+class InferenceRequest(BaseModel):
+    policyId: str
+    question: str
+    taskId: str | None = None
+    vendor: str = "qwen3.5-122b-a10b"
+    model: str = "Qwen3.5-122B-A10B"
+    previewEnabled: bool = True
+    skillsEnabled: bool = True
+    topN: int = Field(default=20, ge=1, le=200)
+    topM: int = Field(default=20, ge=1, le=200)
+    # null = 沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK
+    intermediateThinkEnabled: bool | None = None
+
+
+def _format_sse(event: str, data: dict) -> str:
+    """生成单条 SSE 行：event + data 都按 SSE 协议规范换行。"""
+    payload = json.dumps(data, ensure_ascii=False)
+    out = f"event: {event}\n"
+    for line in payload.splitlines() or [""]:
+        out += f"data: {line}\n"
+    out += "\n"
+    return out
+
+
+async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
+    """周期性读 redis 快照，仅在 (think, answer, status) 变化时推；终态后再推一帧并断流。"""
+
+    tick = max(int(_inference_config.SSE_TICK_MS), 50) / 1000.0
+    last_signature: tuple[str, str, str] | None = None
+    terminal = False
+    while True:
+        snapshot = await rs.get(task_id)
+        if snapshot is None:
+            yield _format_sse("error", {"taskId": task_id, "message": "task not found"})
+            return
+        signature = (
+            snapshot.get("think") or "",
+            snapshot.get("answer") or "",
+            snapshot.get("status") or "",
+        )
+        if signature != last_signature:
+            yield _format_sse("snapshot", {
+                "taskId": task_id,
+                "status": snapshot.get("status"),
+                "think": signature[0],
+                "answer": signature[1],
+                "previewDone": bool((snapshot.get("preview") or {}).get("done")),
+                "reactRound": (snapshot.get("react") or {}).get("round"),
+                "error": snapshot.get("error"),
+            })
+            last_signature = signature
+        if terminal:
+            return
+        if snapshot.get("status") in {"done", "failed"}:
+            terminal = True  # 再循环一次确保最新帧被推过；下个 tick 再 return
+        await asyncio.sleep(tick)
+
+
+@app.post("/api/inference/stream")
+async def inference_stream(req: InferenceRequest):
+    """启动（或接力）一个快速流式推理任务，以 SSE 推送 (think, answer, status)。"""
+
+    client = _require_redis()
+    rs = _InferenceRedisStream(client)
+
+    task_id = (req.taskId or str(uuid.uuid4())).strip() or str(uuid.uuid4())
+    existed = await rs.exists(task_id)
+    if not existed:
+        # 复用现有抽取流程，确保 knowledge_dir 存在；返回值仅用于校验通过。
+        try:
+            await asyncio.to_thread(_get_or_extract_knowledge, req.policyId)
+        except Exception as e:
+            logger.exception(f"[inference_stream] policyId={req.policyId} 知识准备失败: {e}")
+            raise HTTPException(status_code=400, detail=f"知识准备失败: {e}") from e
+
+        await rs.init(
+            req.question,
+            req.policyId,
+            task_id=task_id,
+            intermediate_think_enabled=req.intermediateThinkEnabled,
+        )
+
+        options = _InferenceOptions(
+            vendor=req.vendor,
+            model=req.model,
+            preview_enabled=bool(req.previewEnabled),
+            skills_enabled=bool(req.skillsEnabled),
+            top_n=int(req.topN),
+            top_m=int(req.topM),
+            intermediate_think_enabled=req.intermediateThinkEnabled,
+        )
+        # 后台 pipeline 与请求生命周期解耦：客户端断连后台仍继续跑，
+        # 重连时凭 taskId 即可继续转发同一份快照。
+        asyncio.create_task(
+            _inference_run(task_id, req.question, req.policyId, rs, options=options),
+            name=f"inference-pipeline:{task_id}",
+        )
+
+    return StreamingResponse(
+        _sse_relay(task_id, rs),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 兜住 nginx 默认 buffering 把 SSE 卡到关流才下发
+        },
+    )
 
 
 if __name__ == "__main__":

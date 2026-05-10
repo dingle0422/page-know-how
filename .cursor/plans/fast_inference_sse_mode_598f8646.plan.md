@@ -27,7 +27,7 @@ todos:
     content: 实现 inference/skills_runner.py：直接调 skills.evaluate_and_run，将 registry 列表化后写 redis skills 字段
     status: pending
   - id: react_step
-    content: 实现 inference/react_loop.py + prompts.REACT_SYSTEM_PROMPT：复用 CORPUS_SYSTEM_PROMPT，加 <verdict> 判定与每轮重读 skills/preview 逻辑；非最终轮 think 追加到 redis.think；最终轮 enable_thinking=True，模型 <think> 内容追加到 redis.think，<answer> 内容追加到 redis.answer
+    content: 实现 inference/react_loop.py + prompts.REACT_SYSTEM_PROMPT：复用 CORPUS_SYSTEM_PROMPT，加 <verdict> 判定与每轮重读 skills/preview 逻辑；`react.rounds` 改为 `react.chunks`；预留 `REACT_INTERMEDIATE_THINK_ENABLED`（默认 false）：false 时非最终轮 enable_thinking=False 且 chunk.think=""，true 时非最终轮 enable_thinking=True 且保留 chunk.think；最终轮始终 think+answer，并据此重算 redis 聚合 think/answer
     status: pending
   - id: pipeline
     content: 实现 inference/pipeline.py：asyncio.gather 拉起 preview/skills/retrieval，retrieval 完成后启动 react_loop；统一 status/error 处理
@@ -55,7 +55,7 @@ flowchart LR
     BG -->|"asyncio.gather 并发"| S1["Step1 preview\n(LLM 流式 拆解+预答)"]
     BG --> S2["Step2 skills\nevaluate_and_run"]
     BG --> S3["Step3 hybrid 检索\nBM25+语义+RRF"]
-    S3 --> S4["Step4 ReAct 多轮推理\nchunk_size=5000\n所有轮 think -> redis.think\n最终轮 answer -> redis.answer"]
+    S3 --> S4["Step4 ReAct 多轮推理\nchunk_size=5000\nreact.rounds -> react.chunks\n非最终轮 think 是否开启受开关控制（默认关）\n最终轮 think+answer"]
     S1 --> RDS
     S2 --> RDS
     S4 --> RDS
@@ -70,6 +70,7 @@ inference/
   __init__.py
   config.py                    # 默认参数：CHUNK_SIZE=5000, TOP_N=20, TOP_M=20,
                                # PREVIEW_TPS=5, SSE_TICK_MS=100, REACT_MAX_ROUNDS=8,
+                               # REACT_INTERMEDIATE_THINK_ENABLED=False,
                                # TASK_KEY_PREFIX="inference:task:", TASK_TTL=86400
   prompts.py                   # PREVIEW_SYSTEM_PROMPT + REACT_SYSTEM_PROMPT
                                # （在 reasoner/v3/prompts.py:CORPUS_SYSTEM_PROMPT 基础上加 ReAct 指令头）
@@ -106,20 +107,74 @@ inference/
   "status": "pending|preview|reasoning|done|failed",
   "preview": {"think": "", "answer": "", "done": false},
   "skills":  [{"name": "...", "success": true, "stdout": "...", "exitCode": 0}, ...],
-  "react":   {"round": 0, "rounds": [{"think": "...", "answer": "", "complete": false}, ...]},
+  "react":   {"round": 0, "chunks": [{"think": "", "answer": "...", "complete": false}, {"think": "...", "answer": "...", "complete": true}]},
   # 给 SSE 直接消费的两个聚合字段（每次写入 redis 时由 redis_stream.py 重算）：
-  # - think: preview 阶段（think+answer）+ ReAct 全部轮次（含最终轮）的 <think> 拼接
+  # - think: preview 阶段（think+answer）+ ReAct 聚合（受 REACT_INTERMEDIATE_THINK_ENABLED 开关控制）
   # - answer: 仅最终轮的 <answer> 标签内容
-  "think":  "<preview.think>\n<preview.answer>\n<react.rounds[*].think 全部轮次拼接>",
+  "think":  "<preview.think>\n<preview.answer>\n<if REACT_INTERMEDIATE_THINK_ENABLED=false: react.chunks[final-1].answer + react.chunks[final].think; if true: react.chunks[0..final-1].think+answer 全拼接 + react.chunks[final].think>",
   "answer": "<react.final.answer>",
   "error":  null,
   "createdAt": 0.0, "updatedAt": 0.0
 }
 ```
 
-- 写入路径统一走 `redis_stream.RedisStream.update(task_id, mutator)`：内部 `get → 改 → set`，进程内 `asyncio.Lock` 锁同一 task。
-- 提供细粒度 helper：`append_think(task_id, delta)` / `append_answer(task_id, delta)` —— 二者都是 `update` 的薄封装，分别在底层把 delta 拼到聚合 `think` / `answer` 字段尾端。
+- 写入路径统一走 `redis_stream.RedisStream.update(task_id, mutator)`：内部 `get → 改 → recompute_aggregates(...) → set`，进程内 `asyncio.Lock` 锁同一 task。
+- 提供细粒度 helper：
+  - `append_preview(task_id, channel, delta)`
+  - `append_react_chunk_delta(task_id, round_idx, channel, delta, is_last_chunk)`
+  - `set_react_chunk_complete(task_id, round_idx, complete=True)`
 - TTL 用 `set(..., ttl_seconds=TASK_TTL)`。
+
+聚合逻辑建议代码化为单函数（`redis_stream.py`）：
+
+```python
+def recompute_aggregates(
+    snapshot: dict,
+    intermediate_think_enabled: bool,
+) -> tuple[str, str]:
+    preview = snapshot.get("preview") or {}
+    react = snapshot.get("react") or {}
+    chunks = react.get("chunks") or []
+
+    think_parts: list[str] = []
+    p_think = preview.get("think", "")
+    p_answer = preview.get("answer", "")
+    if p_think:
+        think_parts.append(p_think)
+    if p_answer:
+        think_parts.append(p_answer)
+
+    answer = ""
+    if chunks:
+        final_idx = len(chunks) - 1
+        final_chunk = chunks[final_idx] or {}
+        final_think = final_chunk.get("think", "")
+        final_answer = final_chunk.get("answer", "")
+
+        if intermediate_think_enabled:
+            for i in range(final_idx):
+                c = chunks[i] or {}
+                c_think = c.get("think", "")
+                c_answer = c.get("answer", "")
+                if c_think:
+                    think_parts.append(c_think)
+                if c_answer:
+                    think_parts.append(c_answer)
+        else:
+            # 默认模式：只把最后一轮之前那一轮的 answer 并入 think（若存在）
+            prev_idx = final_idx - 1
+            if prev_idx >= 0:
+                prev_answer = (chunks[prev_idx] or {}).get("answer", "")
+                if prev_answer:
+                    think_parts.append(prev_answer)
+
+        if final_think:
+            think_parts.append(final_think)
+        answer = final_answer
+
+    think = "\n".join(part for part in think_parts if part).strip()
+    return think, answer
+```
 
 ## 4. 关键模块要点
 
@@ -174,11 +229,15 @@ async def run(task_id, question, redis_stream):
   - 必须输出 `<verdict>complete|incomplete</verdict>` 判定标签；
   - `incomplete` 时只产出 `<think>`，描述"目前缺什么、想要什么继续推"，**禁止产出 `<answer>`**；
   - `complete` 时按 CORPUS 原规范产出 `<think>` + `<answer>`（最终轮）。
-- **思考模式策略**：所有轮次（含最终轮）都 `enable_thinking=True`，确保模型显式吐出 `<think>` 段，便于流式直接进 redis.think。
+- **思考模式策略**：预留 `REACT_INTERMEDIATE_THINK_ENABLED`（默认 `False`）：
+  - `False`（默认）：仅最终轮 `enable_thinking=True`；非最终轮 `enable_thinking=False`，非最终轮 `chunk.think=""`；
+  - `True`：非最终轮也 `enable_thinking=True`，并保留每轮 `chunk.think` 与 `chunk.answer`。
 - **redis 写入约定**（与 Section 3 一致）：
-  - 每一轮（无论 complete 还是 incomplete）的 `<think>` 流式增量都 `append` 到 redis.think；
-  - 仅当 `verdict==complete`（最终轮）时，模型的 `<answer>` 流式增量才 `append` 到 redis.answer；
-  - 因此前端 SSE 看到的视效：think 一直在增长 → 最终轮 think 收尾后 answer 才开始增长。
+  - 每轮都写入 `react.chunks[round_idx]`；
+  - 最终轮始终写 `<think>` 与 `<answer>` 到最终 chunk，且接口 `answer` 仅取最终轮 `<answer>`；
+  - SSE 聚合 `think` 规则：
+    - 开关为 `False`：`preview.* + react.chunks[final-1].answer + react.chunks[final].think`
+    - 开关为 `True`：`preview.* + 非最终轮(think+answer)全拼接 + 最终轮think`
 - 主循环：
   ```python
   retrieved = await hybrid_search(question, policy_id, ...)   # Step3 结果
@@ -192,13 +251,19 @@ async def run(task_id, question, redis_stream):
           prev_think=prev_think, preview_block=..., skill_context_block=...,
       )
       is_last_chunk = (round_idx == len(groups) - 1)
-      # 流式：边消费 chat_stream 边把 <think> 增量 append 到 redis.think
-      # 若本轮 verdict=complete，则同步把 <answer> 增量 append 到 redis.answer
+      # 流式：每个 delta 先写回 react.chunks，再调用 recompute_aggregates(...) 重算快照 think/answer
+      # 最终轮: think -> 接口 think, answer -> 接口 answer
+      # 非最终轮: 开关开则 think+answer -> 接口 think；开关关则仅保留 chunk.answer，不进入接口 answer
       verdict, full_think, full_answer = await stream_react_round(
           REACT_SYSTEM_PROMPT, user_prompt,
-          enable_thinking=True, force_complete=is_last_chunk,
-          on_think_delta=lambda s: redis_stream.append_think(task_id, s),
-          on_answer_delta=lambda s: redis_stream.append_answer(task_id, s),
+          enable_thinking=(is_last_chunk or REACT_INTERMEDIATE_THINK_ENABLED),
+          force_complete=is_last_chunk,
+          on_think_delta=lambda s: redis_stream.append_react_chunk_delta(
+              task_id, round_idx, "think", s, is_last_chunk=is_last_chunk
+          ),
+          on_answer_delta=lambda s: redis_stream.append_react_chunk_delta(
+              task_id, round_idx, "answer", s, is_last_chunk=is_last_chunk
+          ),
       )
       prev_think += full_think
       if verdict == "complete":

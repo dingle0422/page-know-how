@@ -6,3 +6,6 @@ markdownify
 fastapi
 uvicorn
 httpx
+jieba
+rank_bm25
+numpy
