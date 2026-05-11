@@ -67,7 +67,8 @@ REDIS_SERVER_URL = os.environ.get("REDIS_SERVER_URL", "http://mlp.paas.dc.servyo
 REDIS_SERVER_AUTH_TOKEN = os.environ.get("REDIS_SERVER_AUTH_TOKEN", "")
 
 # 本服务进程的实例 ID。每次启动生成一次（uuid），写入每条 running 任务的 instance_id,
-# 使 startup cleanup 能精确区分"本进程正在跑的 running" vs "上一代崩掉留下的僵尸"。
+# 仅用于运行时手动清理接口（/api/reason/cleanupStaleRunning 等）区分来源；
+# 启动期自动清理逻辑已关闭，不再依赖该字段在 lifespan 中做僵尸识别。
 INSTANCE_ID: str = ""
 
 # lifespan 内初始化；模块级暴露给路由处理函数。
@@ -100,21 +101,25 @@ async def lifespan(_app: FastAPI):
         logger.exception(f"[lifespan] redis_server 不可达，推理服务无法启动: {e}")
         raise
 
-    # 启动前扫一遍 task:*，把上一代进程崩掉留下的 running 僵尸全部改写成 failed,
+    # 启动时自动清理僵尸 running 任务的逻辑已临时关闭：
+    # 改为依赖手动接口 /api/reason/cleanupStaleRunning 与 /api/cleanRunningTask，
+    # 或等待 TTL 到期。需要恢复时取消下方注释即可。
+    #
+    # 原逻辑说明：启动前扫一遍 task:*，把上一代进程崩掉留下的 running 僵尸全部改写成 failed,
     # 让客户端轮询立刻能看到 "server restarted while running" 而不必死等 TTL。
     # 必须放在 WorkerPool.start() 之前：避免新 worker 刚启动就把自己正在处理的
     # running 记录（instance_id == INSTANCE_ID）被并发扫到——反正也扫不到，
     # 因为 cleanup 只处理 instance_id != INSTANCE_ID 的条目，这里只是顺序保险。
-    try:
-        await _tq.cleanup_stale_running_tasks(
-            _redis_client,
-            current_instance_id=INSTANCE_ID,
-            ttl_seconds=REASON_TASK_TTL_SECONDS,
-        )
-    except Exception as e:
-        # 清理失败不应阻塞服务启动——大不了那些僵尸记录等 TTL 到期自己消失,
-        # 新任务仍然能正常入队执行。
-        logger.warning(f"[lifespan] 启动清理僵尸 running 任务失败（忽略继续启动）: {e}")
+    # try:
+    #     await _tq.cleanup_stale_running_tasks(
+    #         _redis_client,
+    #         current_instance_id=INSTANCE_ID,
+    #         ttl_seconds=REASON_TASK_TTL_SECONDS,
+    #     )
+    # except Exception as e:
+    #     # 清理失败不应阻塞服务启动——大不了那些僵尸记录等 TTL 到期自己消失,
+    #     # 新任务仍然能正常入队执行。
+    #     logger.warning(f"[lifespan] 启动清理僵尸 running 任务失败（忽略继续启动）: {e}")
 
     _worker_pool = _tq.WorkerPool(
         _redis_client,
@@ -1336,7 +1341,8 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
     - 服务**未重启**、某些 task 因下游长尾或逻辑卡死持续停在 running,
       占满 ``runningCount`` 让新任务排不到 worker；
     - 想让轮询 ``/api/reason/result/{taskId}`` 的客户端立刻感知到 failed。
-    - 启动期遗留的僵尸 running 由 lifespan 自动清理；本接口作为运行时兜底。
+    - 启动期自动清理已关闭：进程重启遗留的僵尸 running 不会再被 lifespan 自动改写，
+      需通过本接口或 ``/api/cleanRunningTask`` 手动清理，或等待 TTL 到期自然消失。
 
     行为
     ----
@@ -1353,7 +1359,7 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
     - 因此建议先用 ``dryRun=true`` 预览、对照 ``matchesCurrentInstance``:
       False 的条目（上一代进程僵尸）清理是安全的；True 的条目是本进程 worker,
       请结合 runningSeconds 判断是否真的卡死。
-    - 判据是时间阈值，与 ``instance_id`` 无关；与 lifespan 的启动清理互补。
+    - 判据是时间阈值，与 ``instance_id`` 无关；启动期自动清理已关闭，本接口作为唯一运行时入口。
     """
     try:
         client = _require_redis()
