@@ -32,6 +32,23 @@ logger = logging.getLogger(__name__)
 _DEFAULT_URL = "http://mlp.paas.dc.servyou-it.com/text-embedding-bge/embedding"
 _DEFAULT_MODEL = "bge"
 
+# 服务端硬限制：单次请求 sentences 列表长度 ≤ 10，超过会返回
+# code=400 msg='List length exceeds the maximum limit of 10.'。
+# 客户端无论传多大的 batch_size 都按这里向下夹断，避免直接打到上游报错。
+_MAX_BATCH_SIZE = 10
+
+
+def _clamp_batch_size(batch_size: int) -> int:
+    """把请求方传入的 batch_size 夹到 [1, _MAX_BATCH_SIZE] 范围内。"""
+
+    try:
+        bs = int(batch_size)
+    except (TypeError, ValueError):
+        bs = _MAX_BATCH_SIZE
+    if bs <= 0:
+        bs = _MAX_BATCH_SIZE
+    return min(bs, _MAX_BATCH_SIZE)
+
 
 class EmbeddingNotConfigured(RuntimeError):
     """显式禁用 embedding（``INFERENCE_EMBEDDING_DISABLED=1``）时抛出。
@@ -94,18 +111,24 @@ async def embed_texts(
     texts: list[str],
     *,
     model: Optional[str] = None,  # 兼容签名，目前后端按 URL 路径区分模型，本字段仅记录
-    batch_size: int = 32,
+    batch_size: int = _MAX_BATCH_SIZE,
     timeout_seconds: float = 60.0,
     client: Optional[httpx.AsyncClient] = None,
 ) -> list[list[float]]:
     """异步批量获取 embedding，输出顺序与 ``texts`` 保持一致。
 
-    - 自动按 ``batch_size`` 分批；
+    - 自动按 ``batch_size`` 分批，且按服务端硬限制夹到 ``_MAX_BATCH_SIZE`` (10) 以内；
     - 任何 HTTP 异常 / 业务 code 非 200 都直接 raise，调用方决定是否降级。
     """
 
     if not texts:
         return []
+    effective_batch = _clamp_batch_size(batch_size)
+    if effective_batch != batch_size:
+        logger.info(
+            "[Embedding] batch_size=%s 超过服务端上限，按 %d 切批",
+            batch_size, effective_batch,
+        )
     url, default_model, auth = _read_env()
     use_model = model or default_model
     headers = {"Content-Type": "application/json; charset=UTF-8"}
@@ -117,8 +140,8 @@ async def embed_texts(
 
     out: list[list[float]] = []
     try:
-        for start in range(0, len(texts), batch_size):
-            batch = texts[start : start + batch_size]
+        for start in range(0, len(texts), effective_batch):
+            batch = texts[start : start + effective_batch]
             payload = {"sentences": batch}
             resp = await cli.post(url, json=payload, headers=headers, timeout=timeout_seconds)
             if resp.status_code >= 400:
@@ -142,15 +165,24 @@ def embed_texts_sync(
     texts: list[str],
     *,
     model: Optional[str] = None,
-    batch_size: int = 32,
+    batch_size: int = _MAX_BATCH_SIZE,
     timeout_seconds: float = 60.0,
 ) -> list[list[float]]:
-    """同步版本，便于离线脚本（如建索引 CLI）直接调用而不必绕 asyncio。"""
+    """同步版本，便于离线脚本（如建索引 CLI）直接调用而不必绕 asyncio。
+
+    与 :func:`embed_texts` 一样按服务端硬限制 ``_MAX_BATCH_SIZE`` (10) 夹断。
+    """
 
     if not texts:
         return []
     import requests  # 延迟导入：异步路径不需要
 
+    effective_batch = _clamp_batch_size(batch_size)
+    if effective_batch != batch_size:
+        logger.info(
+            "[Embedding] (sync) batch_size=%s 超过服务端上限，按 %d 切批",
+            batch_size, effective_batch,
+        )
     url, default_model, auth = _read_env()
     use_model = model or default_model
     headers = {"Content-Type": "application/json; charset=UTF-8"}
@@ -158,8 +190,8 @@ def embed_texts_sync(
         headers["Authorization"] = auth
 
     out: list[list[float]] = []
-    for start in range(0, len(texts), batch_size):
-        batch = texts[start : start + batch_size]
+    for start in range(0, len(texts), effective_batch):
+        batch = texts[start : start + effective_batch]
         payload = {"sentences": batch}
         resp = requests.post(url, json=payload, headers=headers, timeout=timeout_seconds)
         if resp.status_code >= 400:

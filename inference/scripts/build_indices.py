@@ -78,8 +78,9 @@ def main(argv: list[str] | None = None) -> int:
         help=f"切块字符上限（默认 {config.CHUNK_SIZE}）",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=32,
-        help="embedding 调用批大小（默认 32）",
+        "--batch-size", type=int, default=10,
+        help="embedding 调用批大小（默认 10，服务端硬上限就是 10，"
+             "传更大会被 embedding_client 强行夹到 10）",
     )
     parser.add_argument(
         "--embedding-model", default=None,

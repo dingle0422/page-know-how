@@ -49,7 +49,9 @@ async def build_for_root(
     root_dir: str,
     *,
     chunk_size: int = config.CHUNK_SIZE,
-    embedding_batch_size: int = 32,
+    # 服务端单次最多接收 10 条；这里默认就贴着上限，避免 embedding_client 内
+    # 二次夹断时再打一条 INFO。如有更小限制可手工传入更小值。
+    embedding_batch_size: int = 10,
     embedding_model: Optional[str] = None,
     skip_embedding: bool = False,
 ) -> dict:
