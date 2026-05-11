@@ -24,9 +24,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Optional
 
 from reasoner.v3.chunk_builder import KnowledgeChunk
+from utils.verbose_logger import (
+    is_session_active,
+    log_llm_call,
+    log_llm_error,
+    step_scope,
+)
 
 from . import config
 from .llm_stream import StreamTagRouter, chat_stream
@@ -140,6 +147,10 @@ async def _stream_react_round(
         full_answer_parts.append(s)
         write_queue.put_nowait(("answer", s))
 
+    verbose_on = is_session_active()
+    t0 = time.time() if verbose_on else None
+    stream_error: Exception | None = None
+
     try:
         async for channel, delta in chat_stream(
             user_prompt,
@@ -154,6 +165,9 @@ async def _stream_react_round(
             else:
                 # 来自 content：可能夹 <think>/<answer>/<verdict> 标签，过 router
                 router.feed(delta, on_think=_emit_think, on_answer=_emit_answer)
+    except Exception as e:
+        stream_error = e
+        raise
     finally:
         await write_queue.put(None)
         try:
@@ -163,6 +177,56 @@ async def _stream_react_round(
                 "[InferenceReact] task=%s round=%d writer 退出异常: %s",
                 task_id, round_idx, e,
             )
+
+        if verbose_on:
+            think_so_far = "".join(full_think_parts).strip()
+            answer_so_far = "".join(full_answer_parts).strip()
+            verdict_so_far = (router.verdict or "").strip()
+            response_text = (
+                f"<think>\n{think_so_far}\n</think>\n<answer>\n{answer_so_far}\n</answer>"
+                + (f"\n<verdict>{verdict_so_far}</verdict>" if verdict_so_far else "")
+            )
+            elapsed_ms = int((time.time() - t0) * 1000) if t0 is not None else None
+            try:
+                if stream_error is None:
+                    log_llm_call(
+                        prompt=user_prompt,
+                        response=response_text,
+                        system=system_prompt,
+                        vendor=vendor,
+                        model=model,
+                        elapsed_ms=elapsed_ms,
+                        extra={
+                            "stage": "inference_react_round",
+                            "task_id": task_id,
+                            "round_idx": round_idx,
+                            "is_last_chunk": is_last_chunk,
+                            "enable_thinking": enable_thinking,
+                            "store_think_to_chunk": store_think_to_chunk,
+                            "verdict": verdict_so_far,
+                        },
+                    )
+                else:
+                    log_llm_error(
+                        prompt=user_prompt,
+                        error=f"{type(stream_error).__name__}: {stream_error}",
+                        system=system_prompt,
+                        vendor=vendor,
+                        model=model,
+                        elapsed_ms=elapsed_ms,
+                        extra={
+                            "stage": "inference_react_round",
+                            "task_id": task_id,
+                            "round_idx": round_idx,
+                            "is_last_chunk": is_last_chunk,
+                            "partial_think": think_so_far[:500],
+                            "partial_answer": answer_so_far[:500],
+                        },
+                    )
+            except Exception as log_e:
+                logger.debug(
+                    "[InferenceReact] verbose 落盘失败（忽略）: %s", log_e
+                )
 
     verdict = (router.verdict or "").strip().lower()
     full_think = "".join(full_think_parts).strip()
@@ -238,19 +302,28 @@ async def run(
         enable_thinking = is_last_chunk or flag
         store_think = is_last_chunk or flag
 
+        step_label = (
+            f"inference_react_final_r{round_idx}"
+            if is_last_chunk else f"inference_react_intermediate_r{round_idx}"
+        )
         try:
-            verdict, full_think, full_answer = await _stream_react_round(
-                task_id,
-                round_idx,
-                redis_stream,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                vendor=vendor,
-                model=model,
-                is_last_chunk=is_last_chunk,
-                enable_thinking=enable_thinking,
-                store_think_to_chunk=store_think,
-            )
+            with step_scope(step_label, prompt_vars={
+                "round_idx": round_idx,
+                "is_last_chunk": is_last_chunk,
+                "total_groups": total_groups,
+            }):
+                verdict, full_think, full_answer = await _stream_react_round(
+                    task_id,
+                    round_idx,
+                    redis_stream,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    vendor=vendor,
+                    model=model,
+                    is_last_chunk=is_last_chunk,
+                    enable_thinking=enable_thinking,
+                    store_think_to_chunk=store_think,
+                )
         except Exception as e:
             logger.exception(
                 "[InferenceReact] task=%s round=%d 模型流式失败: %s", task_id, round_idx, e

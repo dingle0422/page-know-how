@@ -61,6 +61,10 @@ def make_initial_snapshot(
         "think": "",
         "answer": "",
         "error": None,
+        # verbose 模式下 task 启动后由 pipeline 包装层回填，
+        # 对应 <project>/verbose_logs/<YYYYMMDD_HHMMSS>_<taskId>.jsonl。
+        # 未开启 verbose 时保持 None。
+        "logName": None,
         "createdAt": now,
         "updatedAt": now,
     }
@@ -245,6 +249,14 @@ class RedisStream:
             s["status"] = status
             if error is not None:
                 s["error"] = error
+
+        return await self.update(task_id, _mut)
+
+    async def set_log_name(self, task_id: str, log_name: Optional[str]) -> Snapshot:
+        """回写 verbose 日志文件名。pipeline 包装层开启 verbose session 后调用。"""
+
+        def _mut(s: Snapshot) -> None:
+            s["logName"] = log_name
 
         return await self.update(task_id, _mut)
 

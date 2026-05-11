@@ -12,7 +12,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Optional
+
+from utils.verbose_logger import (
+    is_session_active,
+    log_llm_call,
+    log_llm_error,
+    step_scope,
+)
 
 from . import config
 from .llm_stream import StreamTagRouter, chat_stream
@@ -119,21 +127,87 @@ async def run(
     def _on_answer(s: str) -> None:
         buffer.push("answer", s)
 
+    # verbose 模式下整段累积 prompt/response，待 stream 结束统一写一次 log_llm_call,
+    # 与 llm.client.chat 的"一次性日志条目"语义保持一致。
+    verbose_on = is_session_active()
+    collected_think: list[str] = []
+    collected_answer: list[str] = []
+    t0 = time.time() if verbose_on else None
+
+    def _on_think_collect(s: str) -> None:
+        if verbose_on and s:
+            collected_think.append(s)
+        _on_think(s)
+
+    def _on_answer_collect(s: str) -> None:
+        if verbose_on and s:
+            collected_answer.append(s)
+        _on_answer(s)
+
+    stream_error: Exception | None = None
     try:
-        async for channel, delta in chat_stream(
-            usr_p,
-            vendor=vendor,
-            model=model,
-            system=sys_p,
-            enable_thinking=True,
-        ):
-            if channel == "think":
-                buffer.push("think", delta)
-            else:
-                # answer 通道的内容里可能再夹 <think>/<answer> 标签，过一次 router
-                router.feed(delta, on_think=_on_think, on_answer=_on_answer)
-    except Exception as e:
-        logger.exception("[InferencePreview] task=%s 失败: %s", task_id, e)
+        with step_scope("inference_preview", prompt_vars={"question": question}):
+            try:
+                async for channel, delta in chat_stream(
+                    usr_p,
+                    vendor=vendor,
+                    model=model,
+                    system=sys_p,
+                    enable_thinking=True,
+                ):
+                    if channel == "think":
+                        if verbose_on and delta:
+                            collected_think.append(delta)
+                        buffer.push("think", delta)
+                    else:
+                        # answer 通道的内容里可能再夹 <think>/<answer> 标签，过 router
+                        router.feed(delta, on_think=_on_think_collect, on_answer=_on_answer_collect)
+            except Exception as e:
+                stream_error = e
+                logger.exception("[InferencePreview] task=%s 失败: %s", task_id, e)
+            finally:
+                if verbose_on:
+                    think_text = "".join(collected_think).strip()
+                    answer_text = "".join(collected_answer).strip()
+                    response_text = (
+                        f"<think>\n{think_text}\n</think>\n{answer_text}"
+                        if think_text else answer_text
+                    )
+                    elapsed_ms = int((time.time() - t0) * 1000) if t0 is not None else None
+                    try:
+                        if stream_error is None:
+                            log_llm_call(
+                                prompt=usr_p,
+                                response=response_text,
+                                system=sys_p,
+                                vendor=vendor,
+                                model=model,
+                                elapsed_ms=elapsed_ms,
+                                extra={
+                                    "stage": "inference_preview",
+                                    "task_id": task_id,
+                                    "enable_thinking": True,
+                                },
+                            )
+                        else:
+                            log_llm_error(
+                                prompt=usr_p,
+                                error=f"{type(stream_error).__name__}: {stream_error}",
+                                system=sys_p,
+                                vendor=vendor,
+                                model=model,
+                                elapsed_ms=elapsed_ms,
+                                extra={
+                                    "stage": "inference_preview",
+                                    "task_id": task_id,
+                                    "partial_think": think_text[:500],
+                                    "partial_answer": answer_text[:500],
+                                },
+                            )
+                    except Exception as log_e:
+                        logger.debug(
+                            "[InferencePreview] verbose 落盘失败（忽略）: %s", log_e
+                        )
     finally:
         stop.set()
         try:

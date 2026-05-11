@@ -1630,6 +1630,59 @@ class InferenceRequest(BaseModel):
     topM: int = Field(default=20, ge=1, le=200)
     # null = 沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK
     intermediateThinkEnabled: bool | None = None
+    verbose: bool = Field(
+        default=VERBOSE_DEFAULT_ENABLED,
+        description="启用 verbose 模式：以 taskId 为文件名落 jsonl 推理日志，"
+                    "记录 preview / skills / 每一轮 react 的完整 prompt + response。"
+                    "日志位于 <project>/verbose_logs/，超过 20MB 后自动归档为 zip。"
+                    "未显式传入时跟随环境变量 VERBOSE_TRACE 的默认值。"
+                    "断点续连（同 taskId 第二次请求）不会重开 session，"
+                    "只有首次创建该 task 的请求触发的 verbose 设置生效。",
+    )
+
+
+async def _run_inference_with_verbose(
+    *,
+    task_id: str,
+    question: str,
+    policy_id: str,
+    rs: _InferenceRedisStream,
+    options: _InferenceOptions,
+    verbose: bool,
+    session_meta: dict,
+) -> None:
+    """以 taskId 为 session_id 开 verbose 日志，再跑后台 inference pipeline。
+
+    与 `_reason_executor` 中 `_open_verbose_session` 的用法对齐：preview / skills /
+    react_loop 各阶段的 LLM 调用通过 verbose_logger 的 ContextVar 自动归属到本 session。
+    生成的 logName 通过 ``rs.set_log_name`` 回写到 redis 快照，方便 SSE 客户端拿到
+    日志文件名（与同步 `reason` 接口返回的 `logName` 字段语义一致）。
+    """
+    with _open_verbose_session(
+        session_id=task_id,
+        meta=session_meta,
+        enabled=verbose,
+    ) as _session:
+        log_name = _session.file_path.name if _session is not None else None
+        if log_name is not None:
+            try:
+                await rs.set_log_name(task_id, log_name)
+            except Exception as e:
+                logger.warning(
+                    f"[inference_stream] task={task_id} 回写 logName 到 redis 失败（忽略）: {e}"
+                )
+            _log_verbose_event(
+                "inference_pipeline_start",
+                policyId=policy_id,
+                question=question,
+                vendor=options.vendor,
+                model=options.model,
+                previewEnabled=options.preview_enabled,
+                skillsEnabled=options.skills_enabled,
+            )
+        await _inference_run(task_id, question, policy_id, rs, options=options)
+        if log_name is not None:
+            _log_verbose_event("inference_pipeline_finished")
 
 
 def _format_sse(event: str, data: dict) -> str:
@@ -1652,7 +1705,11 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
 
     tick = max(int(_inference_config.SSE_TICK_MS), 50) / 1000.0
     heartbeat_interval = max(float(_inference_config.SSE_HEARTBEAT_S), 1.0)
-    last_signature: tuple[str, str, str] | None = None
+    # logName 也纳入 signature：verbose=True 时它在后台 pipeline 启动初期由
+    # _run_inference_with_verbose 异步回填，仅此一次。把它放进 signature 能确保
+    # logName 首次出现时立即触发一帧 snapshot，否则会被相同的 (think, answer, status)
+    # 误判为无变化而漏推。
+    last_signature: tuple[str, str, str, str] | None = None
     last_emit_ts = time.monotonic()
     terminal = False
     while True:
@@ -1664,6 +1721,7 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
             snapshot.get("think") or "",
             snapshot.get("answer") or "",
             snapshot.get("status") or "",
+            snapshot.get("logName") or "",
         )
         now = time.monotonic()
         if signature != last_signature:
@@ -1675,6 +1733,7 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
                 "previewDone": bool((snapshot.get("preview") or {}).get("done")),
                 "reactRound": (snapshot.get("react") or {}).get("round"),
                 "error": snapshot.get("error"),
+                "logName": snapshot.get("logName"),
             })
             last_signature = signature
             last_emit_ts = now
@@ -1726,10 +1785,34 @@ async def inference_stream(req: InferenceRequest):
             top_m=int(req.topM),
             intermediate_think_enabled=req.intermediateThinkEnabled,
         )
+        session_meta = {
+            "endpoint": "/api/inference/stream",
+            "taskId": task_id,
+            "policyId": req.policyId,
+            "question": req.question,
+            "vendor": req.vendor,
+            "model": req.model,
+            "previewEnabled": bool(req.previewEnabled),
+            "skillsEnabled": bool(req.skillsEnabled),
+            "topN": int(req.topN),
+            "topM": int(req.topM),
+            "intermediateThinkEnabled": req.intermediateThinkEnabled,
+        }
         # 后台 pipeline 与请求生命周期解耦：客户端断连后台仍继续跑，
         # 重连时凭 taskId 即可继续转发同一份快照。
+        # verbose=True 时：包装层开启与 taskId 同名的 jsonl 日志文件，
+        # preview/skills/react_loop 各阶段的 LLM 调用会通过 verbose_logger 落盘，
+        # 与 /api/reason/submit 的日志结构完全一致。
         asyncio.create_task(
-            _inference_run(task_id, req.question, req.policyId, rs, options=options),
+            _run_inference_with_verbose(
+                task_id=task_id,
+                question=req.question,
+                policy_id=req.policyId,
+                rs=rs,
+                options=options,
+                verbose=bool(req.verbose),
+                session_meta=session_meta,
+            ),
             name=f"inference-pipeline:{task_id}",
         )
 
