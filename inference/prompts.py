@@ -104,7 +104,7 @@ REACT_INTERMEDIATE_USER_PROMPT = """## 用户问题
 # 最终轮直接复用 v3 的 CORPUS_SYSTEM_PROMPT / CORPUS_USER_PROMPT，
 # 不再叠加任何 ReAct 指令头。preview / 历史思考 / 本轮新增检索证据全部通过
 # :func:`format_evidence_for_final` 拼到 CORPUS_USER_PROMPT 的 evidence 槽位里，
-# 内部用 ### 三级标题，避免与 ## 【内化原生知识】抢标题层级。
+# 内部用 ### 三级标题，避免与 ## 【已有知识】抢标题层级。
 
 REACT_FINAL_SYSTEM_PROMPT = CORPUS_SYSTEM_PROMPT
 
@@ -181,7 +181,7 @@ def format_evidence_for_final(
 ) -> str:
     """组装最终轮 ``CORPUS_USER_PROMPT.evidence`` 的内容主体。
 
-    注意：``CORPUS_USER_PROMPT`` 内 evidence 是接在 ``## 【内化原生知识】：`` 标题下方，
+    注意：``CORPUS_USER_PROMPT`` 内 evidence 是接在 ``## 【已有知识】：`` 标题下方，
     所以本函数内部一律用 ``### `` 三级标题，避免抢层级。
     """
 
