@@ -48,6 +48,10 @@ PREVIEW_TPS: int = 5
 SSE_TICK_MS: int = 100
 """接口主协程每多少毫秒读一次 redis 快照。"""
 
+SSE_HEARTBEAT_S: float = 15.0
+"""SSE 静默期内每多少秒发一次注释心跳，避免被网关 idle timeout 掐断。
+建议设小于网关 ``proxy_read_timeout`` 的一半（常见网关 30s/60s）。"""
+
 # --- redis ---------------------------------------------------------------
 
 TASK_KEY_PREFIX: str = "inference:task:"

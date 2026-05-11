@@ -945,6 +945,86 @@ def _create_knowledge(policy_id: str) -> str:
     return knowledge_dir
 
 
+# ------------------------------------------------------------ Inference 索引构建
+#
+# /api/inference/stream + retrieval/hybrid 依赖三件套：
+#   - _chunks.jsonl    （chunk 文本，hybrid 必需）
+#   - _bm25.pkl        （BM25 索引，hybrid 必需）
+#   - _embeddings.npy  （embedding 向量，可选；缺失时退化为纯 BM25）
+#
+# 这些文件由 inference.retrieval.indexer.build_for_root 构建。原本只能通过
+# python -m inference.scripts.build_indices 手工补建，部署上去新 policy 第一次
+# 推理时只会看到 "缺少 _chunks.jsonl，回退到空检索结果" 的告警。
+#
+# 这里把构建逻辑挂到所有可能触发 hybrid 的入口上：
+#   - /api/kh/update           ：新建知识时强制重建（覆盖式）
+#   - /api/reason/submit, /api/reason ：推理前兜底检查
+#   - /api/inference/stream    ：推理前兜底检查
+# 同一 policy 并发请求共用一把 asyncio.Lock，避免重复构建。
+
+_INDEX_BUILD_LOCKS: dict[str, asyncio.Lock] = {}
+_INDEX_BUILD_LOCKS_GUARD = asyncio.Lock()
+
+
+async def _get_index_build_lock(key: str) -> asyncio.Lock:
+    async with _INDEX_BUILD_LOCKS_GUARD:
+        lock = _INDEX_BUILD_LOCKS.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _INDEX_BUILD_LOCKS[key] = lock
+        return lock
+
+
+def _inference_artifacts_missing(knowledge_dir: str) -> bool:
+    """判断 hybrid 检索所需的必要文件是否缺失。
+
+    _embeddings.npy 是可选的（embedding 服务可能未配置），不计入必要文件。
+    """
+    chunks_path = os.path.join(knowledge_dir, "_chunks.jsonl")
+    bm25_path = os.path.join(knowledge_dir, "_bm25.pkl")
+    return not (os.path.exists(chunks_path) and os.path.exists(bm25_path))
+
+
+async def _ensure_inference_artifacts(
+    knowledge_dir: str,
+    *,
+    policy_id: str | None = None,
+    force_rebuild: bool = False,
+) -> dict | None:
+    """缺失或 force_rebuild=True 时调用 indexer.build_for_root 构建三件套。
+
+    构建成功后顺手 invalidate hybrid 模块的进程内缓存，避免老的空快照继续被命中。
+    任何异常都被捕获并降级为 warning：索引缺失时 hybrid 自身已经会回退到空结果，
+    不应阻塞主流程。
+    """
+    if not force_rebuild and not _inference_artifacts_missing(knowledge_dir):
+        return None
+
+    lock_key = policy_id or knowledge_dir
+    lock = await _get_index_build_lock(lock_key)
+    async with lock:
+        if not force_rebuild and not _inference_artifacts_missing(knowledge_dir):
+            return None
+
+        try:
+            from inference.retrieval.indexer import build_for_root
+            from inference.retrieval.hybrid import invalidate as _invalidate_hybrid_cache
+
+            logger.info(
+                f"[Inference] 构建检索索引: policy_id={policy_id} "
+                f"force_rebuild={force_rebuild} dir={knowledge_dir}"
+            )
+            result = await build_for_root(knowledge_dir)
+            _invalidate_hybrid_cache(policy_id)
+            logger.info(f"[Inference] 检索索引构建完成: {result}")
+            return result
+        except Exception as e:
+            logger.warning(
+                f"[Inference] 构建检索索引失败（忽略，hybrid 将回退到空检索）: {e}"
+            )
+            return None
+
+
 @app.post("/api/kh/update", response_model=KhUpdateResponse)
 async def kh_update(req: KhUpdateRequest):
     policy_id = f"{req.khId}_{req.version}"
@@ -961,7 +1041,15 @@ async def kh_update(req: KhUpdateRequest):
             )
 
     try:
-        await asyncio.to_thread(_create_knowledge, policy_id)
+        knowledge_dir = await asyncio.to_thread(_create_knowledge, policy_id)
+        # 知识抽取成功后强制重建 inference 检索三件套（_chunks.jsonl / _bm25.pkl /
+        # _embeddings.npy），保证 /api/inference/stream 第一次调用就能命中 hybrid 检索。
+        # 构建失败不阻塞接口返回（hybrid 自身会回退到空检索）。
+        await _ensure_inference_artifacts(
+            knowledge_dir,
+            policy_id=policy_id,
+            force_rebuild=True,
+        )
         return KhUpdateResponse(
             data=KhUpdateData(
                 policyId=policy_id,
@@ -1020,6 +1108,10 @@ async def _reason_executor(request_payload: dict) -> dict:
         resp_log_name = _session.file_path.name if _session is not None else None
 
         knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
+        # 兜底：历史 policy 可能没建过 inference 检索索引（_chunks.jsonl / _bm25.pkl 缺失），
+        # 这里检测一次，缺啥补啥。不影响 reasoner 主流程（reasoner 不读这些文件），
+        # 只是为了让同 policy 后续走 /api/inference/stream 时也能直接命中 hybrid 检索。
+        await _ensure_inference_artifacts(knowledge_dir, policy_id=policy_id)
         if req_verbose:
             _log_verbose_event(
                 "knowledge_ready",
@@ -1551,10 +1643,17 @@ def _format_sse(event: str, data: dict) -> str:
 
 
 async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
-    """周期性读 redis 快照，仅在 (think, answer, status) 变化时推；终态后再推一帧并断流。"""
+    """周期性读 redis 快照，仅在 (think, answer, status) 变化时推；终态后再推一帧并断流。
+
+    静默期内按 ``SSE_HEARTBEAT_S`` 周期发 SSE 注释心跳（``: ping``），
+    保证 TCP 上一直有字节流出，避免被中间网关（PaaS / nginx / Ingress）
+    的 idle read timeout 掐断连接。注释行客户端 EventSource 会自动忽略。
+    """
 
     tick = max(int(_inference_config.SSE_TICK_MS), 50) / 1000.0
+    heartbeat_interval = max(float(_inference_config.SSE_HEARTBEAT_S), 1.0)
     last_signature: tuple[str, str, str] | None = None
+    last_emit_ts = time.monotonic()
     terminal = False
     while True:
         snapshot = await rs.get(task_id)
@@ -1566,6 +1665,7 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
             snapshot.get("answer") or "",
             snapshot.get("status") or "",
         )
+        now = time.monotonic()
         if signature != last_signature:
             yield _format_sse("snapshot", {
                 "taskId": task_id,
@@ -1577,6 +1677,11 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
                 "error": snapshot.get("error"),
             })
             last_signature = signature
+            last_emit_ts = now
+        elif now - last_emit_ts >= heartbeat_interval:
+            # SSE 注释行：客户端忽略，但 TCP 层有字节，骗过网关 idle timeout
+            yield ": ping\n\n"
+            last_emit_ts = now
         if terminal:
             return
         if snapshot.get("status") in {"done", "failed"}:
@@ -1594,12 +1699,16 @@ async def inference_stream(req: InferenceRequest):
     task_id = (req.taskId or str(uuid.uuid4())).strip() or str(uuid.uuid4())
     existed = await rs.exists(task_id)
     if not existed:
-        # 复用现有抽取流程，确保 knowledge_dir 存在；返回值仅用于校验通过。
+        # 复用现有抽取流程，确保 knowledge_dir 存在；返回值用于后续检索索引兜底。
         try:
-            await asyncio.to_thread(_get_or_extract_knowledge, req.policyId)
+            knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, req.policyId)
         except Exception as e:
             logger.exception(f"[inference_stream] policyId={req.policyId} 知识准备失败: {e}")
             raise HTTPException(status_code=400, detail=f"知识准备失败: {e}") from e
+
+        # 兜底：缺少 _chunks.jsonl / _bm25.pkl 时即时构建，避免 hybrid 检索回退到空结果。
+        # 历史 policy（在加入 inference 模块之前抽取的）首次走 SSE 时会走到这里。
+        await _ensure_inference_artifacts(knowledge_dir, policy_id=req.policyId)
 
         await rs.init(
             req.question,
