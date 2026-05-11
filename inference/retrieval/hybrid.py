@@ -11,7 +11,8 @@
 1. ``policy_id -> knowledge_root``：通过 ``extractor/policy_index.get_root_map`` 解析。
 2. 进程内 LRU 缓存按 ``policy_id`` 懒加载三件套（chunks / bm25 / embeddings）。
 3. BM25 取 top_m，语义取 top_n；
-4. RRF 融合后回填为 ``KnowledgeChunk`` 列表（按融合分数排序）。
+4. RRF 融合后回填为 ``KnowledgeChunk`` 列表（按融合分数排序），
+   返回上限取 ``top_n`` 与 ``top_m`` 两路候选的去重数量（而非 ``max(top_n, top_m)``）。
 5. 索引缺失/服务不可用时回退到纯 BM25（甚至空列表），不抛异常。
 """
 
@@ -185,10 +186,16 @@ async def hybrid_search(
     if not bm25_pairs and not sem_pairs:
         return []
 
+    # 返回上限：两路候选合并后的去重数量（<= top_n + top_m）。
+    dedup_limit = len({
+        *(cid for cid, _ in bm25_pairs),
+        *(cid for cid, _ in sem_pairs),
+    })
+
     fused = rrf_mod.reciprocal_rank_fusion(
         [bm25_pairs, sem_pairs],
         k=rrf_k if rrf_k is not None else 60,
-        top_k=max(top_n, top_m),
+        top_k=dedup_limit,
     )
 
     out: list[KnowledgeChunk] = []

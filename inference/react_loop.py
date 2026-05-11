@@ -98,13 +98,19 @@ async def _stream_react_round(
     is_last_chunk: bool,
     enable_thinking: bool,
     store_think_to_chunk: bool,
+    answer_as_verdict: bool,
 ) -> tuple[str, str, str]:
     """跑一轮，返回 ``(verdict, full_think, full_answer)``。
 
     - ``store_think_to_chunk=False`` 时，本轮模型产出的 think 仅累积在内存中（用于
       下一轮的 ``prev_think``），不写入 ``react.chunks[round_idx].think``，对应默认
       模式下中间轮 ``chunk.think=""`` 的约定。
-    - ``answer`` 始终写到 ``chunk.answer``（聚合时是否进接口 think/answer 由开关决定）。
+    - ``answer_as_verdict=False``（最终轮）：``<answer>`` 是真正的用户答案，按增量
+      写到 ``chunk.answer``，``verdict`` 取自 ``router.verdict``（旧 <verdict> 标签）。
+    - ``answer_as_verdict=True``（中间轮，新 prompt 协议）：``<answer>`` 内容固定是
+      ``complete`` / ``incomplete`` 的裁决字符串，仅作 verdict 使用，**不** 写到
+      ``chunk.answer``（否则会被 SSE 聚合误当成真实答案显示）；``verdict`` 直接取自
+      ``full_answer.strip().lower()``。
     """
 
     write_queue: asyncio.Queue[Optional[tuple[str, str]]] = asyncio.Queue()
@@ -145,7 +151,10 @@ async def _stream_react_round(
         if not s:
             return
         full_answer_parts.append(s)
-        write_queue.put_nowait(("answer", s))
+        # 中间轮 <answer> 内容只是 complete/incomplete 的 verdict 字符串，
+        # 不能写到 chunk.answer——否则 SSE 聚合会把它当成最终答案吐给前端。
+        if not answer_as_verdict:
+            write_queue.put_nowait(("answer", s))
 
     verbose_on = is_session_active()
     t0 = time.time() if verbose_on else None
@@ -228,9 +237,24 @@ async def _stream_react_round(
                     "[InferenceReact] verbose 落盘失败（忽略）: %s", log_e
                 )
 
-    verdict = (router.verdict or "").strip().lower()
     full_think = "".join(full_think_parts).strip()
     full_answer = "".join(full_answer_parts).strip()
+    if answer_as_verdict:
+        # 中间轮：<answer> 内容就是裁决。先按 lower 归一化，再宽松匹配 complete,
+        # 避免模型偶尔输出 "Complete." / "complete." 等带尾标点/大小写漂移的情况。
+        candidate = full_answer.strip().lower().strip(" \t\n。.,;；:!?\"'`")
+        if "complete" in candidate and "incomplete" not in candidate:
+            verdict = "complete"
+        elif "incomplete" in candidate:
+            verdict = "incomplete"
+        else:
+            verdict = candidate
+        # 既然 answer 在中间轮承担 verdict 语义，外层就不必再当成真实答案缓存。
+        full_answer = ""
+    else:
+        # 最终轮：兼容历史 <verdict> 标签（虽然新 prompt 已弃用，但 router 仍会捕获,
+        # 偶发被老/外部模型使用时不致丢信息）；空值由 react_loop.run 兜底为 "complete"。
+        verdict = (router.verdict or "").strip().lower()
     return verdict, full_think, full_answer
 
 
@@ -251,8 +275,12 @@ async def run(
 ) -> dict:
     """运行 ReAct 主循环。返回 ``{"rounds": int, "verdict": str, "answer": str}``。
 
-    - 任意一轮 ``verdict == "complete"`` 即结束；
-    - 否则跑到最后一组证据（受 ``max_rounds`` 限制），强制按"最终轮"出 answer；
+    流程：
+    - 按 ``groups`` 顺序逐轮跑中间轮（``answer_as_verdict=True``）：
+      ``<think>`` 累进 ``prev_think``，``<answer>`` 内容是 ``complete``/``incomplete`` 裁决。
+    - 任意一轮裁决 ``complete``：立刻追加**一轮强制 final**（``is_last_chunk=True``），
+      用同一组证据 + 累积 ``prev_think`` 让模型真正写出用户可见答案，然后退出。
+    - 跑到最后一组证据仍未 ``complete``：最后一组本身就按 final 跑，正常收尾。
     - 入参 ``chunks`` 为空时直接以一轮 "无检索证据" 跑最终轮。
     """
 
@@ -273,17 +301,24 @@ async def run(
 
     await redis_stream.set_status(task_id, "reasoning")
 
-    # 仅保留“上一轮”的思考摘要，避免跨轮无限膨胀。
+    # 仅保留"上一轮"的思考摘要，避免跨轮无限膨胀。
     prev_think = ""
     last_verdict = ""
     last_answer = ""
     total_groups = len(groups)
     rounds_done = 0
 
-    for round_idx, group_text in enumerate(groups):
-        rounds_done = round_idx + 1
-        is_last_chunk = round_idx == total_groups - 1
-        # 提前占位，确保 chunk[round_idx] 存在，方便下游（SSE）观测进度
+    async def _run_one_round(
+        *, round_idx: int, group_text: str, is_last_chunk: bool, prev_think_val: str,
+        step_kind: str,
+    ) -> tuple[str, str, str]:
+        """跑单轮：占位 chunk、读快照、组装 prompt、流式调模型、收尾标记。
+
+        ``step_kind`` 用于 verbose 日志的 step label 后缀（``intermediate`` / ``final`` /
+        ``final_forced``），便于在 jsonl 中区分"模型自己跑到最后一组" 与"中间判 complete
+        后强制追加 final" 两类最终轮。
+        """
+
         await redis_stream.ensure_react_chunk(task_id, round_idx)
 
         snapshot = await redis_stream.get(task_id) or {}
@@ -294,25 +329,23 @@ async def run(
             is_last_chunk=is_last_chunk,
             question=question,
             evidence=group_text,
-            prev_think=prev_think,
+            prev_think=prev_think_val,
             preview=preview_snapshot,
             skills=skills_snapshot,
         )
 
-        enable_thinking = is_last_chunk or flag
-        store_think = is_last_chunk or flag
+        enable_thinking_local = is_last_chunk or flag
+        store_think_local = is_last_chunk or flag
 
-        step_label = (
-            f"inference_react_final_r{round_idx}"
-            if is_last_chunk else f"inference_react_intermediate_r{round_idx}"
-        )
+        step_label = f"inference_react_{step_kind}_r{round_idx}"
         try:
             with step_scope(step_label, prompt_vars={
                 "round_idx": round_idx,
                 "is_last_chunk": is_last_chunk,
                 "total_groups": total_groups,
+                "step_kind": step_kind,
             }):
-                verdict, full_think, full_answer = await _stream_react_round(
+                local_verdict, local_think, local_answer = await _stream_react_round(
                     task_id,
                     round_idx,
                     redis_stream,
@@ -321,12 +354,15 @@ async def run(
                     vendor=vendor,
                     model=model,
                     is_last_chunk=is_last_chunk,
-                    enable_thinking=enable_thinking,
-                    store_think_to_chunk=store_think,
+                    enable_thinking=enable_thinking_local,
+                    store_think_to_chunk=store_think_local,
+                    # 中间轮的 <answer> 是 verdict 字符串；最终轮的 <answer> 才是用户答案。
+                    answer_as_verdict=not is_last_chunk,
                 )
-        except Exception as e:
+        except Exception as exc:
             logger.exception(
-                "[InferenceReact] task=%s round=%d 模型流式失败: %s", task_id, round_idx, e
+                "[InferenceReact] task=%s round=%d (%s) 模型流式失败: %s",
+                task_id, round_idx, step_kind, exc,
             )
             await redis_stream.set_react_chunk_complete(
                 task_id, round_idx, complete=False, verdict="error"
@@ -334,7 +370,22 @@ async def run(
             raise
 
         await redis_stream.set_react_chunk_complete(
-            task_id, round_idx, complete=True, verdict=verdict or ("complete" if is_last_chunk else "incomplete"),
+            task_id, round_idx, complete=True,
+            verdict=local_verdict or ("complete" if is_last_chunk else "incomplete"),
+        )
+        return local_verdict, local_think, local_answer
+
+    # ---- 主循环：依次跑各组证据 -----------------------------------
+    forced_final_after_idx: int | None = None
+    for round_idx, group_text in enumerate(groups):
+        rounds_done = round_idx + 1
+        is_last_chunk = round_idx == total_groups - 1
+        verdict, full_think, full_answer = await _run_one_round(
+            round_idx=round_idx,
+            group_text=group_text,
+            is_last_chunk=is_last_chunk,
+            prev_think_val=prev_think,
+            step_kind="final" if is_last_chunk else "intermediate",
         )
 
         last_verdict = verdict
@@ -344,8 +395,37 @@ async def run(
             # 不再累积所有历史轮次，避免 prompt 体积持续膨胀。
             prev_think = full_think.strip()
 
-        if verdict == "complete" or is_last_chunk:
+        if is_last_chunk:
+            # 最后一组本来就走 final，直接结束；last_answer 已是用户答案。
             break
+        if verdict == "complete":
+            # 模型在中间轮判定信息已足够；不再读新证据，下面追加一轮强制 final
+            # 来真正写出 <answer>（中间轮的 <answer> 是裁决字符串，不是用户答案）。
+            forced_final_after_idx = round_idx
+            break
+
+    # ---- 强制 final 兜底：中间轮判 complete 后追加一轮收尾 ----------
+    if forced_final_after_idx is not None:
+        forced_round_idx = forced_final_after_idx + 1
+        rounds_done = forced_round_idx + 1
+        logger.info(
+            "[InferenceReact] task=%s round=%d 中间轮判 complete，"
+            "追加强制 final 轮 round=%d 收尾",
+            task_id, forced_final_after_idx, forced_round_idx,
+        )
+        verdict, full_think, full_answer = await _run_one_round(
+            round_idx=forced_round_idx,
+            # 沿用最后一轮中间轮的 evidence：模型刚分析完这组就判 complete,
+            # 再用同一组证据 + 累积 prev_think 走 final prompt 写答案最自然。
+            group_text=groups[forced_final_after_idx],
+            is_last_chunk=True,
+            prev_think_val=prev_think,
+            step_kind="final_forced",
+        )
+        last_verdict = verdict or "complete"
+        last_answer = full_answer
+        if full_think:
+            prev_think = full_think.strip()
 
     return {
         "rounds": rounds_done,

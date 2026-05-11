@@ -985,6 +985,63 @@ def _inference_artifacts_missing(knowledge_dir: str) -> bool:
     return not (os.path.exists(chunks_path) and os.path.exists(bm25_path))
 
 
+# 建库时 _redis_client 闲置时间可能很长（拉 embedding 取决于条数 + 网络），
+# 网关/服务端会按 idle timeout 单方面关掉 keep-alive 连接，导致建库完成后
+# react_loop 第一次写 redis 就遇到 RemoteProtocolError。这里在建库期间起一个
+# 后台心跳协程，周期性调一次 redis health，把短请求池里的连接"挤"活。
+# RedisServerClient._request 已经内置了 stale-connection 重试作为兜底，
+# 心跳是 belt-and-suspenders：避免重试本身在大量并发请求一起遇到 EOF 时雪崩。
+_REDIS_KEEPALIVE_PING_INTERVAL = float(
+    os.environ.get("REDIS_KEEPALIVE_PING_INTERVAL_SECONDS", "10.0")
+)
+
+
+@asynccontextmanager
+async def _keepalive_redis_during_long_task(label: str):
+    """长任务前后用本 context manager 包裹，期间周期性 ping redis 保活。
+
+    心跳失败仅打 debug 日志，不影响外层任务——RedisServerClient 已经能在
+    真正用到时自愈一次。心跳的目的只是让 keep-alive 池不至于全部冷掉。
+    """
+    client = _redis_client
+    if client is None or _REDIS_KEEPALIVE_PING_INTERVAL <= 0:
+        yield
+        return
+
+    stop = asyncio.Event()
+
+    async def _ping_loop() -> None:
+        try:
+            while not stop.is_set():
+                try:
+                    await asyncio.wait_for(
+                        stop.wait(),
+                        timeout=_REDIS_KEEPALIVE_PING_INTERVAL,
+                    )
+                    return  # stop 提前触发，正常退出
+                except asyncio.TimeoutError:
+                    pass
+                try:
+                    await client.health()
+                except Exception as e:
+                    logger.debug(
+                        f"[KeepAlive][{label}] redis health 心跳失败（忽略）: {e}"
+                    )
+        except asyncio.CancelledError:
+            pass
+
+    task = asyncio.create_task(_ping_loop(), name=f"redis-keepalive:{label}")
+    try:
+        yield
+    finally:
+        stop.set()
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
+
+
 async def _ensure_inference_artifacts(
     knowledge_dir: str,
     *,
@@ -996,6 +1053,9 @@ async def _ensure_inference_artifacts(
     构建成功后顺手 invalidate hybrid 模块的进程内缓存，避免老的空快照继续被命中。
     任何异常都被捕获并降级为 warning：索引缺失时 hybrid 自身已经会回退到空结果，
     不应阻塞主流程。
+
+    构建过程中开启 redis keep-alive 心跳，防止外层调用方（reason / inference_stream）
+    在建库完成后立刻写 redis 时撞到 stale-connection EOF。
     """
     if not force_rebuild and not _inference_artifacts_missing(knowledge_dir):
         return None
@@ -1014,7 +1074,10 @@ async def _ensure_inference_artifacts(
                 f"[Inference] 构建检索索引: policy_id={policy_id} "
                 f"force_rebuild={force_rebuild} dir={knowledge_dir}"
             )
-            result = await build_for_root(knowledge_dir)
+            async with _keepalive_redis_during_long_task(
+                f"build-indices:{policy_id or knowledge_dir}"
+            ):
+                result = await build_for_root(knowledge_dir)
             _invalidate_hybrid_cache(policy_id)
             logger.info(f"[Inference] 检索索引构建完成: {result}")
             return result
@@ -1629,7 +1692,7 @@ class InferenceRequest(BaseModel):
     topN: int = Field(default=20, ge=1, le=200)
     topM: int = Field(default=20, ge=1, le=200)
     # null = 沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK
-    intermediateThinkEnabled: bool | None = None
+    intermediateThinkEnabled: bool | None = False
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
         description="启用 verbose 模式：以 taskId 为文件名落 jsonl 推理日志，"

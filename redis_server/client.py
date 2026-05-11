@@ -14,9 +14,24 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any, Optional
 
 import httpx
+
+logger = logging.getLogger(__name__)
+
+
+# httpx 复用 keep-alive 连接时，若中间网关/服务端在 idle 期已经悄悄 FIN 掉了
+# 这条连接，下次发请求就会立刻看到下列异常之一。这些情况下"请求体根本没到对端",
+# 所以无脑重试一次是安全的（即便对 POST 这种非幂等语义也行）。
+_RETRYABLE_TRANSIENT_ERRORS: tuple[type[BaseException], ...] = (
+    httpx.RemoteProtocolError,  # "Server disconnected without sending a response."
+    httpx.ReadError,            # 中途 reset；常见于 keep-alive 被 RST 时
+    httpx.ConnectError,         # 池里捞不到可用连接、TCP 握手早期失败
+    httpx.WriteError,           # 发请求时 socket 已经废
+)
 
 
 class RedisServerError(RuntimeError):
@@ -48,8 +63,12 @@ class RedisServerClient:
         pool_timeout_seconds: float = 2.0,
         max_connections: int = 64,
         max_keepalive_connections: int = 32,
-        keepalive_expiry_seconds: float = 30.0,
+        # keep-alive 池里连接最多保留多久就强制丢弃。比常见网关 idle timeout
+        # (典型 30~60s) 略小一档：连接在被对端单方面关闭"之前"就先在客户端这边
+        # 被淘汰，配合 _request 里的重试可以兜住绝大多数 stale-connection 故障。
+        keepalive_expiry_seconds: float = 15.0,
         long_poll_max_connections: int = 32,
+        transient_retries: int = 1,
     ) -> None:
         # 注意：不走 httpx 的 base_url 机制。httpx 在 base_url 带 path 前缀时，
         # 用户侧传入 "/xxx" 会导致 path 被当成绝对路径、吃掉 base_url 的前缀
@@ -58,6 +77,7 @@ class RedisServerClient:
         # path 必须以 "/" 开头，路由统一干净。
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
+        self._transient_retries = max(int(transient_retries), 0)
         headers = {"X-Auth-Token": auth_token} if auth_token else {}
 
         # 短请求 client：set/get/rpush/lrange/... 都走它。
@@ -146,7 +166,35 @@ class RedisServerClient:
                 pool=base_timeout.pool,
             )
         url = self.base_url + path
-        resp = await target_client.request(method, url, **kwargs)
+
+        # keep-alive 连接被对端悄悄关掉时，httpx 在第一次复用它发包时会立刻
+        # raise 上述 _RETRYABLE_TRANSIENT_ERRORS 之一。此时"请求体根本没到对端",
+        # 重试一次是安全的——新一次调用会绕过坏连接、从池里取/建一条新连接。
+        # 长时间静默场景（建库时 _client 闲置 N 秒）下这就是 stale-connection,
+        # 重试一次就能恢复，无需任何业务层感知。
+        last_err: Exception | None = None
+        attempts = self._transient_retries + 1
+        for attempt in range(attempts):
+            try:
+                resp = await target_client.request(method, url, **kwargs)
+                break
+            except _RETRYABLE_TRANSIENT_ERRORS as e:
+                last_err = e
+                if attempt == attempts - 1:
+                    raise
+                # 极短退避：keep-alive 被打断的场景里，重连本身不需要等。
+                # 这里 sleep 仅是为了让事件循环喘口气、把同批被打断的请求错开。
+                logger.warning(
+                    "[RedisServerClient] %s %s 遇到 %s，第 %d/%d 次重试",
+                    method, path, type(e).__name__, attempt + 1, attempts - 1,
+                )
+                await asyncio.sleep(0.05 * (attempt + 1))
+        else:
+            # 理论上不会到这里：循环里要么 break 要么 raise。保留兜底以防未来改动。
+            if last_err is not None:
+                raise last_err
+            raise RuntimeError("unreachable")
+
         if resp.status_code >= 400:
             raise RedisServerError(
                 f"{method} {url} http={resp.status_code} body={resp.text[:500]}"

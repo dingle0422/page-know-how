@@ -5,11 +5,16 @@
 - ``CORPUS_SYSTEM_PROMPT`` / ``CORPUS_USER_PROMPT`` 直接 import 自 ``reasoner/v3/prompts.py``，
   不复制不修改，避免两份口径漂移。
 - **中间轮**（``incomplete`` 判定阶段）：用独立的 ``REACT_INTERMEDIATE_*`` prompt，
-  不依赖 CORPUS_*，本轮只判定 "是否能完美回答" + 自反思，**禁止** 产出 <answer>。
+  不依赖 CORPUS_*，本轮只做两件事：
+    1. ``<think>`` 内自反思本轮收集到了什么、还缺什么 —— 作为 ``prev_think`` 传给下一轮；
+    2. ``<answer>`` 内仅输出 ``complete`` 或 ``incomplete`` —— **这一项就是本轮的 verdict**,
+       由 :mod:`inference.react_loop` 据此决定是否再开一轮。
+  历史 ``<verdict>`` 标签已弃用；不再依赖 ``StreamTagRouter.verdict`` 解析中间轮裁决。
 - **最终轮**（``complete`` 收尾或被强制最终轮）：直接用 **纯**
   ``CORPUS_SYSTEM_PROMPT``，不再叠加任何 ReAct 指令头；
   user prompt 走 ``CORPUS_USER_PROMPT`` 模板，把 preview / 历史轮次思考 /
   本轮新增检索证据都按 markdown 三级标题拼到 ``evidence`` 变量内。
+  最终轮 ``<answer>`` 内容才是真正面向用户的答案。
 """
 
 from __future__ import annotations
@@ -58,7 +63,6 @@ PREVIEW_USER_PROMPT = """## 用户问题
 # -------------------------------------------------------------- react: 中间轮
 #
 # 中间轮目标只有一个：判断当前已掌握的信息能否完美回答问题。
-# **禁止输出 <answer>**，最终答案由"最终轮"用纯 CORPUS prompt 重新生成。
 
 REACT_INTERMEDIATE_SYSTEM_PROMPT = """\
 你是一个资深财税实务专家。你的目标是判断当前掌握的信息是否已经足以**完美回答**用户问题，
@@ -68,14 +72,13 @@ REACT_INTERMEDIATE_SYSTEM_PROMPT = """\
 1. <think>...</think>：复盘本轮观察到了什么、与问题的关联，是否已经覆盖
    核心结论 / 关键依据 / 必要的操作或风险提示；若仍不充分，明确说明
    "还缺什么、希望下一轮看到什么类型的知识"。
-2. <verdict>...</verdict>：仅允许 ``complete`` 或 ``incomplete``：
+2. <answer>...</answer>：仅允许 ``complete`` 或 ``incomplete``：
    - ``complete``：已经能完美回答用户问题（覆盖核心结论、依据、必要的操作或风险提示等）。
    - ``incomplete``：仍需更多检索证据，请继续。
 
 【绝对约束】
-- 输出顺序固定：<think>...</think><verdict>...</verdict>。
-- **禁止输出 <answer> 段**，最终答案不在本轮产生。
-- <verdict> 标签内只能是 ``complete`` 或 ``incomplete``，不得有空白或其他字符。
+- 输出顺序固定：<think>...</think><answer>...</answer>。
+- <answer> 标签内只能是 ``complete`` 或 ``incomplete``，不得有空白或其他字符。
 """
 
 
@@ -209,7 +212,11 @@ def format_react_intermediate_user_prompt(
     preview: dict | None,
     skills: list[dict] | None,
 ) -> str:
-    """组装中间轮 user prompt（自反思 + verdict 判定，禁止 <answer>）。"""
+    """组装中间轮 user prompt。
+
+    模型应输出 ``<think>...</think><answer>complete|incomplete</answer>``：
+    ``<think>`` 是下一轮的 ``prev_think``，``<answer>`` 内容就是本轮 verdict。
+    """
 
     prev_text = (prev_think or "").strip() or "（首轮，无历史思考）"
     return REACT_INTERMEDIATE_USER_PROMPT.format(
