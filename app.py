@@ -10,7 +10,8 @@ from contextlib import asynccontextmanager
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from extractor.builder import extract_from_api
@@ -75,6 +76,26 @@ INSTANCE_ID: str = ""
 _redis_client: RedisServerClient | None = None
 _worker_pool: _tq.WorkerPool | None = None
 
+# ---------------------------------------------------------------- WebStream 单接口模式
+# 启用后（CLI 传 --webStreamMode 或环境变量 WEB_STREAM_MODE=1）：
+# - lifespan 不启动 WorkerPool，本进程不再从 redis 队列 BLPOP 抢 /api/reason/submit 推理任务,
+#   避免多实例间互相抢占；
+# - HTTP middleware 仅放行 /api/inference/stream 及健康检查，其余接口一律 503。
+# Redis client 仍会初始化，因为 /api/inference/stream 内部依赖 redis 写状态快照。
+WEB_STREAM_MODE: bool = os.environ.get("WEB_STREAM_MODE", "").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+# webStreamMode 下允许通过的请求路径白名单（精确匹配）。/api/inference/stream
+# 是核心接口；/ 与 /example 是健康检查；/docs/openapi.json 保留方便排查。
+_WEB_STREAM_ALLOWED_PATHS: frozenset[str] = frozenset({
+    "/",
+    "/example",
+    "/api/inference/stream",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+})
+
 
 def _require_redis() -> RedisServerClient:
     """路由里统一入口：lifespan 还没跑完就别来。"""
@@ -121,16 +142,24 @@ async def lifespan(_app: FastAPI):
     #     # 新任务仍然能正常入队执行。
     #     logger.warning(f"[lifespan] 启动清理僵尸 running 任务失败（忽略继续启动）: {e}")
 
-    _worker_pool = _tq.WorkerPool(
-        _redis_client,
-        executor=_reason_executor,
-        worker_count=MAX_CONCURRENT_REASONING,
-        task_ttl_seconds=REASON_TASK_TTL_SECONDS,
-        blpop_timeout_seconds=REASON_BLPOP_TIMEOUT_SECONDS,
-        instance_id=INSTANCE_ID,
-        executor_timeout_seconds=REASON_EXECUTOR_TIMEOUT_SECONDS,
-    )
-    await _worker_pool.start()
+    if WEB_STREAM_MODE:
+        # 单接口模式：不启动 WorkerPool，本进程不参与 redis 推理队列消费,
+        # 避免与其他实例互相抢占 /api/reason/submit 任务。
+        logger.info(
+            "[lifespan] --webStreamMode 启用：跳过 WorkerPool 启动，"
+            "仅保留 /api/inference/stream 接口对外服务"
+        )
+    else:
+        _worker_pool = _tq.WorkerPool(
+            _redis_client,
+            executor=_reason_executor,
+            worker_count=MAX_CONCURRENT_REASONING,
+            task_ttl_seconds=REASON_TASK_TTL_SECONDS,
+            blpop_timeout_seconds=REASON_BLPOP_TIMEOUT_SECONDS,
+            instance_id=INSTANCE_ID,
+            executor_timeout_seconds=REASON_EXECUTOR_TIMEOUT_SECONDS,
+        )
+        await _worker_pool.start()
     try:
         yield
     finally:
@@ -144,6 +173,30 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Page Know-How 单问题推理服务", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def _web_stream_mode_gate(request: Request, call_next):
+    """webStreamMode 下只放行白名单路径，其他接口一律 503。
+
+    白名单见 ``_WEB_STREAM_ALLOWED_PATHS``：核心接口 /api/inference/stream,
+    健康检查 / 与 /example，以及 FastAPI 自带的 docs/openapi 调试页面。
+    被拦下的请求统一返回 ``status_code=503``，message 提示当前模式仅开放
+    流式推理接口；与其他业务接口的错误响应风格保持一致（顶层 JSON 三段式）。
+    """
+    if WEB_STREAM_MODE and request.url.path not in _WEB_STREAM_ALLOWED_PATHS:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "data": None,
+                "status_code": 503,
+                "message": (
+                    "服务以 --webStreamMode 启动，"
+                    "仅 /api/inference/stream 对外开放，其他接口已禁用"
+                ),
+            },
+        )
+    return await call_next(request)
 
 
 def _load_policy_index() -> dict[str, str]:
@@ -2089,5 +2142,31 @@ async def inference_stream(req: InferenceRequest):
 
 
 if __name__ == "__main__":
+    import argparse
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000, timeout_keep_alive=3600)
+
+    parser = argparse.ArgumentParser(
+        description="Page Know-How 单问题推理服务",
+    )
+    parser.add_argument(
+        "--webStreamMode",
+        action="store_true",
+        default=WEB_STREAM_MODE,
+        help=(
+            "单接口模式：只开放 /api/inference/stream，禁用 WorkerPool 等"
+            "从 redis 队列拉取推理任务的后台协程，避免多实例间互相抢占。"
+            "也可通过环境变量 WEB_STREAM_MODE=1 开启"
+        ),
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="监听地址，默认 0.0.0.0")
+    parser.add_argument("--port", type=int, default=5000, help="监听端口，默认 5000")
+    args = parser.parse_args()
+
+    WEB_STREAM_MODE = bool(args.webStreamMode)
+    if WEB_STREAM_MODE:
+        logger.info(
+            "[startup] --webStreamMode 已开启：本进程仅服务 /api/inference/stream，"
+            "不参与 redis 推理任务队列消费"
+        )
+
+    uvicorn.run(app, host=args.host, port=args.port, timeout_keep_alive=3600)
