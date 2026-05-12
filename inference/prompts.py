@@ -55,7 +55,7 @@ PREVIEW_SYSTEM_PROMPT = """\
 - <answer> 不要编造具体政策文号或法规细节，并且注意政策法规的时效性，遇到不确定处直接说"待结合检索"。
 """
 
-PREVIEW_USER_PROMPT = """## 用户问题
+PREVIEW_USER_PROMPT = """## 【用户问题】
 {question}
 """
 
@@ -82,20 +82,20 @@ REACT_INTERMEDIATE_SYSTEM_PROMPT = """\
 """
 
 
-REACT_INTERMEDIATE_USER_PROMPT = """## 用户问题
+REACT_INTERMEDIATE_USER_PROMPT = """## 【用户问题】
 {question}
 
-## 历史轮次思考摘要
-{prev_think}
+## 【参考依据】
+{skill_context_block}
 
-## 本轮新增的检索证据
-{evidence}
-
-## 前置预答（仅供参考，存在政策法规的时效性风险）
+## 【前置预答】（可能存在过期信息，若采纳政策条款信息，则必须在摘要或证据中得到印证）
 {preview_block}
 
-## 参考依据
-{skill_context_block}
+## 【历史轮次思考摘要】
+{prev_think}
+
+## 【本轮新增的检索证据】
+{evidence}
 """
 
 
@@ -245,7 +245,7 @@ def format_react_final_user_prompt(
 
     skill_text = format_skill_block(skills)
     if skill_text and skill_text != "（暂无参考依据）":
-        skill_block = "## 参考依据\n" + skill_text + "\n\n"
+        skill_block = "## 【参考依据】\n" + skill_text + "\n\n"
     else:
         skill_block = ""
 

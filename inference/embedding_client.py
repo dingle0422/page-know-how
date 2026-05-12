@@ -20,8 +20,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import random
+import time
 from typing import Optional
 
 import httpx
@@ -72,6 +75,61 @@ def _clip_for_embedding(text: str) -> str:
     return text[:_MAX_INPUT_CHARS]
 
 
+# --- 重试机制 -------------------------------------------------------------
+#
+# embedding 服务对超大并发或边界 sentence 偶发返回 JSON null / 5xx / 网络瞬断；
+# 这类错误大多通过短暂退避后重试即可恢复。本模块按"单批"粒度做重试，避免一次
+# 全量重发污染已经成功的批次。
+#
+# 重试与非重试的边界：
+#   可重试：网络层异常（httpx.RequestError / requests.ConnectionError 等）、
+#           HTTP 5xx、body=null、业务 code 非 200 的临时错误、JSON 解析失败；
+#   不可重试：HTTP 4xx（含上游已知硬性参数错误，例如 'Range of input length'
+#             / 'List length exceeds'），重试只是浪费时间。
+#
+# 通过环境变量覆盖：
+#   INFERENCE_EMBEDDING_RETRY_ATTEMPTS：每批最大尝试次数（含首次），默认 3
+#   INFERENCE_EMBEDDING_RETRY_BASE_DELAY：首次重试前的基础等待秒数，默认 0.5
+#   INFERENCE_EMBEDDING_RETRY_MAX_DELAY：单次重试退避秒数上限，默认 8.0
+
+_RETRY_ATTEMPTS = max(1, int(os.getenv("INFERENCE_EMBEDDING_RETRY_ATTEMPTS", "3")))
+_RETRY_BASE_DELAY = max(0.0, float(os.getenv("INFERENCE_EMBEDDING_RETRY_BASE_DELAY", "0.5")))
+_RETRY_MAX_DELAY = max(_RETRY_BASE_DELAY, float(os.getenv("INFERENCE_EMBEDDING_RETRY_MAX_DELAY", "8.0")))
+
+
+class _NonRetryableEmbeddingError(RuntimeError):
+    """显式标记的"硬错误"，重试包装层看到这个异常直接 raise 不再重试。
+
+    典型场景：HTTP 4xx（含上游业务硬性参数错误，如 sentence 超长 / batch
+    超长），重试无意义。
+    """
+
+
+# 上游业务错误中已知不可重试的关键字（即便 HTTP=200 但 body.code 是它们）。
+_NON_RETRYABLE_BUSINESS_PATTERNS = (
+    "Range of input length",
+    "List length exceeds",
+)
+
+
+def _is_business_error_retryable(msg: str) -> bool:
+    """判断业务错误消息是否值得重试。命中硬性参数错误关键字即不重试。"""
+    if not msg:
+        return True
+    return not any(pat in msg for pat in _NON_RETRYABLE_BUSINESS_PATTERNS)
+
+
+def _retry_delay(attempt: int) -> float:
+    """计算第 ``attempt`` 次重试前的等待秒数（attempt 从 1 开始）。
+
+    指数退避（基础 * 2^(n-1)）+ [0, 0.5) 的均匀随机抖动；夹断到 _RETRY_MAX_DELAY。
+    随机抖动避免多个并发请求在同一时刻重发挤爆上游。
+    """
+    base = _RETRY_BASE_DELAY * (2 ** max(0, attempt - 1))
+    jitter = random.uniform(0.0, 0.5)
+    return min(_RETRY_MAX_DELAY, base + jitter)
+
+
 class EmbeddingNotConfigured(RuntimeError):
     """显式禁用 embedding（``INFERENCE_EMBEDDING_DISABLED=1``）时抛出。
 
@@ -91,14 +149,31 @@ def _read_env() -> tuple[str, str, Optional[str]]:
     return url, model, auth
 
 
-def _parse_response(body: dict, batch_len: int) -> list[list[float]]:
-    """把单次响应解析成与请求顺序对齐的 ``list[list[float]]``。"""
+def _parse_response(body, batch_len: int) -> list[list[float]]:
+    """把单次响应解析成与请求顺序对齐的 ``list[list[float]]``。
+
+    body 类型签名故意保留 Any：上游服务偶发会返回 JSON ``null``（在我们对超长
+    sentence 做边界截断后特别容易触发，原因是上游对"不完整结尾"的容错有差异），
+    此时 ``resp.json()`` 给的就是 Python ``None``——这里在入口显式拦截，避免
+    后续 ``body.get(...)`` 抛出含糊的 ``'NoneType' object has no attribute 'get'``。
+    """
+
+    if body is None:
+        raise RuntimeError("embedding 响应体为 null（上游服务异常返回 JSON null）")
+    if not isinstance(body, dict):
+        raise RuntimeError(
+            f"embedding 响应体类型异常 expected=dict got={type(body).__name__}"
+        )
 
     code = body.get("code")
     if code is not None and int(code) != 200:
-        raise RuntimeError(
-            f"embedding 服务返回失败 code={code} msg={body.get('msg')!r}"
-        )
+        msg = str(body.get("msg") or "")
+        err = f"embedding 服务返回失败 code={code} msg={msg!r}"
+        # 已知硬性参数错误（如 sentence 超长、batch 超长）重试无意义，直接升级为
+        # _NonRetryableEmbeddingError，让外层重试装饰器直接放行。
+        if not _is_business_error_retryable(msg):
+            raise _NonRetryableEmbeddingError(err)
+        raise RuntimeError(err)
     output = body.get("output")
     if not isinstance(output, list):
         raise RuntimeError(
@@ -167,19 +242,57 @@ async def embed_texts(
             clipped_total, len(texts), _MAX_INPUT_CHARS,
         )
 
+    async def _do_one_request(batch: list[str]) -> list[list[float]]:
+        """单批一次请求 + 解析；任何异常都抛出，由外层重试逻辑接管。"""
+        payload = {"sentences": batch}
+        resp = await cli.post(url, json=payload, headers=headers, timeout=timeout_seconds)
+        if 400 <= resp.status_code < 500:
+            raise _NonRetryableEmbeddingError(
+                f"embedding HTTP {resp.status_code} body={resp.text[:500]}"
+            )
+        if resp.status_code >= 500:
+            raise RuntimeError(
+                f"embedding HTTP {resp.status_code} body={resp.text[:500]}"
+            )
+        try:
+            body = resp.json()
+        except Exception as e:
+            raise RuntimeError(
+                f"embedding 响应 JSON 解析失败: {e}; raw={resp.text[:500]!r}"
+            ) from e
+        return _parse_response(body, len(batch))
+
+    async def _request_with_retry(batch: list[str], batch_idx: int) -> list[list[float]]:
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, _RETRY_ATTEMPTS + 1):
+            try:
+                return await _do_one_request(batch)
+            except _NonRetryableEmbeddingError:
+                raise
+            except (httpx.RequestError, RuntimeError) as e:
+                last_exc = e
+                if attempt >= _RETRY_ATTEMPTS:
+                    break
+                delay = _retry_delay(attempt)
+                logger.warning(
+                    "[Embedding] batch_idx=%d 第 %d/%d 次请求失败，%.2fs 后重试: %s",
+                    batch_idx, attempt, _RETRY_ATTEMPTS, delay, e,
+                )
+                await asyncio.sleep(delay)
+        lens = [len(s) for s in batch]
+        previews = [s[:80].replace("\n", " ") for s in batch]
+        raise RuntimeError(
+            f"{last_exc} | batch_idx={batch_idx} batch_size={len(batch)} "
+            f"attempts={_RETRY_ATTEMPTS} lengths={lens} previews={previews}"
+        ) from last_exc
+
     out: list[list[float]] = []
     try:
         for start in range(0, len(texts), effective_batch):
             batch_raw = texts[start : start + effective_batch]
             batch = [_clip_for_embedding(t) for t in batch_raw]
-            payload = {"sentences": batch}
-            resp = await cli.post(url, json=payload, headers=headers, timeout=timeout_seconds)
-            if resp.status_code >= 400:
-                raise RuntimeError(
-                    f"embedding HTTP {resp.status_code} body={resp.text[:500]}"
-                )
-            body = resp.json()
-            out.extend(_parse_response(body, len(batch)))
+            batch_idx = start // effective_batch
+            out.extend(await _request_with_retry(batch, batch_idx))
     finally:
         if own_client:
             await cli.aclose()
@@ -226,18 +339,58 @@ def embed_texts_sync(
             clipped_total, len(texts), _MAX_INPUT_CHARS,
         )
 
+    def _do_one_request(batch: list[str]) -> list[list[float]]:
+        payload = {"sentences": batch}
+        resp = requests.post(url, json=payload, headers=headers, timeout=timeout_seconds)
+        if 400 <= resp.status_code < 500:
+            raise _NonRetryableEmbeddingError(
+                f"embedding HTTP {resp.status_code} body={resp.text[:500]}"
+            )
+        if resp.status_code >= 500:
+            raise RuntimeError(
+                f"embedding HTTP {resp.status_code} body={resp.text[:500]}"
+            )
+        try:
+            body = resp.json()
+        except Exception as e:
+            raise RuntimeError(
+                f"embedding 响应 JSON 解析失败: {e}; raw={resp.text[:500]!r}"
+            ) from e
+        return _parse_response(body, len(batch))
+
+    # 同步路径下网络错误类型来自 requests；与异步路径处理一致。
+    _RETRYABLE_NET_EXC = (requests.exceptions.RequestException,)
+
+    def _request_with_retry(batch: list[str], batch_idx: int) -> list[list[float]]:
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, _RETRY_ATTEMPTS + 1):
+            try:
+                return _do_one_request(batch)
+            except _NonRetryableEmbeddingError:
+                raise
+            except (RuntimeError, *_RETRYABLE_NET_EXC) as e:
+                last_exc = e
+                if attempt >= _RETRY_ATTEMPTS:
+                    break
+                delay = _retry_delay(attempt)
+                logger.warning(
+                    "[Embedding] (sync) batch_idx=%d 第 %d/%d 次请求失败，%.2fs 后重试: %s",
+                    batch_idx, attempt, _RETRY_ATTEMPTS, delay, e,
+                )
+                time.sleep(delay)
+        lens = [len(s) for s in batch]
+        previews = [s[:80].replace("\n", " ") for s in batch]
+        raise RuntimeError(
+            f"{last_exc} | batch_idx={batch_idx} batch_size={len(batch)} "
+            f"attempts={_RETRY_ATTEMPTS} lengths={lens} previews={previews}"
+        ) from last_exc
+
     out: list[list[float]] = []
     for start in range(0, len(texts), effective_batch):
         batch_raw = texts[start : start + effective_batch]
         batch = [_clip_for_embedding(t) for t in batch_raw]
-        payload = {"sentences": batch}
-        resp = requests.post(url, json=payload, headers=headers, timeout=timeout_seconds)
-        if resp.status_code >= 400:
-            raise RuntimeError(
-                f"embedding HTTP {resp.status_code} body={resp.text[:500]}"
-            )
-        body = resp.json()
-        out.extend(_parse_response(body, len(batch)))
+        batch_idx = start // effective_batch
+        out.extend(_request_with_retry(batch, batch_idx))
 
     logger.debug(
         "[Embedding] (sync) 取得 %d 条向量 (model=%s, dim=%d)",
