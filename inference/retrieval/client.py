@@ -36,7 +36,10 @@ logger = logging.getLogger(__name__)
 
 
 # 默认配置（可被 :mod:`inference.config` 覆盖；这里直接读 env 是兜底，避免循环依赖）。
-_DEFAULT_BASE_URL = os.getenv("RETRIEVAL_SERVICE_URL", "http://127.0.0.1:8088").rstrip("/")
+# 默认指向已部署的生产地址；本地起服务时设 RETRIEVAL_SERVICE_URL=http://127.0.0.1:8088 覆盖即可。
+_DEFAULT_BASE_URL = os.getenv(
+    "RETRIEVAL_SERVICE_URL", "http://mlp.paas.dc.servyou-it.com/kh-lancedb"
+).strip().rstrip("/")
 _DEFAULT_API_KEY = os.getenv("RETRIEVAL_SERVICE_API_KEY", "")
 _DEFAULT_TIMEOUT = float(os.getenv("RETRIEVAL_SERVICE_TIMEOUT", "30.0"))
 _RETRY_ATTEMPTS = max(1, int(os.getenv("RETRIEVAL_SERVICE_RETRY_ATTEMPTS", "3")))
@@ -145,7 +148,7 @@ class RetrievalServiceClient:
         *,
         timeout: float | None = None,
     ) -> None:
-        self._base_url = (base_url or _DEFAULT_BASE_URL).rstrip("/")
+        self._base_url = (base_url or _DEFAULT_BASE_URL).strip().rstrip("/")
         self._api_key = api_key if api_key is not None else _DEFAULT_API_KEY
         self._timeout = timeout if timeout is not None else _DEFAULT_TIMEOUT
         self._client: httpx.AsyncClient | None = None

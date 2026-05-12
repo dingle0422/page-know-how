@@ -1,8 +1,10 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
+  "policy_id": "KH1493204307733168128_20260422181920",
   "with_relations": true,
   "n_original": 12,
   "n_derived": 1,
+  "embeddings": true,
   "stale": false,
-  "built_at": 1778568426371
+  "built_at": 1778582487764
 }

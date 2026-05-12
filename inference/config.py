@@ -107,11 +107,11 @@ INDEX_SCHEMA_VERSION: int = 3
 
 # --- retrieval_service HTTP 客户端 ---------------------------------------
 #
-# inference 检索后端从"本地三件套"切换到独立 FastAPI 服务。这里给客户端配置默认值，
-# 实际部署应通过环境变量覆盖；缺省可保持 127.0.0.1 本机开发模式。
+# inference 检索后端从"本地三件套"切换到独立 FastAPI 服务。默认指向已部署的生产地址，
+# 本地起服务时通过环境变量 RETRIEVAL_SERVICE_URL=http://127.0.0.1:8088 覆盖即可。
 RETRIEVAL_SERVICE_URL: str = os.getenv(
-    "RETRIEVAL_SERVICE_URL", "http://127.0.0.1:8088"
-).rstrip("/")
+    "RETRIEVAL_SERVICE_URL", "http://mlp.paas.dc.servyou-it.com/kh-lancedb"
+).strip().rstrip("/")
 """retrieval_service 基础 URL。"""
 
 RETRIEVAL_SERVICE_API_KEY: str = os.getenv("RETRIEVAL_SERVICE_API_KEY", "")

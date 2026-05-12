@@ -163,12 +163,42 @@ def cmd_reason(args):
             print(f"结果文件: {output_path}")
 
 
+def cmd_serve(args):
+    """启动 FastAPI 服务（等价于直接 ``python app.py``）。"""
+    import uvicorn
+
+    web_stream_mode = getattr(args, "web_stream_mode", None)
+    if web_stream_mode is not None:
+        os.environ["WEB_STREAM_MODE"] = "1" if web_stream_mode else "0"
+
+    host = getattr(args, "host", "0.0.0.0")
+    port = int(getattr(args, "port", 5000))
+
+    # 延迟 import：避免 extract / reason 子命令也加载整个 Web 服务依赖树。
+    from app import app as web_app
+
+    uvicorn.run(web_app, host=host, port=port, timeout_keep_alive=3600)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="文档知识结构化抽取 + 渐进式披露推理框架"
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="启用详细日志")
     subparsers = parser.add_subparsers(dest="command", help="子命令")
+
+    # serve 子命令
+    serve_parser = subparsers.add_parser(
+        "serve", help="启动 FastAPI 服务（默认端口 5000）"
+    )
+    serve_parser.add_argument("--host", default="0.0.0.0", help="监听地址，默认 0.0.0.0")
+    serve_parser.add_argument("--port", type=int, default=5000, help="监听端口，默认 5000")
+    serve_parser.add_argument(
+        "--web-stream-mode",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="是否覆盖 WEB_STREAM_MODE 环境变量；不传则沿用 env，传则显式开关",
+    )
 
     # extract 子命令
     extract_parser = subparsers.add_parser("extract", help="从文档抽取知识并构建目录结构")
@@ -398,7 +428,10 @@ def main():
     args = parser.parse_args()
     setup_logging(args.verbose)
 
-    if args.command == "extract":
+    # 不传子命令时默认起服务（host=0.0.0.0, port=5000）。
+    if args.command is None or args.command == "serve":
+        cmd_serve(args)
+    elif args.command == "extract":
         cmd_extract(args)
     elif args.command == "reason":
         cmd_reason(args)
