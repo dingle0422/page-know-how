@@ -1007,14 +1007,11 @@ def _create_knowledge(policy_id: str) -> str:
 
 # ------------------------------------------------------------ Inference 索引构建
 #
-# /api/inference/stream + retrieval/hybrid 依赖三件套：
-#   - _chunks.jsonl    （chunk 文本，hybrid 必需）
-#   - _bm25.pkl        （BM25 索引，hybrid 必需）
-#   - _embeddings.npy  （embedding 向量，可选；缺失时退化为纯 BM25）
-#
-# 这些文件由 inference.retrieval.indexer.build_for_root 构建。原本只能通过
-# python -m inference.scripts.build_indices 手工补建，部署上去新 policy 第一次
-# 推理时只会看到 "缺少 _chunks.jsonl，回退到空检索结果" 的告警。
+# /api/inference/stream + retrieval/hybrid 走的是独立微服务 retrieval_service
+# （LanceDB），存储与检索全部位于服务端；本进程仅在 page_knowledge/{root}/ 下
+# 维护一份 _index_meta.json（schema_version + stale 标记 + built_at），用作
+# "需要重建" 的判定凭据。建索引由 inference.retrieval.indexer.build_for_root
+# 完成（切块 → 关联展开 → jieba 分词 → embedding → HTTP upsert → 落 meta）。
 #
 # 这里把构建逻辑挂到所有可能触发 hybrid 的入口上：
 #   - /api/kh/update           ：新建知识时强制重建（覆盖式）
@@ -1036,13 +1033,17 @@ async def _get_index_build_lock(key: str) -> asyncio.Lock:
 
 
 def _inference_artifacts_missing(knowledge_dir: str) -> bool:
-    """判断 hybrid 检索所需的必要文件是否缺失。
+    """判断 hybrid 检索所需的索引元数据是否缺失。
 
-    _embeddings.npy 是可选的（embedding 服务可能未配置），不计入必要文件。
+    检索三件套已迁移到独立的 retrieval_service（LanceDB），本地不再有
+    ``_chunks.jsonl/_bm25.pkl/_embeddings.npy``。此处仅看 ``_index_meta.json`` 是否存在：
+    indexer.build_for_root 成功后才会写入 meta，缺 meta 一律视为索引未建/已损坏。
+    服务端表本身的存在性 + dim 状态由 :func:`_inference_artifacts_stale` 通过 schema_version
+    + stale 字段间接保护——服务端表丢失（手动清空 data 目录）时同样会因为找不到 meta
+    走兜底重建。
     """
-    chunks_path = os.path.join(knowledge_dir, "_chunks.jsonl")
-    bm25_path = os.path.join(knowledge_dir, "_bm25.pkl")
-    return not (os.path.exists(chunks_path) and os.path.exists(bm25_path))
+
+    return not os.path.exists(os.path.join(knowledge_dir, "_index_meta.json"))
 
 
 def _read_index_meta(knowledge_dir: str) -> dict | None:
@@ -1081,14 +1082,14 @@ def _write_index_meta_stale(knowledge_dir: str, stale: bool) -> None:
 
 
 def _inference_artifacts_stale(knowledge_dir: str) -> bool:
-    """判断 inference 三件套是否需要重建（缺失/schema 落后/被级联标记 stale 任一成立）。
+    """判断 inference 检索索引是否需要重建（缺失/schema 落后/被级联标记 stale 任一成立）。
 
     任一条件成立即返回 True：
 
-    1. 三件套有必要文件缺失（兼容旧逻辑，含 _chunks.jsonl/_bm25.pkl）；
-    2. 缺 _index_meta.json 或 schema_version 落后于 ``config.INDEX_SCHEMA_VERSION``
-       （历史索引一次性失效，触发首次升级重建）；
-    3. _index_meta.json.stale=true（被 _cascade_dependent_rebuilds 标记后未跑完的兜底）。
+    1. ``_index_meta.json`` 缺失（服务端表可能也不存在，需要从头建）；
+    2. ``_index_meta.json.schema_version`` 落后于 ``config.INDEX_SCHEMA_VERSION``
+       （历史索引一次性失效，触发首次升级重建。v3 = 迁移到 retrieval_service）；
+    3. ``_index_meta.json.stale=true``（被 :func:`_cascade_dependent_rebuilds` 标记后未跑完的兜底）。
     """
     if _inference_artifacts_missing(knowledge_dir):
         return True
@@ -1203,7 +1204,7 @@ async def _ensure_inference_artifacts(
             async with _keepalive_redis_during_long_task(
                 f"build-indices:{policy_id or knowledge_dir}"
             ):
-                result = await build_for_root(knowledge_dir)
+                result = await build_for_root(knowledge_dir, policy_id=policy_id)
             _invalidate_hybrid_cache(policy_id)
             logger.info(f"[Inference] 检索索引构建完成: {result}")
             return result
@@ -1214,53 +1215,46 @@ async def _ensure_inference_artifacts(
             return None
 
 
-def _scan_dependent_roots(updated_policy_id: str) -> list[tuple[str, str, str]]:
-    """扫 page_knowledge/*/_relation_targets.json，找出引用了 updated_policy_id 的 root。
+async def _scan_dependent_roots(updated_policy_id: str) -> list[tuple[str, str, str]]:
+    """通过 retrieval_service 反查依赖 ``updated_policy_id`` 的源 policy 集合。
 
     返回 ``[(dependent_policy_id, dependent_root_abs, root_dirname), ...]``。
-    需要 dependent_policy_id 来复用 _INDEX_BUILD_LOCKS 与 invalidate_hybrid_cache 的
-    policy 维度（同一 dirname 理论上只对应一个 policyId，从 _policy_index.json 反查）。
+    旧实现是扫本地 ``_relation_targets.json``；迁移到 retrieval_service (LanceDB) 后
+    走 ``client.lookup_dependents``，对每个表的 ``relation_keys`` 列做反向过滤。
     """
+
     if not os.path.isdir(_PAGE_KNOWLEDGE_DIR):
         return []
-    disk_index = _load_policy_index()
-    # dirname -> policy_id 反查表（同一 dirname 只可能由一个 policy 抽取产出）
-    dirname_to_pid: dict[str, str] = {dn: pid for pid, dn in disk_index.items()}
+    disk_index = _load_policy_index()  # {policy_id: dirname}
+
+    try:
+        from inference.retrieval.client import get_default_client
+
+        client = await get_default_client()
+        deps_raw = await client.lookup_dependents(updated_policy_id)
+    except Exception as e:
+        logger.warning(
+            f"[Cascade] retrieval_service lookup_dependents 失败"
+            f" updated_policy={updated_policy_id}: {e}"
+        )
+        return []
 
     dependents: list[tuple[str, str, str]] = []
     seen: set[str] = set()
-    try:
-        sub_entries = os.listdir(_PAGE_KNOWLEDGE_DIR)
-    except OSError as e:
-        logger.warning(f"[Cascade] 扫描 page_knowledge 失败: {e}")
-        return []
-
-    for dirname in sub_entries:
-        root_dir = os.path.join(_PAGE_KNOWLEDGE_DIR, dirname)
-        if not os.path.isdir(root_dir):
+    for entry in deps_raw:
+        dep_pid = (entry or {}).get("source_policy_id") or ""
+        if not dep_pid or dep_pid == updated_policy_id:
             continue
-        targets_path = os.path.join(root_dir, "_relation_targets.json")
-        if not os.path.exists(targets_path):
-            continue
-        try:
-            with open(targets_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            logger.debug(f"[Cascade] 读取 {targets_path} 失败（跳过）: {e}")
-            continue
-        targets = data.get("targets") or []
-        hit = any(
-            (t.get("policy_id") or "") == updated_policy_id for t in targets
-            if isinstance(t, dict)
-        )
-        if not hit:
-            continue
-        # 一个 dirname 只对应一个 policy_id；找不到时 fallback 用 dirname 自身做 lock_key。
-        dep_pid = dirname_to_pid.get(dirname, "")
-        # 避免自反触发（B 自己的 root 也有 B->X 的 targets，但 updated_policy_id 不会等于 dep_pid）
-        if dep_pid == updated_policy_id:
+        dirname = disk_index.get(dep_pid, "")
+        if not dirname:
+            logger.debug(
+                f"[Cascade] dep_policy={dep_pid} 在 _policy_index.json 无映射，跳过"
+            )
             continue
         if dirname in seen:
+            continue
+        root_dir = os.path.join(_PAGE_KNOWLEDGE_DIR, dirname)
+        if not os.path.isdir(root_dir):
             continue
         seen.add(dirname)
         dependents.append((dep_pid, root_dir, dirname))
@@ -1272,7 +1266,7 @@ async def _cascade_dependent_rebuilds(updated_policy_id: str) -> None:
 
     步骤：
 
-    1. 扫 _relation_targets.json 找出依赖 root 集合 {A_i}；
+    1. 通过 retrieval_service 全局反查依赖 root 集合 {A_i}；
     2. 对每个 A_i 立即写 _index_meta.json.stale=true（轻量标记，立即生效）；
     3. 串行 force_rebuild A_i（复用 _INDEX_BUILD_LOCKS 与现有 ensure 路径，
        与正在跑的兜底重建天然互斥）；失败保留 stale=true 标记 → 下一次该 policy
@@ -1282,7 +1276,7 @@ async def _cascade_dependent_rebuilds(updated_policy_id: str) -> None:
     任何异常仅记 WARN，不向调用方传播。
     """
     try:
-        dependents = await asyncio.to_thread(_scan_dependent_roots, updated_policy_id)
+        dependents = await _scan_dependent_roots(updated_policy_id)
     except Exception as e:
         logger.warning(f"[Cascade] 扫描依赖 root 失败 updated_policy={updated_policy_id}: {e}")
         return
@@ -1335,8 +1329,8 @@ async def kh_update(req: KhUpdateRequest):
 
     try:
         knowledge_dir = await asyncio.to_thread(_create_knowledge, policy_id)
-        # 知识抽取成功后强制重建 inference 检索三件套（_chunks.jsonl / _bm25.pkl /
-        # _embeddings.npy），保证 /api/inference/stream 第一次调用就能命中 hybrid 检索。
+        # 知识抽取成功后强制重建 inference 检索索引（写到 retrieval_service），
+        # 保证 /api/inference/stream 第一次调用就能命中 hybrid 检索。
         # 构建失败不阻塞接口返回（hybrid 自身会回退到空检索）。
         await _ensure_inference_artifacts(
             knowledge_dir,
@@ -1408,9 +1402,9 @@ async def _reason_executor(request_payload: dict) -> dict:
         resp_log_name = _session.file_path.name if _session is not None else None
 
         knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
-        # 兜底：历史 policy 可能没建过 inference 检索索引（_chunks.jsonl / _bm25.pkl 缺失），
-        # 这里检测一次，缺啥补啥。不影响 reasoner 主流程（reasoner 不读这些文件），
-        # 只是为了让同 policy 后续走 /api/inference/stream 时也能直接命中 hybrid 检索。
+        # 兜底：历史 policy 可能没建过 inference 检索索引（缺 _index_meta.json），
+        # 这里检测一次，缺啥补啥。不影响 reasoner 主流程，只是为了让同 policy 后续走
+        # /api/inference/stream 时也能直接命中 hybrid 检索。
         await _ensure_inference_artifacts(knowledge_dir, policy_id=policy_id)
         if req_verbose:
             _log_verbose_event(
@@ -2079,7 +2073,7 @@ async def inference_stream(req: InferenceRequest):
             logger.exception(f"[inference_stream] policyId={req.policyId} 知识准备失败: {e}")
             raise HTTPException(status_code=400, detail=f"知识准备失败: {e}") from e
 
-        # 兜底：缺少 _chunks.jsonl / _bm25.pkl 时即时构建，避免 hybrid 检索回退到空结果。
+        # 兜底：缺 _index_meta.json 或 schema_version 落后时即时构建，避免 hybrid 检索回退到空结果。
         # 历史 policy（在加入 inference 模块之前抽取的）首次走 SSE 时会走到这里。
         await _ensure_inference_artifacts(knowledge_dir, policy_id=req.policyId)
 

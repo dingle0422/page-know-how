@@ -1,24 +1,20 @@
-"""BM25 索引：jieba 分词 + rank_bm25.BM25Okapi。
+"""中文分词工具：jieba 分词 + 极小化停用词。
 
-落盘文件：``page_knowledge/{root}/_bm25.pkl``，内部为 dict::
+历史上这里还封装了 BM25 索引的 build/save/load/search；改造为 retrieval_service 后，
+存储与检索都迁移到服务端 LanceDB。本模块只剩**纯客户端分词**职责，被以下三处共用，
+确保写入与查询使用完全一致的分词逻辑：
 
-    {
-        "tokenized_corpus": list[list[str]],
-        "bm25": BM25Okapi 实例,
-    }
+- :func:`inference.retrieval.indexer.build_for_root`：构建 ``content_tokenized`` 列；
+- :func:`inference.retrieval.hybrid.hybrid_search`：构建 ``query_tokenized`` 入参；
+- :mod:`inference.retrieval.client`：序列化时调 :func:`tokenize_join`。
 
-下游通过 :func:`load` 懒加载、:func:`tokenize` 复用同一套分词。
+服务端 (``retrieval_service``) 不依赖 jieba，FTS 走 ``base_tokenizer="whitespace"`` 直接
+吃这里产出的空格分隔字符串，分词质量 100% 与本模块同源。
 """
 
 from __future__ import annotations
 
-import logging
-import os
-import pickle
 import re
-from typing import Any
-
-logger = logging.getLogger(__name__)
 
 # 极小化的中文停用词集合，避免引入额外文件；后续若需要扩展可换成从 .txt 读。
 _STOPWORDS = {
@@ -31,7 +27,7 @@ _NON_WORD = re.compile(r"[\s\u3000\W_]+", re.UNICODE)
 
 
 def tokenize(text: str) -> list[str]:
-    """统一分词入口：建索引和查询都走这里，确保 token 集对齐。"""
+    """统一分词入口：jieba.lcut + lower + 停用词/非词过滤。"""
 
     if not text:
         return []
@@ -52,49 +48,7 @@ def tokenize(text: str) -> list[str]:
     return out
 
 
-def build(corpus_texts: list[str]) -> dict[str, Any]:
-    """根据原始 chunk 文本列表构建 BM25 索引（不落盘）。"""
+def tokenize_join(text: str) -> str:
+    """``" ".join(tokenize(text))``：服务端 FTS whitespace tokenizer 的喂料格式。"""
 
-    from rank_bm25 import BM25Okapi  # type: ignore
-
-    tokenized = [tokenize(t) for t in corpus_texts]
-    bm25 = BM25Okapi(tokenized)
-    return {"tokenized_corpus": tokenized, "bm25": bm25}
-
-
-def save(index: dict[str, Any], path: str) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path, "wb") as f:
-        pickle.dump(index, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-def load(path: str) -> dict[str, Any] | None:
-    if not os.path.exists(path):
-        return None
-    try:
-        with open(path, "rb") as f:
-            data = pickle.load(f)
-    except Exception as e:
-        logger.warning("[BM25] 加载索引失败 %s: %s", path, e)
-        return None
-    if not isinstance(data, dict) or "bm25" not in data:
-        logger.warning("[BM25] 索引文件结构异常: %s", path)
-        return None
-    return data
-
-
-def search(index: dict[str, Any], query: str, top_k: int) -> list[tuple[int, float]]:
-    """返回 ``[(chunk_idx, score), ...]``，按分数降序，取前 ``top_k``。"""
-
-    if not query or not index:
-        return []
-    bm25 = index.get("bm25")
-    if bm25 is None:
-        return []
-    query_tokens = tokenize(query)
-    if not query_tokens:
-        return []
-    scores = bm25.get_scores(query_tokens)
-    pairs = [(i, float(s)) for i, s in enumerate(scores)]
-    pairs.sort(key=lambda x: x[1], reverse=True)
-    return pairs[: max(int(top_k), 0)]
+    return " ".join(tokenize(text))

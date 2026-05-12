@@ -1,24 +1,25 @@
-"""离线建索引：扫 ``page_knowledge/{root}/`` 切块 + 高亮外链派生 chunk + BM25 + embedding 落盘。
+"""离线建索引（HTTP 版）：扫 ``page_knowledge/{root}/`` 切块 + 高亮外链派生 chunk +
+客户端 jieba 分词 + 客户端 embedding，**整批 upsert 到 retrieval_service**。
 
 入口 :func:`build_for_root`：
 
 1. 调 ``reasoner/v3/chunk_builder.build_knowledge_chunks(root, chunk_size)`` 切块；
 2. 复用 ``reasoner/v3/relation_crawler.RelationCrawler``（``expand_all=True``，
    纯静态展开、不走 LLM）扫该 root 下所有 ``clause.json`` 的外链 ``highlightedContent``
-   引用图，多跳 BFS 抓回关联条款，渲染成派生 ``KnowledgeChunk`` 与原始 chunks 一并入索引；
-3. 写 ``_chunks.jsonl``；
-4. 用 :mod:`inference.retrieval.bm25` 建 BM25 并写 ``_bm25.pkl``；
-5. 调 :func:`inference.embedding_client.embed_texts` 批量取向量并写 ``_embeddings.npy``，
-   embedding 服务未配置时跳过该步骤（hybrid 检索会自动退化为纯 BM25）。
-6. 写 ``_index_meta.json`` 与 ``_relation_targets.json``，分别记录 schema 版本+chunk 计数
-   + stale 标记，以及本 root 派生 chunks 依赖的外部 (policy_id, clause_id)。后者是
-   ``app.py._cascade_dependent_rebuilds`` 做跨 policy 级联刷新的反向追踪表。
+   引用图，多跳 BFS 抓回关联条款，渲染成派生 ``KnowledgeChunk`` 与原始 chunks 一并 upsert；
+3. 客户端 :func:`inference.retrieval.bm25.tokenize_join` 计算 ``content_tokenized``；
+4. 调 :func:`inference.embedding_client.embed_texts` 批量取向量；
+5. 通过 :class:`inference.retrieval.client.RetrievalServiceClient` 一次性 ``upsert(mode="overwrite")``；
+6. 落 ``page_knowledge/{root}/_index_meta.json``（schema_version + stale 标记 + built_at），
+   供 ``app.py`` 的 cascade stale 标记机制使用。``_relation_targets.json`` 不再写——
+   反向追踪通过 ``client.lookup_dependents`` 在线查询。
 
-幂等：每次都整文件覆盖，不增量。
+幂等：``mode=overwrite`` 整表替换，不增量。
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -37,39 +38,74 @@ from reasoner.v3.relation_crawler import RelationCrawler
 
 from .. import config
 from . import bm25 as bm25_mod
-from . import semantic as semantic_mod
+from .client import get_default_client
 
 logger = logging.getLogger(__name__)
 
 
-def _serialize_chunk(c: KnowledgeChunk) -> dict:
-    return {
-        "index": c.index,
-        "content": c.content,
-        "heading_paths": list(c.heading_paths or []),
-        "directories": list(c.directories or []),
-    }
+# ---------------------------------------------------------------- policy_id 解析
 
 
-def _write_chunks_jsonl(path: str, chunks: list[KnowledgeChunk]) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        for c in chunks:
-            f.write(json.dumps(_serialize_chunk(c), ensure_ascii=False) + "\n")
-    os.replace(tmp, path)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
+_POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
 
 
-def _write_json_atomic(path: str, payload: dict) -> None:
-    """整文件原子写小 JSON，失败不抛（meta/targets 文件丢失只会让兜底重建路径再跑一次）。"""
+def _write_index_meta(root_dir: str, payload: dict) -> None:
+    """整文件原子写 ``_index_meta.json``，失败仅记 WARN（缺 meta 会被 stale 兜底重建）。"""
+
+    meta_path = os.path.join(root_dir, "_index_meta.json")
     try:
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        tmp = path + ".tmp"
+        os.makedirs(os.path.dirname(os.path.abspath(meta_path)), exist_ok=True)
+        tmp = meta_path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
+        os.replace(tmp, meta_path)
     except OSError as e:
-        logger.warning("[Indexer] 写 %s 失败（忽略）: %s", path, e)
+        logger.warning("[Indexer] 写 %s 失败（忽略）: %s", meta_path, e)
+
+
+def _resolve_policy_id_for_root(root_dir: str) -> Optional[str]:
+    """从 ``_policy_index.json`` 反查 ``root_dir`` 对应的 policy_id。
+
+    ``app.py`` 调 ``build_for_root`` 时只给 root_dir，但服务端表是按 policy_id 命名的。
+    本函数把 ``page_knowledge/{root_dirname}`` 映射回 policy_id；找不到时退化为 dirname
+    本身（保留可回查的 trace），但更建议调用方显式传 ``policy_id``。
+    """
+
+    abs_root = os.path.abspath(root_dir)
+    if not abs_root.startswith(os.path.abspath(_PAGE_KNOWLEDGE_DIR)):
+        return None
+    rel = os.path.relpath(abs_root, _PAGE_KNOWLEDGE_DIR)
+    rel = rel.split(os.sep)[0]  # 取顶层 dirname
+
+    from extractor.policy_index import get_root_map
+
+    root_map = get_root_map(_POLICY_INDEX_FILE)  # {policy_id: dirname}
+    for pid, dn in root_map.items():
+        if dn == rel:
+            return pid
+    return rel  # 兜底：用 dirname 作伪 policy_id
+
+
+def resolve_root_dir(policy_id: str) -> Optional[str]:
+    """``policy_id`` -> ``page_knowledge/<dirname>`` 绝对路径；找不到返回 ``None``。
+
+    供 :mod:`inference.scripts.build_indices` 等 CLI 使用，避免它们再去 import
+    ``inference.retrieval.hybrid`` 模块级私有常量。
+    """
+
+    from extractor.policy_index import get_root_map
+
+    root_map = get_root_map(_POLICY_INDEX_FILE)
+    dirname = root_map.get(policy_id)
+    if not dirname:
+        return None
+    abs_dir = os.path.join(_PAGE_KNOWLEDGE_DIR, dirname)
+    return abs_dir if os.path.isdir(abs_dir) else None
+
+
+# ---------------------------------------------------------------- 关联展开
 
 
 def _collect_relation_chunks(
@@ -92,9 +128,9 @@ def _collect_relation_chunks(
     返回 (derived_chunks, relation_targets)：
 
     - derived_chunks：已分配最终 index（从 ``len(original_chunks)+1`` 起递增），
-      可直接 ``extend`` 进 chunks 列表后写入 ``_chunks.jsonl``。
+      可直接 ``extend`` 进 chunks 列表后 upsert。
     - relation_targets：``[{"policy_id": ..., "clause_id": ...}, ...]`` 的反向追踪表，
-      供 ``_cascade_dependent_rebuilds`` 在某 policy 更新时找出哪些 root 需要重建。
+      仅作为日志返回——cascade 触发器现在直接走 ``client.lookup_dependents``。
     """
     page_knowledge_dir = os.path.dirname(os.path.abspath(root_dir))
     policy_index_path = os.path.join(page_knowledge_dir, "_policy_index.json")
@@ -105,19 +141,14 @@ def _collect_relation_chunks(
         remote_timeout=remote_timeout,
     )
     if not allow_remote:
-        # 强制关闭远程兜底：替换 _try_remote 为返回 None 的桩，避免每条都打一次失败请求。
-        # locator 的 cache 仍按 (policy_id, clause_id) memo，"local miss" 同样会被缓存。
         locator._try_remote = lambda _pid, _cid: None  # type: ignore[assignment]
 
     registry = RelationRegistry()
-    # 把 dir_abspath → 原始 chunk 反查表先建好，给派生 chunk 填 parent_chunk_index 用。
-    # original_chunks 的 directories 是该 chunk 涵盖的所有目录绝对路径，反查时按精确匹配。
     dir_to_chunk_index: dict[str, int] = {}
     for c in original_chunks:
         for d in c.directories or []:
             dir_to_chunk_index.setdefault(os.path.abspath(d), c.index)
 
-    # 与 reasoner 在线路径同源的线程池；离线索引下并发度小一点足够，避免大量并发远程拉取。
     with ThreadPoolExecutor(max_workers=4, thread_name_prefix="idx-relcrawl") as executor:
         crawler = RelationCrawler(
             question="",
@@ -155,13 +186,10 @@ def _collect_relation_chunks(
         )
         return [], []
 
-    # 把 fragments 按其父 chunk index 分桶，逐桶喂给 split_relations_into_chunks。
-    # 桶内顺序保留 registry 的 BFS 命中顺序，桶间按原始 chunk index 升序。
     by_parent: dict[int, list[RelationFragment]] = {}
     for frag in all_fragments:
         by_parent.setdefault(frag.parent_chunk_index, []).append(frag)
 
-    # 给"父 chunk 没找到"的孤儿挂一个虚拟父 chunk，让派生 chunk 仍能产出但不归属任何原始 dir。
     orphan_parent = KnowledgeChunk(
         index=0,
         content="",
@@ -187,15 +215,12 @@ def _collect_relation_chunks(
         )
         if not derived:
             continue
-        # split 内部 index=0 占位，这里统一分配最终 index 并累计 seq。
         for dc in derived:
             dc.index = next_index
             next_index += 1
             derived_chunks.append(dc)
         derived_seq_per_parent[parent_idx] = start_seq + len(derived) - 1
 
-    # 派生 chunks 之间允许 (policy_id, clause_id) 重复出现（一个目标条款可能跨多个父 chunk 被引用），
-    # 但反向追踪表用于 cascade 触发器，按 policy_id 去重即可。
     seen_target_keys: set[tuple[str, str]] = set()
     relation_targets: list[dict] = []
     for frag in all_fragments:
@@ -216,12 +241,46 @@ def _collect_relation_chunks(
     return derived_chunks, relation_targets
 
 
+# ---------------------------------------------------------------- embedding
+
+
+async def _embed_texts_safe(
+    texts: list[str],
+    *,
+    batch_size: int,
+    model: Optional[str],
+) -> tuple[list[list[float]], int]:
+    """安全 embed：未配置 / 失败时返回 ``([], 0)``，由调用方降级到纯 BM25。"""
+
+    if not texts:
+        return [], 0
+    try:
+        from ..embedding_client import EmbeddingNotConfigured, embed_texts
+    except Exception as e:  # pragma: no cover
+        logger.warning("[Indexer] 导入 embedding_client 失败: %s", e)
+        return [], 0
+    try:
+        vecs = await embed_texts(texts, model=model, batch_size=batch_size)
+    except EmbeddingNotConfigured as e:
+        logger.warning("[Indexer] 跳过 embedding（%s）", e)
+        return [], 0
+    except Exception as e:
+        logger.warning("[Indexer] embed_texts 失败: %s", e)
+        return [], 0
+    if not vecs:
+        return [], 0
+    dim = len(vecs[0]) if vecs[0] else 0
+    return [list(v) for v in vecs], dim
+
+
+# ---------------------------------------------------------------- 主入口
+
+
 async def build_for_root(
     root_dir: str,
     *,
+    policy_id: str | None = None,
     chunk_size: int = config.CHUNK_SIZE,
-    # 服务端单次最多接收 10 条；这里默认就贴着上限，避免 embedding_client 内
-    # 二次夹断时再打一条 INFO。如有更小限制可手工传入更小值。
     embedding_batch_size: int = 10,
     embedding_model: Optional[str] = None,
     skip_embedding: bool = False,
@@ -231,15 +290,18 @@ async def build_for_root(
     relation_allow_remote: Optional[bool] = None,
     relation_remote_timeout: Optional[float] = None,
 ) -> dict:
-    """对单个知识根目录建全套索引，返回 ``{"chunks": N, "bm25": bool, "embeddings": bool,
-    "n_original": N1, "n_derived": N2, "relation_targets": K}``。
+    """对单个知识根目录建全套索引，整表 overwrite 到 retrieval_service。
 
-    ``include_relations``/``relation_*`` 参数均从 :mod:`inference.config` 默认值取，
-    显式传入可在 CLI 或测试中覆盖。
+    返回 ``{"chunks", "n_original", "n_derived", "relation_targets",
+    "embeddings": bool, "policy_id"}``。
     """
 
     if not os.path.isdir(root_dir):
         raise FileNotFoundError(f"知识根目录不存在: {root_dir}")
+
+    pid = policy_id or _resolve_policy_id_for_root(root_dir)
+    if not pid:
+        raise ValueError(f"无法解析 policy_id: root_dir={root_dir}")
 
     include_relations = (
         config.INCLUDE_HIGHLIGHTED_RELATIONS_IN_INDEX
@@ -262,16 +324,21 @@ async def build_for_root(
         if relation_remote_timeout is None else float(relation_remote_timeout)
     )
 
-    original_chunks = build_knowledge_chunks(root_dir, chunk_size=chunk_size)
+    # 1) 切块
+    original_chunks: list[KnowledgeChunk] = await asyncio.to_thread(
+        build_knowledge_chunks, root_dir, chunk_size
+    )
     n_original = len(original_chunks)
     if not original_chunks:
         logger.warning("[Indexer] %s 切块为空（原始 knowledge.md 无内容）", root_dir)
 
+    # 2) 高亮外链派生
     derived_chunks: list[KnowledgeChunk] = []
     relation_targets: list[dict] = []
     if include_relations:
         try:
-            derived_chunks, relation_targets = _collect_relation_chunks(
+            derived_chunks, relation_targets = await asyncio.to_thread(
+                _collect_relation_chunks,
                 root_dir,
                 original_chunks,
                 chunk_size=chunk_size,
@@ -281,7 +348,6 @@ async def build_for_root(
                 remote_timeout=relation_remote_timeout,
             )
         except Exception as e:
-            # 高亮关联属于增强能力，单个 root 抓取失败不应阻塞主索引构建。
             logger.warning(
                 "[Indexer] 关联展开整体失败（保留原始 chunks 兜底）: %s", e,
                 exc_info=True,
@@ -293,70 +359,159 @@ async def build_for_root(
     chunks: list[KnowledgeChunk] = list(original_chunks) + list(derived_chunks)
     n_derived = len(derived_chunks)
 
-    chunks_path = os.path.join(root_dir, "_chunks.jsonl")
-    bm25_path = os.path.join(root_dir, "_bm25.pkl")
-    emb_path = os.path.join(root_dir, "_embeddings.npy")
-    meta_path = os.path.join(root_dir, "_index_meta.json")
-    targets_path = os.path.join(root_dir, "_relation_targets.json")
+    if not chunks:
+        client = await get_default_client()
+        try:
+            await client.drop_policy(pid)
+        except Exception as e:
+            logger.debug("[Indexer] drop 空 policy 失败（忽略）: %s", e)
+        _write_index_meta(root_dir, {
+            "schema_version": config.INDEX_SCHEMA_VERSION,
+            "policy_id": pid,
+            "with_relations": bool(include_relations),
+            "n_original": 0,
+            "n_derived": 0,
+            "embeddings": False,
+            "stale": False,
+            "built_at": int(time.time() * 1000),
+        })
+        return {
+            "policy_id": pid,
+            "chunks": 0,
+            "n_original": 0,
+            "n_derived": 0,
+            "relation_targets": 0,
+            "embeddings": False,
+        }
 
-    _write_chunks_jsonl(chunks_path, chunks)
-    logger.info(
-        "[Indexer] 写入 %s（%d chunks：原始 %d + 派生 %d）",
-        chunks_path, len(chunks), n_original, n_derived,
+    # 3) 客户端分词
+    tokenized: list[str] = await asyncio.to_thread(
+        lambda: [bm25_mod.tokenize_join(c.content or "") for c in chunks]
     )
 
-    bm25_ok = False
-    if chunks:
-        try:
-            bm25_index = bm25_mod.build([c.content for c in chunks])
-            bm25_mod.save(bm25_index, bm25_path)
-            bm25_ok = True
-            logger.info("[Indexer] 写入 %s", bm25_path)
-        except Exception as e:
-            logger.warning("[Indexer] 构建 BM25 失败: %s", e)
+    # 4) 客户端 embedding
+    vectors: list[list[float]] = []
+    dim = 0
+    if not skip_embedding:
+        vectors, dim = await _embed_texts_safe(
+            [c.content or "" for c in chunks],
+            batch_size=embedding_batch_size,
+            model=embedding_model,
+        )
 
-    emb_ok = False
-    if chunks and not skip_embedding:
-        try:
-            from ..embedding_client import EmbeddingNotConfigured, embed_texts
+    emb_ok = bool(vectors)
 
-            try:
-                vecs = await embed_texts(
-                    [c.content for c in chunks],
-                    model=embedding_model,
-                    batch_size=embedding_batch_size,
-                )
-            except EmbeddingNotConfigured as e:
-                logger.warning("[Indexer] 跳过 embedding（%s）", e)
-                vecs = []
-            if vecs:
-                semantic_mod.save(vecs, emb_path)
-                emb_ok = True
-                logger.info("[Indexer] 写入 %s", emb_path)
-        except Exception as e:
-            logger.warning("[Indexer] 构建 embedding 失败: %s", e)
+    # 5) HTTP upsert
+    client = await get_default_client()
+    result = await client.upsert_knowledge_chunks(
+        pid,
+        chunks,
+        tokenized=tokenized,
+        vectors=vectors,
+        mode="overwrite",
+        expected_dim=dim if emb_ok else None,
+    )
+    logger.info(
+        "[Indexer] policy=%s upsert 完成: %s（n_original=%d n_derived=%d emb=%s）",
+        pid, result, n_original, n_derived, emb_ok,
+    )
 
-    # meta + targets：写在最后，确保只要 _index_meta.json 存在且 schema 对得上，
-    # 三件套就一定是完整一致的。中途失败的话 meta 不会被写，stale 兜底会重建。
-    _write_json_atomic(meta_path, {
+    # meta 在最后一步写：upsert 成功后才标记"非 stale"。中途失败 → meta 不更新，
+    # _inference_artifacts_stale 兜底重建。
+    _write_index_meta(root_dir, {
         "schema_version": config.INDEX_SCHEMA_VERSION,
+        "policy_id": pid,
         "with_relations": bool(include_relations),
         "n_original": n_original,
         "n_derived": n_derived,
+        "embeddings": emb_ok,
         "stale": False,
         "built_at": int(time.time() * 1000),
     })
-    if include_relations:
-        _write_json_atomic(targets_path, {
-            "schema_version": config.INDEX_SCHEMA_VERSION,
-            "targets": relation_targets,
-        })
 
     return {
-        "chunks": len(chunks),
-        "bm25": bm25_ok,
-        "embeddings": emb_ok,
+        "policy_id": pid,
+        "chunks": int(result.get("table_size", len(chunks))),
         "n_original": n_original,
         "n_derived": n_derived,
         "relation_targets": len(relation_targets),
+        "embeddings": emb_ok,
+    }
+
+
+# ---------------------------------------------------------------- 差量 embedding 自愈
+
+
+async def rebuild_embeddings_only(
+    policy_id: str,
+    *,
+    embedding_batch_size: int = 10,
+    embedding_model: Optional[str] = None,
+) -> dict:
+    """差量补建：拉服务端现有 chunks（不动 content/tokenized），重算向量后 merge 回写。
+
+    适用场景：``build_for_root`` 整体跑成功但 embedding 步骤失败（embedding 服务暂时
+    异常 / 网络抖动），后续 ``hybrid_search`` 发现服务端 ``meta.dim=0`` 时
+    fire-and-forget 触发本函数自愈。
+
+    返回 ``{"embeddings": bool, "n": int}``：``embeddings`` 表示是否成功写盘，
+    ``n`` 是本次输入的 chunk 数。
+    """
+
+    client = await get_default_client()
+    rows = await client.list_chunks(policy_id, limit=100000, include_content=True)
+    if not rows:
+        return {"embeddings": False, "n": 0, "error": "no chunks"}
+
+    contents = [r.get("content") or "" for r in rows]
+    vectors, dim = await _embed_texts_safe(
+        contents,
+        batch_size=embedding_batch_size,
+        model=embedding_model,
+    )
+    if not vectors:
+        return {"embeddings": False, "n": len(rows), "error": "empty vectors"}
+
+    # 直接走低级 upsert（merge_by_chunk_id）：仅更新 vector 列；其余字段也带上避免缺列。
+    payload: list[dict] = []
+    for r, v in zip(rows, vectors):
+        rks = r.get("relation_keys") or []
+        payload.append({
+            "chunk_id": int(r["chunk_id"]),
+            "content": r.get("content") or "",
+            "content_tokenized": "",  # 服务端 merge 不会清空——我们这里写空就会清。
+            "vector": list(v),
+            "heading_paths": list(r.get("heading_paths") or []),
+            "directories": list(r.get("directories") or []),
+            "kind": r.get("kind") or "original",
+            "parent_chunk_index": int(r.get("parent_chunk_index", -1)),
+            "derived_seq": int(r.get("derived_seq", 0)),
+            "relation_keys": [
+                {"policy_id": rk.get("policy_id", ""), "clause_id": rk.get("clause_id", "")}
+                for rk in rks
+            ],
+            "hop_depth": int(r.get("hop_depth", 0)),
+            "source": r.get("source") or "",
+            "clause_id": r.get("clause_id") or "",
+            "built_at": 0,
+        })
+
+    # NOTE：``merge_by_chunk_id`` 会用 payload 整行替换匹配 chunk_id 的现有行，所以
+    # 这里必须把 ``content_tokenized`` 也一起带上。差量补 vector 时，重新算
+    # tokenized 不会改变结果（同一个 content + 同一份 tokenize 函数），代价是 CPU 而已。
+    from . import bm25 as bm25_mod
+    for row in payload:
+        row["content_tokenized"] = bm25_mod.tokenize_join(row["content"])
+
+    result = await client.upsert_chunks(
+        policy_id,
+        payload,
+        mode="merge_by_chunk_id",
+        expected_dim=dim,
+    )
+    return {
+        "embeddings": True,
+        "n": len(rows),
+        "table_size": result.get("table_size", 0),
+        "dim": dim,
     }

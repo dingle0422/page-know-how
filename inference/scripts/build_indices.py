@@ -26,8 +26,11 @@ import os
 import sys
 
 from .. import config
-from ..retrieval.hybrid import _PAGE_KNOWLEDGE_DIR, _resolve_root_dir
-from ..retrieval.indexer import build_for_root
+from ..retrieval.indexer import (
+    _PAGE_KNOWLEDGE_DIR,
+    build_for_root,
+    resolve_root_dir as _resolve_root_dir,
+)
 
 
 def _resolve_root(args: argparse.Namespace) -> str:
@@ -69,9 +72,8 @@ async def _amain(args: argparse.Namespace) -> int:
         relation_remote_timeout=args.relation_remote_timeout,
     )
     print(
-        f"[done] chunks={result['chunks']} "
+        f"[done] policy={result['policy_id']} chunks={result['chunks']} "
         f"(original={result['n_original']} derived={result['n_derived']}) "
-        f"bm25={'ok' if result['bm25'] else 'skip'} "
         f"embeddings={'ok' if result['embeddings'] else 'skip'} "
         f"relation_targets={result['relation_targets']}"
     )

@@ -1,19 +1,27 @@
-"""外部 embedding 服务封装（BGE）。
+"""外部 embedding 服务封装（默认 Qwen3-Embedding，兼容旧 BGE 协议）。
 
-接口契约（已实测）::
+默认接口契约（OpenAI Embeddings 风格）::
+
+    POST http://mlp.paas.dc.servyou-it.com/qwen3-embedding/v1/embeddings
+    Headers: {"Content-Type": "application/json; charset=UTF-8"}
+    Body:    {"input": ["...", "..."], "model": "qwen3-embedding"}
+    200 OK   {"object": "list",
+              "data": [{"index": 0, "embedding": [N floats], "object": "embedding"}, ...],
+              "model": "...", "usage": {...}, "created": ...}
+
+兼容旧 BGE 接口（URL 不含 ``/v1/embeddings`` 时自动识别）::
 
     POST http://mlp.paas.dc.servyou-it.com/text-embedding-bge/embedding
-    Headers: {"Content-Type": "application/json; charset=UTF-8"}
     Body:    {"sentences": ["...", "..."]}
     200 OK   {"code": 200, "msg": "success",
-              "output": [{"embedding": [1024 floats], "text_index": 0}, ...]}
+              "output": [{"embedding": [N floats], "text_index": 0}, ...]}
 
 设计要点：
 
 - URL / model 由环境变量覆盖，但默认就是上述生产地址，**开箱即用**，不再需要先配 env。
-- 响应里 ``output[i]`` 用 ``text_index`` 标注与输入的对应关系；本封装会按 ``text_index``
-  显式排序回原顺序，避免后端任何乱序情况。
-- 显式判 ``code == 200``，失败抛 ``RuntimeError`` 并附 msg；HTTP 4xx/5xx 直接 raise。
+- 依据 URL 自动识别协议：``/v1/embeddings`` 走 OpenAI 风格，否则走 BGE 风格。
+- 响应里 ``data[i].index``（或 ``output[i].text_index``）用于显式回到原顺序。
+- HTTP 4xx/5xx 都会抛错；200 但业务失败（BGE code!=200）也抛错。
 - 提供 ``INFERENCE_EMBEDDING_DISABLED=1`` 兜底开关：上层（hybrid 检索 / indexer）
   会捕获 :class:`EmbeddingNotConfigured` 优雅降级到纯 BM25。
 """
@@ -32,22 +40,19 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-_DEFAULT_URL = "http://mlp.paas.dc.servyou-it.com/text-embedding-bge/embedding"
-_DEFAULT_MODEL = "bge"
+_DEFAULT_URL = "http://mlp.paas.dc.servyou-it.com/qwen3-embedding/v1/embeddings"
+_DEFAULT_MODEL = "qwen3-embedding"
 
-# 服务端硬限制：单次请求 sentences 列表长度 ≤ 10，超过会返回
+# 服务端硬限制：单次请求 input/sentences 列表长度 ≤ 10，超过会返回
 # code=400 msg='List length exceeds the maximum limit of 10.'。
 # 客户端无论传多大的 batch_size 都按这里向下夹断，避免直接打到上游报错。
 _MAX_BATCH_SIZE = 10
 
-# 服务端硬限制：单条 sentence 长度 ≤ 8192（token），超过会返回
-# code=400 msg='Range of input length should be [1, 8192].'。
-# 中文一字约 1 token，混合英文 / 标点会更省 token；这里按字符做保守截断，
-# 留出 token 化膨胀的 buffer，避免极端长 chunk 整批 embedding 被拒。
-# 调用方（indexer / hybrid query）传给本模块的文本若超过此阈值，会被截到
-# 前 _MAX_INPUT_CHARS 字符；这只影响 embedding 用的副本，调用方持有的原文本
-# （写进 _chunks.jsonl 与 BM25 的内容）不受影响。
-_MAX_INPUT_CHARS = 6000
+# qwen3-embedding 当前上限：单条 input 文本长度 ≤ 10240（按服务约定）。
+# 这里默认对齐到 10240，避免过早截断影响召回；如需更保守可通过环境变量覆盖：
+#   INFERENCE_EMBEDDING_MAX_INPUT_CHARS=...
+# 截断只发生在送给上游 API 的副本上，调用方原文本（写进 _chunks.jsonl / BM25）不受影响。
+_MAX_INPUT_CHARS = max(1, int(os.getenv("INFERENCE_EMBEDDING_MAX_INPUT_CHARS", "10240")))
 
 
 def _clamp_batch_size(batch_size: int) -> int:
@@ -130,6 +135,29 @@ def _retry_delay(attempt: int) -> float:
     return min(_RETRY_MAX_DELAY, base + jitter)
 
 
+def _detect_protocol(url: str) -> str:
+    """识别上游协议：openai / bge。
+
+    优先使用 ``INFERENCE_EMBEDDING_PROTOCOL`` 显式覆盖；否则按 URL 自动识别：
+    - 含 ``/v1/embeddings`` -> openai
+    - 其他 -> bge
+    """
+    override = os.getenv("INFERENCE_EMBEDDING_PROTOCOL", "").strip().lower()
+    if override in {"openai", "bge"}:
+        return override
+    if override:
+        logger.warning(
+            "[Embedding] INFERENCE_EMBEDDING_PROTOCOL=%s 非法，回退自动识别", override
+        )
+    return "openai" if "/v1/embeddings" in url.lower() else "bge"
+
+
+def _build_payload(batch: list[str], model: str, protocol: str) -> dict:
+    if protocol == "openai":
+        return {"input": batch, "model": model}
+    return {"sentences": batch}
+
+
 class EmbeddingNotConfigured(RuntimeError):
     """显式禁用 embedding（``INFERENCE_EMBEDDING_DISABLED=1``）时抛出。
 
@@ -138,7 +166,7 @@ class EmbeddingNotConfigured(RuntimeError):
     """
 
 
-def _read_env() -> tuple[str, str, Optional[str]]:
+def _read_env() -> tuple[str, str, Optional[str], str]:
     if os.getenv("INFERENCE_EMBEDDING_DISABLED", "0").lower() in {"1", "true", "yes", "on"}:
         raise EmbeddingNotConfigured(
             "INFERENCE_EMBEDDING_DISABLED=1，本进程显式禁用 embedding"
@@ -146,10 +174,11 @@ def _read_env() -> tuple[str, str, Optional[str]]:
     url = os.getenv("INFERENCE_EMBEDDING_URL", _DEFAULT_URL).strip() or _DEFAULT_URL
     model = os.getenv("INFERENCE_EMBEDDING_MODEL", _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
     auth = os.getenv("INFERENCE_EMBEDDING_AUTH", "").strip() or None
-    return url, model, auth
+    protocol = _detect_protocol(url)
+    return url, model, auth, protocol
 
 
-def _parse_response(body, batch_len: int) -> list[list[float]]:
+def _parse_response(body, batch_len: int, protocol: str) -> list[list[float]]:
     """把单次响应解析成与请求顺序对齐的 ``list[list[float]]``。
 
     body 类型签名故意保留 Any：上游服务偶发会返回 JSON ``null``（在我们对超长
@@ -165,10 +194,42 @@ def _parse_response(body, batch_len: int) -> list[list[float]]:
             f"embedding 响应体类型异常 expected=dict got={type(body).__name__}"
         )
 
+    if protocol == "openai":
+        data = body.get("data")
+        if not isinstance(data, list):
+            raise RuntimeError(
+                f"embedding(openai) 响应缺少 data 列表，实际 keys={list(body.keys())}"
+            )
+        if len(data) != batch_len:
+            raise RuntimeError(
+                f"embedding(openai) 响应数量不匹配 expected={batch_len} got={len(data)}"
+            )
+        placeholders: list[Optional[list[float]]] = [None] * batch_len
+        for pos, item in enumerate(data):
+            if not isinstance(item, dict):
+                raise RuntimeError(f"data[{pos}] 不是 dict: {type(item).__name__}")
+            emb = item.get("embedding")
+            if not isinstance(emb, list):
+                raise RuntimeError(
+                    f"data[{pos}].embedding 类型异常: {type(emb).__name__}"
+                )
+            idx_raw = item.get("index")
+            idx = int(idx_raw) if idx_raw is not None else pos
+            if not (0 <= idx < batch_len):
+                raise RuntimeError(f"data[{pos}].index={idx} 越界 batch_len={batch_len}")
+            if placeholders[idx] is not None:
+                raise RuntimeError(f"data 中 index={idx} 重复出现")
+            placeholders[idx] = [float(x) for x in emb]
+        if any(v is None for v in placeholders):
+            missing = [i for i, v in enumerate(placeholders) if v is None]
+            raise RuntimeError(f"embedding(openai) 响应缺失 index={missing}")
+        return placeholders  # type: ignore[return-value]
+
+    # BGE 协议分支（兼容旧服务）
     code = body.get("code")
     if code is not None and int(code) != 200:
         msg = str(body.get("msg") or "")
-        err = f"embedding 服务返回失败 code={code} msg={msg!r}"
+        err = f"embedding(bge) 服务返回失败 code={code} msg={msg!r}"
         # 已知硬性参数错误（如 sentence 超长、batch 超长）重试无意义，直接升级为
         # _NonRetryableEmbeddingError，让外层重试装饰器直接放行。
         if not _is_business_error_retryable(msg):
@@ -177,11 +238,11 @@ def _parse_response(body, batch_len: int) -> list[list[float]]:
     output = body.get("output")
     if not isinstance(output, list):
         raise RuntimeError(
-            f"embedding 响应缺少 output 列表，实际 keys={list(body.keys())}"
+            f"embedding(bge) 响应缺少 output 列表，实际 keys={list(body.keys())}"
         )
     if len(output) != batch_len:
         raise RuntimeError(
-            f"embedding 响应数量不匹配 expected={batch_len} got={len(output)}"
+            f"embedding(bge) 响应数量不匹配 expected={batch_len} got={len(output)}"
         )
     # 用 text_index 显式回到原顺序。若后端不返回 text_index，则按列表顺序兜底。
     placeholders: list[Optional[list[float]]] = [None] * batch_len
@@ -207,7 +268,7 @@ def _parse_response(body, batch_len: int) -> list[list[float]]:
 async def embed_texts(
     texts: list[str],
     *,
-    model: Optional[str] = None,  # 兼容签名，目前后端按 URL 路径区分模型，本字段仅记录
+    model: Optional[str] = None,
     batch_size: int = _MAX_BATCH_SIZE,
     timeout_seconds: float = 60.0,
     client: Optional[httpx.AsyncClient] = None,
@@ -226,7 +287,7 @@ async def embed_texts(
             "[Embedding] batch_size=%s 超过服务端上限，按 %d 切批",
             batch_size, effective_batch,
         )
-    url, default_model, auth = _read_env()
+    url, default_model, auth, protocol = _read_env()
     use_model = model or default_model
     headers = {"Content-Type": "application/json; charset=UTF-8"}
     if auth:
@@ -244,7 +305,7 @@ async def embed_texts(
 
     async def _do_one_request(batch: list[str]) -> list[list[float]]:
         """单批一次请求 + 解析；任何异常都抛出，由外层重试逻辑接管。"""
-        payload = {"sentences": batch}
+        payload = _build_payload(batch, use_model, protocol)
         resp = await cli.post(url, json=payload, headers=headers, timeout=timeout_seconds)
         if 400 <= resp.status_code < 500:
             raise _NonRetryableEmbeddingError(
@@ -260,7 +321,7 @@ async def embed_texts(
             raise RuntimeError(
                 f"embedding 响应 JSON 解析失败: {e}; raw={resp.text[:500]!r}"
             ) from e
-        return _parse_response(body, len(batch))
+        return _parse_response(body, len(batch), protocol)
 
     async def _request_with_retry(batch: list[str], batch_idx: int) -> list[list[float]]:
         last_exc: Optional[Exception] = None
@@ -298,8 +359,8 @@ async def embed_texts(
             await cli.aclose()
 
     logger.debug(
-        "[Embedding] 取得 %d 条向量 (model=%s, dim=%d)",
-        len(out), use_model, len(out[0]) if out else 0,
+        "[Embedding] 取得 %d 条向量 (protocol=%s, model=%s, dim=%d)",
+        len(out), protocol, use_model, len(out[0]) if out else 0,
     )
     return out
 
@@ -326,7 +387,7 @@ def embed_texts_sync(
             "[Embedding] (sync) batch_size=%s 超过服务端上限，按 %d 切批",
             batch_size, effective_batch,
         )
-    url, default_model, auth = _read_env()
+    url, default_model, auth, protocol = _read_env()
     use_model = model or default_model
     headers = {"Content-Type": "application/json; charset=UTF-8"}
     if auth:
@@ -340,7 +401,7 @@ def embed_texts_sync(
         )
 
     def _do_one_request(batch: list[str]) -> list[list[float]]:
-        payload = {"sentences": batch}
+        payload = _build_payload(batch, use_model, protocol)
         resp = requests.post(url, json=payload, headers=headers, timeout=timeout_seconds)
         if 400 <= resp.status_code < 500:
             raise _NonRetryableEmbeddingError(
@@ -356,7 +417,7 @@ def embed_texts_sync(
             raise RuntimeError(
                 f"embedding 响应 JSON 解析失败: {e}; raw={resp.text[:500]!r}"
             ) from e
-        return _parse_response(body, len(batch))
+        return _parse_response(body, len(batch), protocol)
 
     # 同步路径下网络错误类型来自 requests；与异步路径处理一致。
     _RETRYABLE_NET_EXC = (requests.exceptions.RequestException,)
@@ -393,7 +454,7 @@ def embed_texts_sync(
         out.extend(_request_with_retry(batch, batch_idx))
 
     logger.debug(
-        "[Embedding] (sync) 取得 %d 条向量 (model=%s, dim=%d)",
-        len(out), use_model, len(out[0]) if out else 0,
+        "[Embedding] (sync) 取得 %d 条向量 (protocol=%s, model=%s, dim=%d)",
+        len(out), protocol, use_model, len(out[0]) if out else 0,
     )
     return out

@@ -1,16 +1,16 @@
-"""检索子模块。
+"""检索子模块（HTTP 化版）。
 
-对外暴露 :func:`hybrid_search`，内部分别封装 BM25 / 语义 / RRF。
+存储 + 检索均迁移到独立的 ``retrieval_service`` 微服务（基于 LanceDB）。
+本包只剩"客户端壳"职责：
 
-约定的索引落盘位置（以 policy 的知识根目录为锚点）：
+- :mod:`.bm25`：jieba 分词（与服务端 FTS 完全同源）；
+- :mod:`.client`：``RetrievalServiceClient`` HTTP SDK；
+- :mod:`.hybrid`：对外暴露 ``hybrid_search``；
+- :mod:`.indexer`：``build_for_root`` / ``rebuild_embeddings_only``。
 
-- ``page_knowledge/{root}/_chunks.jsonl``：每行一个 chunk 元数据
-- ``page_knowledge/{root}/_bm25.pkl``：tokenized corpus + BM25Okapi 实例
-- ``page_knowledge/{root}/_embeddings.npy``：``(N, dim)`` float32 向量库
-
-未生成索引时 :func:`hybrid_search` 自动回退到纯 BM25 + 警告日志，不阻塞流程。
+服务端见仓库根目录 ``retrieval_service/``。
 """
 
-from .hybrid import hybrid_search
+from .hybrid import hybrid_search, invalidate
 
-__all__ = ["hybrid_search"]
+__all__ = ["hybrid_search", "invalidate"]

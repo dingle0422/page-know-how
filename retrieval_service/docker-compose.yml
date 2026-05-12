@@ -1,0 +1,15 @@
+services:
+  retrieval:
+    build: .
+    container_name: page-know-how-retrieval
+    restart: unless-stopped
+    environment:
+      STORE_DIR: /app/data
+      API_KEY: ${API_KEY:-changeme}
+      HOST: 0.0.0.0
+      PORT: 8088
+      LOG_LEVEL: INFO
+    ports:
+      - "${HOST_PORT:-8088}:8088"
+    volumes:
+      - ./data:/app/data

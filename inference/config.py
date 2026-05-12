@@ -59,14 +59,14 @@ TASK_TTL_SECONDS: float = 86400.0
 
 # --- 高亮外链关联：离线索引侧静态展开 -----------------------------------------
 #
-# inference 走的是离线索引（_chunks.jsonl + _bm25.pkl + _embeddings.npy），与
+# inference 走的是 retrieval_service（LanceDB）里的 BM25 + 向量混合检索，与
 # reasoner 在线模式里 HighlightPrecheck/RelationCrawler 那条实时通路独立。
 # 为了在 inference 模式下也能命中"父章节高亮词 -> 关联条款"语义，建索引时
 # 复用同一套 RelationCrawler（expand_all=True，纯静态展开，不走 LLM），把
-# 命中的 RelationFragment 渲染成派生 chunk 一起喂给 BM25/embedding。
+# 命中的 RelationFragment 渲染成派生 chunk 一起 upsert（含 relation_keys 列）。
 #
-# 关掉本开关时全链路退化为旧行为：不展开关联、不写 _relation_targets.json、
-# 不级联其他 root，便于灰度回滚。
+# 关掉本开关时全链路退化为旧行为：不展开关联、跨 policy cascade 也不会触发，
+# 便于灰度回滚。
 INCLUDE_HIGHLIGHTED_RELATIONS_IN_INDEX: bool = (
     os.getenv("INFERENCE_INCLUDE_HIGHLIGHTED_RELATIONS", "1").lower()
     in {"1", "true", "yes", "on"}
@@ -95,6 +95,29 @@ HIGHLIGHT_INDEX_REMOTE_TIMEOUT: float = float(
 )
 """ClauseLocator._try_remote 单条超时（秒）。"""
 
-INDEX_SCHEMA_VERSION: int = 2
+INDEX_SCHEMA_VERSION: int = 3
 """离线索引 schema 版本。升级时旧索引会被 _inference_artifacts_stale 判定为过期
-触发自动重建。v1 = 仅 knowledge.md；v2 = v1 + 高亮外链派生 chunk。"""
+触发自动重建。
+
+- v1 = 仅 knowledge.md；
+- v2 = v1 + 高亮外链派生 chunk；
+- v3 = 三件套（_chunks.jsonl/_bm25.pkl/_embeddings.npy）整体迁移到 retrieval_service
+       (LanceDB)；schema 增加 kind/parent_chunk_index/derived_seq/relation_keys 等列。
+"""
+
+# --- retrieval_service HTTP 客户端 ---------------------------------------
+#
+# inference 检索后端从"本地三件套"切换到独立 FastAPI 服务。这里给客户端配置默认值，
+# 实际部署应通过环境变量覆盖；缺省可保持 127.0.0.1 本机开发模式。
+RETRIEVAL_SERVICE_URL: str = os.getenv(
+    "RETRIEVAL_SERVICE_URL", "http://127.0.0.1:8088"
+).rstrip("/")
+"""retrieval_service 基础 URL。"""
+
+RETRIEVAL_SERVICE_API_KEY: str = os.getenv("RETRIEVAL_SERVICE_API_KEY", "")
+"""retrieval_service 鉴权 key（X-API-Key 或 Authorization: Bearer）。空表示关闭鉴权。"""
+
+RETRIEVAL_SERVICE_TIMEOUT: float = float(
+    os.getenv("RETRIEVAL_SERVICE_TIMEOUT", "30.0")
+)
+"""单次请求超时（秒）。upsert 大批量时可适当调大。"""
