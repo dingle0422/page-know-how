@@ -37,6 +37,15 @@ _DEFAULT_MODEL = "bge"
 # 客户端无论传多大的 batch_size 都按这里向下夹断，避免直接打到上游报错。
 _MAX_BATCH_SIZE = 10
 
+# 服务端硬限制：单条 sentence 长度 ≤ 8192（token），超过会返回
+# code=400 msg='Range of input length should be [1, 8192].'。
+# 中文一字约 1 token，混合英文 / 标点会更省 token；这里按字符做保守截断，
+# 留出 token 化膨胀的 buffer，避免极端长 chunk 整批 embedding 被拒。
+# 调用方（indexer / hybrid query）传给本模块的文本若超过此阈值，会被截到
+# 前 _MAX_INPUT_CHARS 字符；这只影响 embedding 用的副本，调用方持有的原文本
+# （写进 _chunks.jsonl 与 BM25 的内容）不受影响。
+_MAX_INPUT_CHARS = 6000
+
 
 def _clamp_batch_size(batch_size: int) -> int:
     """把请求方传入的 batch_size 夹到 [1, _MAX_BATCH_SIZE] 范围内。"""
@@ -48,6 +57,19 @@ def _clamp_batch_size(batch_size: int) -> int:
     if bs <= 0:
         bs = _MAX_BATCH_SIZE
     return min(bs, _MAX_BATCH_SIZE)
+
+
+def _clip_for_embedding(text: str) -> str:
+    """对单条 sentence 做"embedding 安全截断"。
+
+    embedding 模型对单条输入长度有硬上限（见 _MAX_INPUT_CHARS 注释）。
+    截断只发生在送给上游 API 的副本上，调用方拿到的 vectors 与原文本一一对应，
+    chunk 头部包含【命中关键词】/【关联条款位置】等关键坐标信息，截断后头部
+    语义保留完整，召回效果可接受。
+    """
+    if len(text) <= _MAX_INPUT_CHARS:
+        return text
+    return text[:_MAX_INPUT_CHARS]
 
 
 class EmbeddingNotConfigured(RuntimeError):
@@ -138,10 +160,18 @@ async def embed_texts(
     own_client = client is None
     cli = client or httpx.AsyncClient(timeout=timeout_seconds, headers=headers)
 
+    clipped_total = sum(1 for t in texts if len(t) > _MAX_INPUT_CHARS)
+    if clipped_total:
+        logger.info(
+            "[Embedding] %d/%d 条文本超过 %d 字符上限，本次将对 embedding 副本做安全截断",
+            clipped_total, len(texts), _MAX_INPUT_CHARS,
+        )
+
     out: list[list[float]] = []
     try:
         for start in range(0, len(texts), effective_batch):
-            batch = texts[start : start + effective_batch]
+            batch_raw = texts[start : start + effective_batch]
+            batch = [_clip_for_embedding(t) for t in batch_raw]
             payload = {"sentences": batch}
             resp = await cli.post(url, json=payload, headers=headers, timeout=timeout_seconds)
             if resp.status_code >= 400:
@@ -189,9 +219,17 @@ def embed_texts_sync(
     if auth:
         headers["Authorization"] = auth
 
+    clipped_total = sum(1 for t in texts if len(t) > _MAX_INPUT_CHARS)
+    if clipped_total:
+        logger.info(
+            "[Embedding] (sync) %d/%d 条文本超过 %d 字符上限，本次将对 embedding 副本做安全截断",
+            clipped_total, len(texts), _MAX_INPUT_CHARS,
+        )
+
     out: list[list[float]] = []
     for start in range(0, len(texts), effective_batch):
-        batch = texts[start : start + effective_batch]
+        batch_raw = texts[start : start + effective_batch]
+        batch = [_clip_for_embedding(t) for t in batch_raw]
         payload = {"sentences": batch}
         resp = requests.post(url, json=payload, headers=headers, timeout=timeout_seconds)
         if resp.status_code >= 400:

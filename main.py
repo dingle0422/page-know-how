@@ -269,8 +269,8 @@ def main():
     reason_parser.add_argument(
         "--enable-skill-double-check", action=argparse.BooleanOptionalAction, default=False,
         help="（仅 v3 生效）开启 skill 二次校验：summary 完成后再走 judge / extra-skill / all_in_answer 流程；"
-             "默认关闭，关闭后 final summary 阶段直接采用 phase-0 已注入的事实依据出最终答案，节省 1~2 次 LLM 调用。"
-             "phase-0 预评估与事实依据注入不受此开关影响。"
+             "默认关闭，关闭后 final summary 阶段直接采用 phase-0 已注入的参考依据出最终答案，节省 1~2 次 LLM 调用。"
+             "phase-0 预评估与参考依据注入不受此开关影响。"
              "可显式 --no-enable-skill-double-check 关闭"
     )
     reason_parser.add_argument(

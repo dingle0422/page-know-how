@@ -56,10 +56,10 @@ class SkillResultRegistry:
             return any(r.skill_name == skill_name for r in self._records)
 
     def format_context(self) -> str:
-        """将所有 skill 结果格式化为可注入 LLM prompt 的事实依据文本"""
+        """将所有 skill 结果格式化为可注入 LLM prompt 的参考依据文本"""
         records = self.get_all()
         if not records:
-            return "（暂无事实依据）"
+            return "（暂无参考依据）"
 
         lines: list[str] = []
         for i, rec in enumerate(records, 1):

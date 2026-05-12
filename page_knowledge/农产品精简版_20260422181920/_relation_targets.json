@@ -1,0 +1,10 @@
+{
+  "schema_version": 2,
+  "targets": [
+    {
+      "policy_id": "KH1494363304054435840_20260422154653",
+      "clause_id": "cd6dca442d1d4b5e939aaba091431f4d",
+      "source": "remote"
+    }
+  ]
+}

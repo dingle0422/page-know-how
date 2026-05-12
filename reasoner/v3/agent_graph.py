@@ -470,7 +470,7 @@ class AgentGraph:
         self.chunk_size = chunk_size
         self.enable_skills = enable_skills
         # 二次校验（judge → extra-skill → all_in_answer）独立开关，默认 False。
-        # 关闭后：phase-0 预评估 + 注入到 final summary 的事实依据段保持不变；
+        # 关闭后：phase-0 预评估 + 注入到 final summary 的参考依据段保持不变；
         # 但 final summary 完成后不再触发 judge / extra-skill / all_in_answer，
         # 直接采用 final summary 输出，节省 1~2 次 LLM 调用。
         # 仅当 enable_skills=True 时才有意义；False + enable_skills=True 是默认状态。
@@ -895,9 +895,9 @@ class AgentGraph:
 
         - system 直接采用 CORPUS_SYSTEM_PROMPT，不再叠加 answer_system_prompt /
           PURE_MODEL_REFERENCE_ANSWER_INSTRUCTIONS / 输出格式段。
-        - user 使用模板「## 【用户问题】 + （可选）## 事实依据 + ## 【参考知识】」。
+        - user 使用模板「## 【用户问题】 + （可选）## 参考依据 + ## 【参考知识】」。
           skill_context 由 `_build_skill_context_for_summary` 产出（内含
-          `## 事实依据` 节标题），插在用户问题与参考知识之间，
+          `## 参考依据` 节标题），插在用户问题与参考知识之间，
           让 phase-0 跑出的外部核验结果以中性事实形式进入最终 LLM 上下文。
           空字符串时整段省略。
         """
@@ -1095,7 +1095,7 @@ class AgentGraph:
 
     @staticmethod
     def _render_skill_records(records: list[SkillRecord]) -> str:
-        """将 SkillRecord 列表渲染为「事实依据」文本。
+        """将 SkillRecord 列表渲染为「参考依据」文本。
 
         面向 LLM 只保留依据内容本身，不暴露 skill 名称/命令等调用元信息。
         """
@@ -1114,7 +1114,7 @@ class AgentGraph:
         return "\n".join(lines).rstrip()
 
     def _build_skill_context_for_summary(self, records: list[SkillRecord]) -> str:
-        """把 skill records 包装成可插入到 summary prompt 头部的事实依据段。空 records → 空串。
+        """把 skill records 包装成可插入到 summary prompt 头部的参考依据段。空 records → 空串。
 
         只给一个节标题；每条 skill 结果的适用范围/免责声明由各 skill 的 format_result
         内部自行附带（见 e.g. standard_product_name_verification/service.py 中的
@@ -1123,7 +1123,7 @@ class AgentGraph:
         body = self._render_skill_records(records)
         if not body:
             return ""
-        return "## 事实依据\n" + body
+        return "## 参考依据\n" + body
 
     @staticmethod
     def _append_skill_context_to_prompt(prompt: str, skill_context: str) -> str:
@@ -1308,7 +1308,7 @@ class AgentGraph:
             logger.info(
                 f"[{stage_label}] enable_skill_double_check=False，"
                 f"跳过 judge / extra-skill / all_in_answer，直接采用 final summary 输出"
-                f"（phase-0 完成的 {len(done_records_snapshot)} 条事实依据已由调用方"
+                f"（phase-0 完成的 {len(done_records_snapshot)} 条参考依据已由调用方"
                 f"注入 final summary user prompt）"
             )
             return final_summary_callable()

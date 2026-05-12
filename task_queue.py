@@ -71,6 +71,14 @@ STATUS_FAILED = "failed"
 # 客户端拿到 task_id 后在这段时间内轮询都能拿到结果；超过则需要重新提交。
 DEFAULT_TASK_TTL_SECONDS = 24 * 3600
 
+# 并发扇出 GET 时的硬上限。
+# RedisServerClient 短池 max_connections=64；TASK TTL 默认 7 天，全表扫描可能命中
+# 几百~几千条 key。无上限的 asyncio.gather 会瞬间把 64 条连接全部占用 + 排队，
+# 短池 pool_timeout=2s 抗不住，会让同进程内任何其它短请求（典型如
+# /api/requestQueueStatus）立刻抛 PoolTimeout。这里把单次扇出限制到远低于
+# max_connections 的水位（16），给其它路由留余地；同时 N 路并行已经足够掩盖 RTT。
+_FANOUT_CONCURRENCY = 16
+
 
 def _task_key(task_id: str) -> str:
     return f"{TASK_KEY_PREFIX}{task_id}"
@@ -126,6 +134,47 @@ async def _retry_short_request(
     if last_err is not None:
         raise last_err
     raise RuntimeError(f"[{op_name}] 重试逻辑异常退出")
+
+
+async def _gather_bounded(
+    coro_factories: list[Callable[[], Awaitable[Any]]],
+    *,
+    limit: int,
+    return_exceptions: bool = False,
+) -> list[Any]:
+    """有上限并发的 asyncio.gather。
+
+    每次只允许 ``limit`` 个 coroutine 同时运行；其余排队，按完成顺序补位。
+    这是替代 ``asyncio.gather(*[...])`` 在面对成百上千 task key 时**唯一**安全
+    的扇出形式：原始 gather 一次性把所有任务都丢进事件循环，导致 redis_server
+    短池被瞬间打满；本函数把同时挂起的请求数控制在 ``limit`` 以内，给同进程其它
+    短请求路径留出连接预算。
+
+    parameters
+    ----------
+    coro_factories :
+        每个元素是一个**零参函数**，调用后返回一个 awaitable。必须用工厂而不是
+        预先 await 出 coroutine，避免无人消费的 coroutine 在事件循环里堆积。
+    limit :
+        最大并发；建议远小于 ``RedisServerClient`` 短池 max_connections。
+    return_exceptions :
+        与 ``asyncio.gather`` 同义：True 时把异常作为返回值之一，不打断兄弟任务。
+    """
+    if not coro_factories:
+        return []
+    if limit <= 0:
+        limit = 1
+
+    sem = asyncio.Semaphore(limit)
+
+    async def _runner(factory: Callable[[], Awaitable[Any]]) -> Any:
+        async with sem:
+            return await factory()
+
+    return await asyncio.gather(
+        *[_runner(f) for f in coro_factories],
+        return_exceptions=return_exceptions,
+    )
 
 
 async def submit_task(
@@ -218,13 +267,47 @@ async def list_queued_tasks(client) -> list[dict]:
     """LRANGE 队列 + 并发 GET 每个 task:{id}，构造待执行任务列表。
 
     并发 GET 是为了避免在队列较长（几十条）时被 N 次串行 RTT 拖慢
-    /api/requestQueueStatus 的响应。
+    /api/requestQueueStatus 的响应；同时限并发避免把 redis_server 短池打满。
     """
     task_ids = await client.lrange(QUEUE_REASON_PENDING, 0, -1)
     if not task_ids:
         return []
-    results = await asyncio.gather(*[get_task(client, tid) for tid in task_ids])
+    results = await _gather_bounded(
+        [lambda tid=tid: get_task(client, tid) for tid in task_ids],
+        limit=_FANOUT_CONCURRENCY,
+    )
     return [r for r in results if r is not None]
+
+
+async def _clean_one_queued_task(client, task_id: Any) -> dict:
+    """清理 pending 队列中单条 task：先 LREM，只有真的从队列移走才删 task:{id}。
+
+    返回结构与历史保持一致，便于上层聚合 / 日志：
+      {task_id, removed_from_queue, deleted_task, skipped_reason?}
+
+    LREM=0 说明本次扫描后 worker 抢先 BLPOP 拿走了任务（已 running），跳过 KV 删除，
+    避免误杀 running 记录。任何异常都被吃掉转成 ``skipped_reason``，不会让兄弟任务连坐。
+    """
+    entry: dict = {
+        "task_id": str(task_id),
+        "removed_from_queue": 0,
+        "deleted_task": False,
+    }
+    if not isinstance(task_id, str):
+        entry["skipped_reason"] = "non-string task_id"
+        return entry
+
+    try:
+        removed = await client.lrem(QUEUE_REASON_PENDING, task_id, count=0)
+        entry["removed_from_queue"] = removed
+        if removed <= 0:
+            entry["skipped_reason"] = "not found in queue during cleanup"
+            return entry
+        entry["deleted_task"] = await client.delete(_task_key(task_id))
+    except Exception as e:
+        entry["skipped_reason"] = f"cleanup failed: {e}"
+        logger.warning(f"[clean_queued_tasks] task={task_id} 清理异常: {e}")
+    return entry
 
 
 async def clean_queued_tasks(client) -> list[dict]:
@@ -233,36 +316,20 @@ async def clean_queued_tasks(client) -> list[dict]:
     只以 redis list 当前快照为候选；每个 task_id 先 LREM，只有实际从队列移除成功
     才删除对应 task:{id} 记录。若扫描期间 task 已被 worker BLPOP 取走，LREM 会返回 0,
     本函数会跳过删除 KV，避免误删已经 running 的任务记录。
+
+    实现采用 ``_gather_bounded`` 限并发：原本的 for 串行在长队列上会逐条等 RTT,
+    并发后在大队列上能从 O(K·rtt) 降到 ~O(K·rtt/limit)；同时严格控制并发数，
+    避免与 ``cleanup_running_tasks_by_age`` 一样把短池打满。
+    每个 entry 的逻辑保持完全幂等，重试本函数同样安全。
     """
     task_ids = await client.lrange(QUEUE_REASON_PENDING, 0, -1)
     if not task_ids:
         return []
 
-    cleaned: list[dict] = []
-    for task_id in task_ids:
-        entry: dict = {
-            "task_id": str(task_id),
-            "removed_from_queue": 0,
-            "deleted_task": False,
-        }
-        if not isinstance(task_id, str):
-            entry["skipped_reason"] = "non-string task_id"
-            cleaned.append(entry)
-            continue
-
-        try:
-            removed = await client.lrem(QUEUE_REASON_PENDING, task_id, count=0)
-            entry["removed_from_queue"] = removed
-            if removed <= 0:
-                entry["skipped_reason"] = "not found in queue during cleanup"
-                cleaned.append(entry)
-                continue
-
-            entry["deleted_task"] = await client.delete(_task_key(task_id))
-        except Exception as e:
-            entry["skipped_reason"] = f"cleanup failed: {e}"
-            logger.warning(f"[clean_queued_tasks] task={task_id} 清理异常: {e}")
-        cleaned.append(entry)
+    cleaned = await _gather_bounded(
+        [lambda tid=tid: _clean_one_queued_task(client, tid) for tid in task_ids],
+        limit=_FANOUT_CONCURRENCY,
+    )
 
     total_removed = sum(int(e.get("removed_from_queue") or 0) for e in cleaned)
     if total_removed:
@@ -297,7 +364,10 @@ async def list_running_tasks(client) -> list[dict]:
         seen.add(task_id)
         unique_task_ids.append(task_id)
 
-    records = await asyncio.gather(*[get_task(client, tid) for tid in unique_task_ids])
+    records = await _gather_bounded(
+        [lambda tid=tid: get_task(client, tid) for tid in unique_task_ids],
+        limit=_FANOUT_CONCURRENCY,
+    )
     running: list[dict] = []
     for task_id, record in zip(unique_task_ids, records):
         if record and record.get("status") == STATUS_RUNNING:
@@ -306,8 +376,9 @@ async def list_running_tasks(client) -> list[dict]:
             stale_task_ids.append(task_id)
 
     if stale_task_ids:
-        await asyncio.gather(
-            *[_remove_running_task(client, tid) for tid in stale_task_ids],
+        await _gather_bounded(
+            [lambda tid=tid: _remove_running_task(client, tid) for tid in stale_task_ids],
+            limit=_FANOUT_CONCURRENCY,
             return_exceptions=True,
         )
 
@@ -337,9 +408,13 @@ async def cleanup_stale_running_tasks(
     if not keys:
         return 0
 
-    records = await asyncio.gather(*[
-        get_task(client, k[len(TASK_KEY_PREFIX):]) for k in keys
-    ])
+    records = await _gather_bounded(
+        [
+            lambda k=k: get_task(client, k[len(TASK_KEY_PREFIX):])
+            for k in keys
+        ],
+        limit=_FANOUT_CONCURRENCY,
+    )
 
     cleaned = 0
     for record in records:
@@ -428,9 +503,13 @@ async def cleanup_running_tasks_by_age(
     if not keys:
         return []
 
-    records = await asyncio.gather(*[
-        get_task(client, k[len(TASK_KEY_PREFIX):]) for k in keys
-    ])
+    records = await _gather_bounded(
+        [
+            lambda k=k: get_task(client, k[len(TASK_KEY_PREFIX):])
+            for k in keys
+        ],
+        limit=_FANOUT_CONCURRENCY,
+    )
 
     now = _now()
     candidates: list[tuple[dict, float]] = []

@@ -91,7 +91,7 @@ REACT_INTERMEDIATE_USER_PROMPT = """## 用户问题
 ## 本轮新增的检索证据
 {evidence}
 
-## 前置预答（可能存在过期信息，仅供参考，请注意政策法规的时效性）
+## 前置预答（仅供参考，存在政策法规的时效性风险）
 {preview_block}
 
 ## 参考依据
@@ -104,7 +104,7 @@ REACT_INTERMEDIATE_USER_PROMPT = """## 用户问题
 # 最终轮直接复用 v3 的 CORPUS_SYSTEM_PROMPT / CORPUS_USER_PROMPT，
 # 不再叠加任何 ReAct 指令头。preview / 历史思考 / 本轮新增检索证据全部通过
 # :func:`format_evidence_for_final` 拼到 CORPUS_USER_PROMPT 的 evidence 槽位里，
-# 内部用 ### 三级标题，避免与 ## 【已有知识】抢标题层级。
+# 内部用 ### 三级标题，避免与 ## 【已知信息】抢标题层级。
 
 REACT_FINAL_SYSTEM_PROMPT = CORPUS_SYSTEM_PROMPT
 
@@ -113,7 +113,7 @@ REACT_FINAL_SYSTEM_PROMPT = CORPUS_SYSTEM_PROMPT
 
 
 def format_skill_block(skills: list[dict] | None) -> str:
-    """把 redis 快照里的 skills 列表格式化为 prompt 用的事实依据块。
+    """把 redis 快照里的 skills 列表格式化为 prompt 用的参考依据块。
 
     入参形如 ``[{"name": "...", "success": true, "stdout": "...", "exitCode": 0}, ...]``。
     与 ``skills.registry.SkillResultRegistry.format_context`` 输出风格保持一致。
@@ -121,7 +121,7 @@ def format_skill_block(skills: list[dict] | None) -> str:
 
     skills = skills or []
     if not skills:
-        return "（暂无事实依据）"
+        return "（暂无参考依据）"
     lines: list[str] = []
     for i, rec in enumerate(skills, 1):
         lines.append(f"【依据{i}】")
@@ -181,19 +181,20 @@ def format_evidence_for_final(
 ) -> str:
     """组装最终轮 ``CORPUS_USER_PROMPT.evidence`` 的内容主体。
 
-    注意：``CORPUS_USER_PROMPT`` 内 evidence 是接在 ``## 【已有知识】：`` 标题下方，
+    注意：``CORPUS_USER_PROMPT`` 内 evidence 是接在 ``## 【已知信息】：`` 标题下方，
     所以本函数内部一律用 ``### `` 三级标题，避免抢层级。
     """
 
     sections: list[str] = []
+    
+    # 2026.05.12：在此处将前置预答和历史轮次摘要做了位置互换
+    preview_md = _format_preview_block_markdown(preview)
+    if preview_md:
+        sections.append("### 前置预答（可能存在过期信息，若采纳政策条款信息，则必须在摘要或证据中得到印证）\n" + preview_md)
 
     pt = (prev_think or "").strip()
     if pt:
         sections.append("### 历史轮次推理摘要\n" + pt)
-
-    preview_md = _format_preview_block_markdown(preview)
-    if preview_md:
-        sections.append("### 前置预答（来自 preview 阶段，可能存在过期信息，仅供参考）\n" + preview_md)
 
     ne = (new_evidence or "").strip()
     if ne:
@@ -239,12 +240,12 @@ def format_react_final_user_prompt(
     """组装最终轮 user prompt（纯 ``CORPUS_USER_PROMPT``，evidence 内塞所有上下文）。
 
     skills 渲染口径与 ``reasoner/v3/agent_graph._build_skill_context_for_summary``
-    保持一致：``## 事实依据\\n<body>\\n\\n``，空依据时整段省略。
+    保持一致：``## 参考依据\\n<body>\\n\\n``，空依据时整段省略。
     """
 
     skill_text = format_skill_block(skills)
-    if skill_text and skill_text != "（暂无事实依据）":
-        skill_block = "## 事实依据\n" + skill_text + "\n\n"
+    if skill_text and skill_text != "（暂无参考依据）":
+        skill_block = "## 参考依据\n" + skill_text + "\n\n"
     else:
         skill_block = ""
 

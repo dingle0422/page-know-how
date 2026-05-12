@@ -667,7 +667,7 @@ class AgentGraph:
 
     @staticmethod
     def _render_skill_records(records: list[SkillRecord]) -> str:
-        """将 SkillRecord 列表渲染为「事实依据」文本。
+        """将 SkillRecord 列表渲染为「参考依据」文本。
 
         面向 LLM 只保留依据内容本身，不暴露 skill 名称/命令等调用元信息。
         """
@@ -686,7 +686,7 @@ class AgentGraph:
         return "\n".join(lines).rstrip()
 
     def _build_skill_context_for_summary(self, records: list[SkillRecord]) -> str:
-        """把 skill records 包装成可插入到 summary prompt 头部的事实依据段。空 records → 空串。
+        """把 skill records 包装成可插入到 summary prompt 头部的参考依据段。空 records → 空串。
 
         只给一个节标题；每条 skill 结果的适用范围/免责声明由各 skill 的 format_result
         内部自行附带（见 e.g. standard_product_name_verification/service.py 中的
@@ -695,7 +695,7 @@ class AgentGraph:
         body = self._render_skill_records(records)
         if not body:
             return ""
-        return "## 事实依据\n" + body
+        return "## 参考依据\n" + body
 
     @staticmethod
     def _append_skill_context_to_prompt(prompt: str, skill_context: str) -> str:

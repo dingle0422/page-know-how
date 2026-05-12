@@ -863,7 +863,14 @@ def _run_reasoning(
         extra_kwargs["summary_pipeline_mode"] = summary_pipeline_mode
         extra_kwargs["reduce_max_part_depth"] = reduce_max_part_depth
         extra_kwargs["pure_model_result"] = pure_model_result
+    # answer_refine 仅在 v2/v3 的 AgentGraph 中实现；v1 不接受该参数，
+    # 透传过去会 TypeError。这里按 version 显式分流，避免 v1 调用方撞到。
+    if version in ("v2", "v3"):
         extra_kwargs["answer_refine"] = answer_refine
+    elif answer_refine:
+        logger.warning(
+            "answerRefine 仅在 version=v2/v3 下生效，version=%s 本次将被忽略", version,
+        )
     if version == "v3":
         extra_kwargs["enable_skill_double_check"] = enable_skill_double_check
     elif enable_skill_double_check:
@@ -985,6 +992,68 @@ def _inference_artifacts_missing(knowledge_dir: str) -> bool:
     return not (os.path.exists(chunks_path) and os.path.exists(bm25_path))
 
 
+def _read_index_meta(knowledge_dir: str) -> dict | None:
+    """读取 _index_meta.json；不存在或解析失败返回 None（视为旧/无 meta）。"""
+    meta_path = os.path.join(knowledge_dir, "_index_meta.json")
+    if not os.path.exists(meta_path):
+        return None
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning(f"[Inference] 读取 _index_meta.json 失败（视为过期）: {meta_path} ({e})")
+        return None
+
+
+def _write_index_meta_stale(knowledge_dir: str, stale: bool) -> None:
+    """把 _index_meta.json 的 stale 字段就地翻转。
+
+    用于：cascade 触发时立即标记 stale=true（即便后台异步重建因进程崩溃丢失，
+    下一次该 root 走 _ensure_inference_artifacts 时仍会被 _inference_artifacts_stale
+    判定为过期并兜底重建）。文件不存在或读失败时静默跳过——这种 root 本来就缺 meta，
+    stale 判定会按"缺 meta"路径触发重建，结果一致。
+    """
+    meta_path = os.path.join(knowledge_dir, "_index_meta.json")
+    meta = _read_index_meta(knowledge_dir)
+    if meta is None:
+        return
+    meta["stale"] = bool(stale)
+    try:
+        tmp = meta_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, meta_path)
+    except OSError as e:
+        logger.warning(f"[Inference] 写回 _index_meta.json stale={stale} 失败: {meta_path} ({e})")
+
+
+def _inference_artifacts_stale(knowledge_dir: str) -> bool:
+    """判断 inference 三件套是否需要重建（缺失/schema 落后/被级联标记 stale 任一成立）。
+
+    任一条件成立即返回 True：
+
+    1. 三件套有必要文件缺失（兼容旧逻辑，含 _chunks.jsonl/_bm25.pkl）；
+    2. 缺 _index_meta.json 或 schema_version 落后于 ``config.INDEX_SCHEMA_VERSION``
+       （历史索引一次性失效，触发首次升级重建）；
+    3. _index_meta.json.stale=true（被 _cascade_dependent_rebuilds 标记后未跑完的兜底）。
+    """
+    if _inference_artifacts_missing(knowledge_dir):
+        return True
+    from inference import config as _inf_config
+    meta = _read_index_meta(knowledge_dir)
+    if meta is None:
+        return True
+    try:
+        schema = int(meta.get("schema_version") or 0)
+    except (TypeError, ValueError):
+        schema = 0
+    if schema < int(_inf_config.INDEX_SCHEMA_VERSION):
+        return True
+    if bool(meta.get("stale")):
+        return True
+    return False
+
+
 # 建库时 _redis_client 闲置时间可能很长（拉 embedding 取决于条数 + 网络），
 # 网关/服务端会按 idle timeout 单方面关掉 keep-alive 连接，导致建库完成后
 # react_loop 第一次写 redis 就遇到 RemoteProtocolError。这里在建库期间起一个
@@ -1056,14 +1125,18 @@ async def _ensure_inference_artifacts(
 
     构建过程中开启 redis keep-alive 心跳，防止外层调用方（reason / inference_stream）
     在建库完成后立刻写 redis 时撞到 stale-connection EOF。
+
+    "需要重建" 的判定走 :func:`_inference_artifacts_stale`，统一覆盖三种 case：
+    必要文件缺失、schema_version 落后、被 :func:`_cascade_dependent_rebuilds`
+    标记 stale=true 但后台任务未跑完。
     """
-    if not force_rebuild and not _inference_artifacts_missing(knowledge_dir):
+    if not force_rebuild and not _inference_artifacts_stale(knowledge_dir):
         return None
 
     lock_key = policy_id or knowledge_dir
     lock = await _get_index_build_lock(lock_key)
     async with lock:
-        if not force_rebuild and not _inference_artifacts_missing(knowledge_dir):
+        if not force_rebuild and not _inference_artifacts_stale(knowledge_dir):
             return None
 
         try:
@@ -1086,6 +1159,110 @@ async def _ensure_inference_artifacts(
                 f"[Inference] 构建检索索引失败（忽略，hybrid 将回退到空检索）: {e}"
             )
             return None
+
+
+def _scan_dependent_roots(updated_policy_id: str) -> list[tuple[str, str, str]]:
+    """扫 page_knowledge/*/_relation_targets.json，找出引用了 updated_policy_id 的 root。
+
+    返回 ``[(dependent_policy_id, dependent_root_abs, root_dirname), ...]``。
+    需要 dependent_policy_id 来复用 _INDEX_BUILD_LOCKS 与 invalidate_hybrid_cache 的
+    policy 维度（同一 dirname 理论上只对应一个 policyId，从 _policy_index.json 反查）。
+    """
+    if not os.path.isdir(_PAGE_KNOWLEDGE_DIR):
+        return []
+    disk_index = _load_policy_index()
+    # dirname -> policy_id 反查表（同一 dirname 只可能由一个 policy 抽取产出）
+    dirname_to_pid: dict[str, str] = {dn: pid for pid, dn in disk_index.items()}
+
+    dependents: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    try:
+        sub_entries = os.listdir(_PAGE_KNOWLEDGE_DIR)
+    except OSError as e:
+        logger.warning(f"[Cascade] 扫描 page_knowledge 失败: {e}")
+        return []
+
+    for dirname in sub_entries:
+        root_dir = os.path.join(_PAGE_KNOWLEDGE_DIR, dirname)
+        if not os.path.isdir(root_dir):
+            continue
+        targets_path = os.path.join(root_dir, "_relation_targets.json")
+        if not os.path.exists(targets_path):
+            continue
+        try:
+            with open(targets_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.debug(f"[Cascade] 读取 {targets_path} 失败（跳过）: {e}")
+            continue
+        targets = data.get("targets") or []
+        hit = any(
+            (t.get("policy_id") or "") == updated_policy_id for t in targets
+            if isinstance(t, dict)
+        )
+        if not hit:
+            continue
+        # 一个 dirname 只对应一个 policy_id；找不到时 fallback 用 dirname 自身做 lock_key。
+        dep_pid = dirname_to_pid.get(dirname, "")
+        # 避免自反触发（B 自己的 root 也有 B->X 的 targets，但 updated_policy_id 不会等于 dep_pid）
+        if dep_pid == updated_policy_id:
+            continue
+        if dirname in seen:
+            continue
+        seen.add(dirname)
+        dependents.append((dep_pid, root_dir, dirname))
+    return dependents
+
+
+async def _cascade_dependent_rebuilds(updated_policy_id: str) -> None:
+    """某 policy 落盘后，刷新所有派生 chunks 依赖了该 policy 的其他 root。
+
+    步骤：
+
+    1. 扫 _relation_targets.json 找出依赖 root 集合 {A_i}；
+    2. 对每个 A_i 立即写 _index_meta.json.stale=true（轻量标记，立即生效）；
+    3. 串行 force_rebuild A_i（复用 _INDEX_BUILD_LOCKS 与现有 ensure 路径，
+       与正在跑的兜底重建天然互斥）；失败保留 stale=true 标记 → 下一次该 policy
+       走 reason/inference 时由 _inference_artifacts_stale 兜底重建。
+
+    本函数本身设计为 fire-and-forget（kh_update 用 asyncio.create_task 包装），
+    任何异常仅记 WARN，不向调用方传播。
+    """
+    try:
+        dependents = await asyncio.to_thread(_scan_dependent_roots, updated_policy_id)
+    except Exception as e:
+        logger.warning(f"[Cascade] 扫描依赖 root 失败 updated_policy={updated_policy_id}: {e}")
+        return
+    if not dependents:
+        logger.info(f"[Cascade] policy={updated_policy_id} 无依赖 root 需要刷新")
+        return
+
+    logger.info(
+        f"[Cascade] policy={updated_policy_id} 触发 {len(dependents)} 个依赖 root 重建: "
+        f"{[d[2] for d in dependents]}"
+    )
+
+    # 先把 stale 标记落盘，再启动重建：即便后续重建因进程崩溃丢失，
+    # 重启后该 root 走 _ensure_inference_artifacts 时也会被 stale 判定捕获兜底。
+    for _pid, root_dir, _dn in dependents:
+        try:
+            await asyncio.to_thread(_write_index_meta_stale, root_dir, True)
+        except Exception as e:
+            logger.warning(f"[Cascade] 标记 stale 失败 root={root_dir}: {e}")
+
+    # 串行 force_rebuild：复用 _INDEX_BUILD_LOCKS 避免与正在跑的兜底重建冲突；
+    # 单条失败保留 stale=true 标记供下一次兜底，不影响其他 root。
+    for dep_pid, root_dir, dirname in dependents:
+        try:
+            await _ensure_inference_artifacts(
+                root_dir,
+                policy_id=dep_pid or dirname,
+                force_rebuild=True,
+            )
+        except Exception as e:
+            logger.warning(
+                f"[Cascade] 重建依赖 root 失败 dep_policy={dep_pid} root={root_dir}: {e}"
+            )
 
 
 @app.post("/api/kh/update", response_model=KhUpdateResponse)
@@ -1112,6 +1289,13 @@ async def kh_update(req: KhUpdateRequest):
             knowledge_dir,
             policy_id=policy_id,
             force_rebuild=True,
+        )
+        # 跨 policy 级联：若其他 root 的派生 chunks 依赖了刚更新的 policy_id，
+        # 异步触发它们 force_rebuild。fire-and-forget，不阻塞本接口 HTTP 响应；
+        # 单条失败保留 _index_meta.json.stale=true 供下一次兜底重建。
+        asyncio.create_task(
+            _cascade_dependent_rebuilds(policy_id),
+            name=f"cascade-rebuilds:{policy_id}",
         )
         return KhUpdateResponse(
             data=KhUpdateData(
@@ -1384,9 +1568,18 @@ async def request_queue_status():
     try:
         client = _require_redis()
         now = time.time()
+        # 包一层瞬时错误重试：list_queued_tasks / list_running_tasks 内部各自要发 LRANGE
+        # 加上 N 个 GET，整体路径上任意一次 PoolTimeout / RemoteProtocolError 都会冒成 500。
+        # 这里把整段当作"短请求"重试一次（语义幂等），把瞬时抖动吸收在路由内。
         queued_tasks, running_tasks = await asyncio.gather(
-            _tq.list_queued_tasks(client),
-            _tq.list_running_tasks(client),
+            _tq._retry_short_request(
+                lambda: _tq.list_queued_tasks(client),
+                op_name="requestQueueStatus.list_queued",
+            ),
+            _tq._retry_short_request(
+                lambda: _tq.list_running_tasks(client),
+                op_name="requestQueueStatus.list_running",
+            ),
         )
 
         def _to_entry(t: dict, state: str) -> QueueEntry:
@@ -1442,7 +1635,12 @@ async def clean_queue():
     """
     try:
         client = _require_redis()
-        entries = await _tq.clean_queued_tasks(client)
+        # clean_queued_tasks 内部对单条 task 已经做了幂等，整体重跑同样安全；
+        # 套一层瞬时错误重试，避免首条 LRANGE 抖一次 PoolTimeout 就让整个接口冒 500。
+        entries = await _tq._retry_short_request(
+            lambda: _tq.clean_queued_tasks(client),
+            op_name="cleanQueue.clean_queued_tasks",
+        )
         removed = sum(int(e.get("removed_from_queue") or 0) for e in entries)
         deleted = sum(1 for e in entries if e.get("deleted_task"))
         skipped = sum(
@@ -1692,7 +1890,7 @@ class InferenceRequest(BaseModel):
     topN: int = Field(default=20, ge=1, le=200)
     topM: int = Field(default=20, ge=1, le=200)
     # null = 沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK
-    intermediateThinkEnabled: bool | None = False
+    intermediateThinkEnabled: bool | None = True
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
         description="启用 verbose 模式：以 taskId 为文件名落 jsonl 推理日志，"
