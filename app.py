@@ -1009,15 +1009,22 @@ def _create_knowledge(policy_id: str) -> str:
 #
 # /api/inference/stream + retrieval/hybrid 走的是独立微服务 retrieval_service
 # （LanceDB），存储与检索全部位于服务端；本进程仅在 page_knowledge/{root}/ 下
-# 维护一份 _index_meta.json（schema_version + stale 标记 + built_at），用作
-# "需要重建" 的判定凭据。建索引由 inference.retrieval.indexer.build_for_root
-# 完成（切块 → 关联展开 → jieba 分词 → embedding → HTTP upsert → 落 meta）。
+# 按 chunkSize 维度维护 ``_index_meta__cs{chunk_size}.json``（schema_version +
+# stale 标记 + built_at + chunk_size），用作"需要重建"的判定凭据。建索引由
+# inference.retrieval.indexer.build_for_root 完成（切块 → 关联展开 →
+# jieba 分词 → embedding → HTTP upsert → 落 meta）。
+#
+# 同一 policyId 下不同 chunkSize 落到独立 LanceDB 表
+# ``{policyId}__cs{chunkSize}``，互不覆盖；本进程的 meta 文件也按 chunkSize
+# 分文件维护，stale / schema_version 判定均按 (root, chunkSize) 精确粒度。
 #
 # 这里把构建逻辑挂到所有可能触发 hybrid 的入口上：
-#   - /api/kh/update           ：新建知识时强制重建（覆盖式）
-#   - /api/reason/submit, /api/reason ：推理前兜底检查
-#   - /api/inference/stream    ：推理前兜底检查
-# 同一 policy 并发请求共用一把 asyncio.Lock，避免重复构建。
+#   - /api/kh/update           ：新建知识时强制重建默认 chunkSize 索引；同 root 下其它
+#                                 chunkSize 历史变体一并标 stale，等下一次按需重建。
+#   - /api/reason/submit, /api/reason ：推理前兜底检查（默认 chunkSize）
+#   - /api/inference/stream    ：推理前按请求传入的 chunkSize 兜底检查
+# 同一 (policy, chunkSize) 并发请求共用一把 asyncio.Lock，避免重复构建；不同 chunkSize
+# 可并发建库。
 
 _INDEX_BUILD_LOCKS: dict[str, asyncio.Lock] = {}
 _INDEX_BUILD_LOCKS_GUARD = asyncio.Lock()
@@ -1032,43 +1039,79 @@ async def _get_index_build_lock(key: str) -> asyncio.Lock:
         return lock
 
 
-def _inference_artifacts_missing(knowledge_dir: str) -> bool:
-    """判断 hybrid 检索所需的索引元数据是否缺失。
+def _index_meta_path(knowledge_dir: str, chunk_size: int) -> str:
+    """返回 ``page_knowledge/<root>/_index_meta__cs{chunk_size}.json`` 绝对路径。"""
 
-    检索三件套已迁移到独立的 retrieval_service（LanceDB），本地不再有
-    ``_chunks.jsonl/_bm25.pkl/_embeddings.npy``。此处仅看 ``_index_meta.json`` 是否存在：
-    indexer.build_for_root 成功后才会写入 meta，缺 meta 一律视为索引未建/已损坏。
-    服务端表本身的存在性 + dim 状态由 :func:`_inference_artifacts_stale` 通过 schema_version
-    + stale 字段间接保护——服务端表丢失（手动清空 data 目录）时同样会因为找不到 meta
-    走兜底重建。
+    from inference.retrieval.indexer import index_meta_filename
+
+    return os.path.join(knowledge_dir, index_meta_filename(chunk_size))
+
+
+def _existing_index_meta_chunk_sizes(knowledge_dir: str) -> list[int]:
+    """扫描 knowledge_dir，列出已存在的 ``_index_meta__cs*.json`` 对应的 chunk_size 列表。
+
+    用途：
+    - cascade 失效时遍历当前 root 下所有 chunkSize 变体，把它们一并标 stale；
+    - kh_update / 抽取后判断是否已有索引产物。
     """
 
-    return not os.path.exists(os.path.join(knowledge_dir, "_index_meta.json"))
+    if not os.path.isdir(knowledge_dir):
+        return []
+    sizes: list[int] = []
+    pattern = re.compile(r"^_index_meta__cs(\d+)\.json$")
+    try:
+        for name in os.listdir(knowledge_dir):
+            m = pattern.match(name)
+            if not m:
+                continue
+            try:
+                sizes.append(int(m.group(1)))
+            except ValueError:
+                continue
+    except OSError:
+        return []
+    return sorted(set(sizes))
 
 
-def _read_index_meta(knowledge_dir: str) -> dict | None:
-    """读取 _index_meta.json；不存在或解析失败返回 None（视为旧/无 meta）。"""
-    meta_path = os.path.join(knowledge_dir, "_index_meta.json")
+def _inference_artifacts_missing(knowledge_dir: str, *, chunk_size: int) -> bool:
+    """判断 hybrid 检索所需的索引元数据是否缺失（按 ``chunk_size`` 维度）。
+
+    检索三件套已迁移到独立的 retrieval_service（LanceDB），本地不再有
+    ``_chunks.jsonl/_bm25.pkl/_embeddings.npy``。此处仅看
+    ``_index_meta__cs{chunk_size}.json`` 是否存在：indexer.build_for_root 成功后
+    才会写入 meta，缺 meta 一律视为索引未建/已损坏。
+
+    同一 ``policyId`` 下不同 ``chunkSize`` 各有独立 meta + 独立服务端表
+    （``{policyId}__cs{chunkSize}``），按 chunk_size 维度独立判定 stale/missing。
+    """
+
+    return not os.path.exists(_index_meta_path(knowledge_dir, chunk_size))
+
+
+def _read_index_meta(knowledge_dir: str, *, chunk_size: int) -> dict | None:
+    """读取 ``_index_meta__cs{chunk_size}.json``；不存在或解析失败返回 None。"""
+
+    meta_path = _index_meta_path(knowledge_dir, chunk_size)
     if not os.path.exists(meta_path):
         return None
     try:
         with open(meta_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError) as e:
-        logger.warning(f"[Inference] 读取 _index_meta.json 失败（视为过期）: {meta_path} ({e})")
+        logger.warning(f"[Inference] 读取 {meta_path} 失败（视为过期）: {e}")
         return None
 
 
-def _write_index_meta_stale(knowledge_dir: str, stale: bool) -> None:
-    """把 _index_meta.json 的 stale 字段就地翻转。
+def _write_index_meta_stale(knowledge_dir: str, stale: bool, *, chunk_size: int) -> None:
+    """把 ``_index_meta__cs{chunk_size}.json`` 的 stale 字段就地翻转。
 
     用于：cascade 触发时立即标记 stale=true（即便后台异步重建因进程崩溃丢失，
     下一次该 root 走 _ensure_inference_artifacts 时仍会被 _inference_artifacts_stale
     判定为过期并兜底重建）。文件不存在或读失败时静默跳过——这种 root 本来就缺 meta，
     stale 判定会按"缺 meta"路径触发重建，结果一致。
     """
-    meta_path = os.path.join(knowledge_dir, "_index_meta.json")
-    meta = _read_index_meta(knowledge_dir)
+    meta_path = _index_meta_path(knowledge_dir, chunk_size)
+    meta = _read_index_meta(knowledge_dir, chunk_size=chunk_size)
     if meta is None:
         return
     meta["stale"] = bool(stale)
@@ -1078,23 +1121,41 @@ def _write_index_meta_stale(knowledge_dir: str, stale: bool) -> None:
             json.dump(meta, f, ensure_ascii=False, indent=2)
         os.replace(tmp, meta_path)
     except OSError as e:
-        logger.warning(f"[Inference] 写回 _index_meta.json stale={stale} 失败: {meta_path} ({e})")
+        logger.warning(f"[Inference] 写回 {meta_path} stale={stale} 失败: {e}")
 
 
-def _inference_artifacts_stale(knowledge_dir: str) -> bool:
-    """判断 inference 检索索引是否需要重建（缺失/schema 落后/被级联标记 stale 任一成立）。
+def _mark_all_chunk_size_variants_stale(knowledge_dir: str) -> list[int]:
+    """把 root 下所有 ``_index_meta__cs*.json`` 标 stale=true，返回触发的 chunk_size 列表。
+
+    场景：cascade 触发的依赖刷新 / kh_update 后的同 policy 自身索引失效——同一 root
+    下所有 chunkSize 变体都因源数据变更而过期，统一打 stale 标记，由后续按需重建。
+    """
+
+    sizes = _existing_index_meta_chunk_sizes(knowledge_dir)
+    for cs in sizes:
+        try:
+            _write_index_meta_stale(knowledge_dir, True, chunk_size=cs)
+        except Exception as e:
+            logger.warning(
+                f"[Inference] 标记 stale 失败 root={knowledge_dir} cs={cs}: {e}"
+            )
+    return sizes
+
+
+def _inference_artifacts_stale(knowledge_dir: str, *, chunk_size: int) -> bool:
+    """判断指定 ``chunk_size`` 的 inference 检索索引是否需要重建。
 
     任一条件成立即返回 True：
 
-    1. ``_index_meta.json`` 缺失（服务端表可能也不存在，需要从头建）；
-    2. ``_index_meta.json.schema_version`` 落后于 ``config.INDEX_SCHEMA_VERSION``
-       （历史索引一次性失效，触发首次升级重建。v3 = 迁移到 retrieval_service）；
-    3. ``_index_meta.json.stale=true``（被 :func:`_cascade_dependent_rebuilds` 标记后未跑完的兜底）。
+    1. ``_index_meta__cs{chunk_size}.json`` 缺失（服务端表可能也不存在，需要从头建）；
+    2. ``schema_version`` 落后于 ``config.INDEX_SCHEMA_VERSION``
+       （历史索引一次性失效，触发首次升级重建）；
+    3. ``stale=true``（被 :func:`_cascade_dependent_rebuilds` 标记后未跑完的兜底）。
     """
-    if _inference_artifacts_missing(knowledge_dir):
+    if _inference_artifacts_missing(knowledge_dir, chunk_size=chunk_size):
         return True
     from inference import config as _inf_config
-    meta = _read_index_meta(knowledge_dir)
+    meta = _read_index_meta(knowledge_dir, chunk_size=chunk_size)
     if meta is None:
         return True
     try:
@@ -1169,9 +1230,10 @@ async def _ensure_inference_artifacts(
     knowledge_dir: str,
     *,
     policy_id: str | None = None,
+    chunk_size: int | None = None,
     force_rebuild: bool = False,
 ) -> dict | None:
-    """缺失或 force_rebuild=True 时调用 indexer.build_for_root 构建三件套。
+    """按 ``chunk_size`` 维度缺失或 force_rebuild=True 时构建索引。
 
     构建成功后顺手 invalidate hybrid 模块的进程内缓存，避免老的空快照继续被命中。
     任何异常都被捕获并降级为 warning：索引缺失时 hybrid 自身已经会回退到空结果，
@@ -1180,32 +1242,52 @@ async def _ensure_inference_artifacts(
     构建过程中开启 redis keep-alive 心跳，防止外层调用方（reason / inference_stream）
     在建库完成后立刻写 redis 时撞到 stale-connection EOF。
 
-    "需要重建" 的判定走 :func:`_inference_artifacts_stale`，统一覆盖三种 case：
-    必要文件缺失、schema_version 落后、被 :func:`_cascade_dependent_rebuilds`
-    标记 stale=true 但后台任务未跑完。
+    "需要重建" 的判定走 :func:`_inference_artifacts_stale`（chunk_size 维度），
+    统一覆盖三种 case：必要文件缺失、schema_version 落后、被
+    :func:`_cascade_dependent_rebuilds` 标记 stale=true 但后台任务未跑完。
+
+    ``chunk_size`` 为 None 时取 ``config.INFERENCE_DEFAULT_CHUNK_SIZE``。同一 root 下
+    不同 chunk_size 会落到独立的 LanceDB 表（``{policy_id}__cs{chunk_size}``）与独立的
+    meta 文件，互不覆盖。
     """
-    if not force_rebuild and not _inference_artifacts_stale(knowledge_dir):
+    from inference import config as _inf_config
+
+    if chunk_size is None:
+        chunk_size = int(_inf_config.INFERENCE_DEFAULT_CHUNK_SIZE)
+    else:
+        chunk_size = int(chunk_size)
+
+    if not force_rebuild and not _inference_artifacts_stale(knowledge_dir, chunk_size=chunk_size):
         return None
 
-    lock_key = policy_id or knowledge_dir
+    # 锁粒度：同 (policy_id, chunk_size) 串行；不同 chunk_size 可并发各自建库。
+    lock_key = f"{policy_id or knowledge_dir}::cs{chunk_size}"
     lock = await _get_index_build_lock(lock_key)
     async with lock:
-        if not force_rebuild and not _inference_artifacts_stale(knowledge_dir):
+        if not force_rebuild and not _inference_artifacts_stale(knowledge_dir, chunk_size=chunk_size):
             return None
 
         try:
             from inference.retrieval.indexer import build_for_root
             from inference.retrieval.hybrid import invalidate as _invalidate_hybrid_cache
+            from inference.retrieval.indexer import make_index_policy_id
 
             logger.info(
                 f"[Inference] 构建检索索引: policy_id={policy_id} "
-                f"force_rebuild={force_rebuild} dir={knowledge_dir}"
+                f"chunk_size={chunk_size} force_rebuild={force_rebuild} "
+                f"dir={knowledge_dir}"
             )
             async with _keepalive_redis_during_long_task(
-                f"build-indices:{policy_id or knowledge_dir}"
+                f"build-indices:{policy_id or knowledge_dir}:cs{chunk_size}"
             ):
-                result = await build_for_root(knowledge_dir, policy_id=policy_id)
-            _invalidate_hybrid_cache(policy_id)
+                result = await build_for_root(
+                    knowledge_dir,
+                    policy_id=policy_id,
+                    chunk_size=chunk_size,
+                )
+            # invalidate 走带后缀的 index_policy_id，与 hybrid_search 使用的 key 对齐
+            if policy_id:
+                _invalidate_hybrid_cache(make_index_policy_id(policy_id, chunk_size))
             logger.info(f"[Inference] 检索索引构建完成: {result}")
             return result
         except Exception as e:
@@ -1215,12 +1297,21 @@ async def _ensure_inference_artifacts(
             return None
 
 
-async def _scan_dependent_roots(updated_policy_id: str) -> list[tuple[str, str, str]]:
-    """通过 retrieval_service 反查依赖 ``updated_policy_id`` 的源 policy 集合。
+async def _scan_dependent_roots(
+    updated_policy_id: str,
+) -> list[tuple[str, int, str, str]]:
+    """通过 retrieval_service 反查依赖 ``updated_policy_id`` 的源 (policy, chunk_size) 集合。
 
-    返回 ``[(dependent_policy_id, dependent_root_abs, root_dirname), ...]``。
-    旧实现是扫本地 ``_relation_targets.json``；迁移到 retrieval_service (LanceDB) 后
-    走 ``client.lookup_dependents``，对每个表的 ``relation_keys`` 列做反向过滤。
+    返回 ``[(base_policy_id, chunk_size, root_abs, root_dirname), ...]``。
+
+    ``lookup_dependents`` 返回的 ``source_policy_id`` 是已带 ``__cs{N}`` 后缀的服务端表名
+    （建索引时 ``make_index_policy_id`` 拼出）。本函数拆出基础 policy_id + chunk_size：
+
+    - base_policy_id 用于映射 ``_policy_index.json`` 找到 page_knowledge 目录；
+    - chunk_size 用于精确定位失效的 ``_index_meta__cs{N}.json`` 与服务端表
+      （而不是把同 root 下所有 chunkSize 变体一并强制重建，避免无谓代价）。
+
+    无后缀的旧表名（schema 升级前可能存在）作为兜底走默认 chunkSize 处理。
     """
 
     if not os.path.isdir(_PAGE_KNOWLEDGE_DIR):
@@ -1229,6 +1320,7 @@ async def _scan_dependent_roots(updated_policy_id: str) -> list[tuple[str, str, 
 
     try:
         from inference.retrieval.client import get_default_client
+        from inference.retrieval.indexer import parse_index_policy_id
 
         client = await get_default_client()
         deps_raw = await client.lookup_dependents(updated_policy_id)
@@ -1239,40 +1331,49 @@ async def _scan_dependent_roots(updated_policy_id: str) -> list[tuple[str, str, 
         )
         return []
 
-    dependents: list[tuple[str, str, str]] = []
-    seen: set[str] = set()
+    from inference import config as _inf_config
+
+    dependents: list[tuple[str, int, str, str]] = []
+    seen: set[tuple[str, int]] = set()
     for entry in deps_raw:
-        dep_pid = (entry or {}).get("source_policy_id") or ""
-        if not dep_pid or dep_pid == updated_policy_id:
+        src = (entry or {}).get("source_policy_id") or ""
+        if not src:
             continue
-        dirname = disk_index.get(dep_pid, "")
+        base_pid, cs = parse_index_policy_id(src)
+        if cs is None:
+            cs = int(_inf_config.INFERENCE_DEFAULT_CHUNK_SIZE)
+        if not base_pid or base_pid == updated_policy_id:
+            continue
+        dirname = disk_index.get(base_pid, "")
         if not dirname:
             logger.debug(
-                f"[Cascade] dep_policy={dep_pid} 在 _policy_index.json 无映射，跳过"
+                f"[Cascade] dep_policy={base_pid}(cs={cs}) 在 _policy_index.json 无映射，跳过"
             )
-            continue
-        if dirname in seen:
             continue
         root_dir = os.path.join(_PAGE_KNOWLEDGE_DIR, dirname)
         if not os.path.isdir(root_dir):
             continue
-        seen.add(dirname)
-        dependents.append((dep_pid, root_dir, dirname))
+        key = (base_pid, int(cs))
+        if key in seen:
+            continue
+        seen.add(key)
+        dependents.append((base_pid, int(cs), root_dir, dirname))
     return dependents
 
 
 async def _cascade_dependent_rebuilds(updated_policy_id: str) -> None:
-    """某 policy 落盘后，刷新所有派生 chunks 依赖了该 policy 的其他 root。
+    """某 policy 落盘后，刷新所有派生 chunks 依赖了该 policy 的其他 (root, chunkSize)。
 
     步骤：
 
-    1. 通过 retrieval_service 全局反查依赖 root 集合 {A_i}；
-    2. 对每个 A_i 立即写 _index_meta.json.stale=true（轻量标记，立即生效）；
-    3. 串行 force_rebuild A_i（复用 _INDEX_BUILD_LOCKS 与现有 ensure 路径，
-       与正在跑的兜底重建天然互斥）；失败保留 stale=true 标记 → 下一次该 policy
-       走 reason/inference 时由 _inference_artifacts_stale 兜底重建。
+    1. 通过 retrieval_service 全局反查依赖项集合 ``{(A_i, cs_i)}``；
+    2. 对每个项立即写 ``_index_meta__cs{cs_i}.json.stale=true``
+       （轻量标记，立即生效）；
+    3. 串行 force_rebuild（复用 ``_INDEX_BUILD_LOCKS`` 与现有 ensure 路径，
+       与正在跑的兜底重建天然互斥）；失败保留 stale=true 标记 → 下一次该 (policy, cs)
+       走 reason/inference 时由 ``_inference_artifacts_stale`` 兜底重建。
 
-    本函数本身设计为 fire-and-forget（kh_update 用 asyncio.create_task 包装），
+    本函数本身设计为 fire-and-forget（``kh_update`` 用 ``asyncio.create_task`` 包装），
     任何异常仅记 WARN，不向调用方传播。
     """
     try:
@@ -1285,30 +1386,31 @@ async def _cascade_dependent_rebuilds(updated_policy_id: str) -> None:
         return
 
     logger.info(
-        f"[Cascade] policy={updated_policy_id} 触发 {len(dependents)} 个依赖 root 重建: "
-        f"{[d[2] for d in dependents]}"
+        f"[Cascade] policy={updated_policy_id} 触发 {len(dependents)} 个依赖项重建: "
+        f"{[(d[3], d[1]) for d in dependents]}"
     )
 
     # 先把 stale 标记落盘，再启动重建：即便后续重建因进程崩溃丢失，
-    # 重启后该 root 走 _ensure_inference_artifacts 时也会被 stale 判定捕获兜底。
-    for _pid, root_dir, _dn in dependents:
+    # 重启后该 (root, cs) 走 _ensure_inference_artifacts 时也会被 stale 判定捕获兜底。
+    for _pid, cs, root_dir, _dn in dependents:
         try:
-            await asyncio.to_thread(_write_index_meta_stale, root_dir, True)
+            await asyncio.to_thread(_write_index_meta_stale, root_dir, True, chunk_size=cs)
         except Exception as e:
-            logger.warning(f"[Cascade] 标记 stale 失败 root={root_dir}: {e}")
+            logger.warning(f"[Cascade] 标记 stale 失败 root={root_dir} cs={cs}: {e}")
 
     # 串行 force_rebuild：复用 _INDEX_BUILD_LOCKS 避免与正在跑的兜底重建冲突；
-    # 单条失败保留 stale=true 标记供下一次兜底，不影响其他 root。
-    for dep_pid, root_dir, dirname in dependents:
+    # 单条失败保留 stale=true 标记供下一次兜底，不影响其他 (root, cs)。
+    for dep_pid, cs, root_dir, dirname in dependents:
         try:
             await _ensure_inference_artifacts(
                 root_dir,
                 policy_id=dep_pid or dirname,
+                chunk_size=cs,
                 force_rebuild=True,
             )
         except Exception as e:
             logger.warning(
-                f"[Cascade] 重建依赖 root 失败 dep_policy={dep_pid} root={root_dir}: {e}"
+                f"[Cascade] 重建依赖项失败 dep_policy={dep_pid} cs={cs} root={root_dir}: {e}"
             )
 
 
@@ -1332,14 +1434,20 @@ async def kh_update(req: KhUpdateRequest):
         # 知识抽取成功后强制重建 inference 检索索引（写到 retrieval_service），
         # 保证 /api/inference/stream 第一次调用就能命中 hybrid 检索。
         # 构建失败不阻塞接口返回（hybrid 自身会回退到空检索）。
+        # 同 policy 下 _index_meta__cs*.json 历史变体先全部标 stale（本次抽取改了源数据，
+        # 所有 chunkSize 变体都过期），然后只主动重建默认 chunkSize 的索引；
+        # 其它 chunkSize 走下一次 /api/inference/stream 时按需重建。
+        from inference import config as _inf_config
+        await asyncio.to_thread(_mark_all_chunk_size_variants_stale, knowledge_dir)
         await _ensure_inference_artifacts(
             knowledge_dir,
             policy_id=policy_id,
+            chunk_size=_inf_config.INFERENCE_DEFAULT_CHUNK_SIZE,
             force_rebuild=True,
         )
         # 跨 policy 级联：若其他 root 的派生 chunks 依赖了刚更新的 policy_id，
         # 异步触发它们 force_rebuild。fire-and-forget，不阻塞本接口 HTTP 响应；
-        # 单条失败保留 _index_meta.json.stale=true 供下一次兜底重建。
+        # 单条失败保留 stale=true 供下一次兜底重建。
         asyncio.create_task(
             _cascade_dependent_rebuilds(policy_id),
             name=f"cascade-rebuilds:{policy_id}",
@@ -1402,10 +1510,16 @@ async def _reason_executor(request_payload: dict) -> dict:
         resp_log_name = _session.file_path.name if _session is not None else None
 
         knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
-        # 兜底：历史 policy 可能没建过 inference 检索索引（缺 _index_meta.json），
+        # 兜底：历史 policy 可能没建过 inference 检索索引（缺默认 chunkSize 的 meta 文件），
         # 这里检测一次，缺啥补啥。不影响 reasoner 主流程，只是为了让同 policy 后续走
-        # /api/inference/stream 时也能直接命中 hybrid 检索。
-        await _ensure_inference_artifacts(knowledge_dir, policy_id=policy_id)
+        # /api/inference/stream 默认 chunkSize 时也能直接命中 hybrid 检索；
+        # 非默认 chunkSize 的索引仍由 /api/inference/stream 自身按需建库。
+        from inference import config as _inf_config
+        await _ensure_inference_artifacts(
+            knowledge_dir,
+            policy_id=policy_id,
+            chunk_size=_inf_config.INFERENCE_DEFAULT_CHUNK_SIZE,
+        )
         if req_verbose:
             _log_verbose_event(
                 "knowledge_ready",
@@ -1936,6 +2050,17 @@ class InferenceRequest(BaseModel):
     skillsEnabled: bool = True
     topN: int = Field(default=20, ge=1, le=200)
     topM: int = Field(default=20, ge=1, le=200)
+    chunkSize: int = Field(
+        default=_inference_config.INFERENCE_DEFAULT_CHUNK_SIZE,
+        ge=100,
+        le=20000,
+        description=(
+            "建索引时切原文 chunk 的字符上限，逻辑沿用 V3：单节点超 chunkSize 独立成块、"
+            "不超则与前块拼接。默认 ``INFERENCE_DEFAULT_CHUNK_SIZE``（500）。"
+            "同一 ``policyId`` 下不同 chunkSize 会落到独立的 LanceDB 表"
+            "（``{policyId}__cs{chunkSize}``），互不覆盖，按需触发建库。"
+        ),
+    )
     # null = 沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK
     intermediateThinkEnabled: bool | None = True
     verbose: bool = Field(
@@ -1954,6 +2079,8 @@ async def _run_inference_with_verbose(
     task_id: str,
     question: str,
     policy_id: str,
+    index_policy_id: str,
+    chunk_size: int,
     rs: _InferenceRedisStream,
     options: _InferenceOptions,
     verbose: bool,
@@ -1965,6 +2092,10 @@ async def _run_inference_with_verbose(
     react_loop 各阶段的 LLM 调用通过 verbose_logger 的 ContextVar 自动归属到本 session。
     生成的 logName 通过 ``rs.set_log_name`` 回写到 redis 快照，方便 SSE 客户端拿到
     日志文件名（与同步 `reason` 接口返回的 `logName` 字段语义一致）。
+
+    ``policy_id`` 是业务侧基础 ID（与 page_knowledge 目录映射对齐），仅用于日志可读；
+    ``index_policy_id`` 是带 ``__cs{chunkSize}`` 后缀的服务端 LanceDB 表名，
+    实际检索调用 ``hybrid_search(..., policy_id=index_policy_id)``。
     """
     with _open_verbose_session(
         session_id=task_id,
@@ -1982,13 +2113,15 @@ async def _run_inference_with_verbose(
             _log_verbose_event(
                 "inference_pipeline_start",
                 policyId=policy_id,
+                indexPolicyId=index_policy_id,
+                chunkSize=int(chunk_size),
                 question=question,
                 vendor=options.vendor,
                 model=options.model,
                 previewEnabled=options.preview_enabled,
                 skillsEnabled=options.skills_enabled,
             )
-        await _inference_run(task_id, question, policy_id, rs, options=options)
+        await _inference_run(task_id, question, index_policy_id, rs, options=options)
         if log_name is not None:
             _log_verbose_event("inference_pipeline_finished")
 
@@ -2064,6 +2197,11 @@ async def inference_stream(req: InferenceRequest):
     rs = _InferenceRedisStream(client)
 
     task_id = (req.taskId or str(uuid.uuid4())).strip() or str(uuid.uuid4())
+    chunk_size = int(req.chunkSize)
+    # 服务端 LanceDB 表名：基础 policyId 拼 chunkSize 后缀，区分同 policy 下的多套 chunkSize 索引。
+    from inference.retrieval.indexer import make_index_policy_id as _make_index_policy_id
+
+    index_policy_id = _make_index_policy_id(req.policyId, chunk_size)
     existed = await rs.exists(task_id)
     if not existed:
         # 复用现有抽取流程，确保 knowledge_dir 存在；返回值用于后续检索索引兜底。
@@ -2073,9 +2211,13 @@ async def inference_stream(req: InferenceRequest):
             logger.exception(f"[inference_stream] policyId={req.policyId} 知识准备失败: {e}")
             raise HTTPException(status_code=400, detail=f"知识准备失败: {e}") from e
 
-        # 兜底：缺 _index_meta.json 或 schema_version 落后时即时构建，避免 hybrid 检索回退到空结果。
-        # 历史 policy（在加入 inference 模块之前抽取的）首次走 SSE 时会走到这里。
-        await _ensure_inference_artifacts(knowledge_dir, policy_id=req.policyId)
+        # 兜底：当前 (policyId, chunkSize) 维度的 meta 缺失/过期时即时建库；
+        # 同 root 下其它 chunkSize 的索引不会被本次构建覆盖。
+        await _ensure_inference_artifacts(
+            knowledge_dir,
+            policy_id=req.policyId,
+            chunk_size=chunk_size,
+        )
 
         await rs.init(
             req.question,
@@ -2097,6 +2239,8 @@ async def inference_stream(req: InferenceRequest):
             "endpoint": "/api/inference/stream",
             "taskId": task_id,
             "policyId": req.policyId,
+            "indexPolicyId": index_policy_id,
+            "chunkSize": chunk_size,
             "question": req.question,
             "vendor": req.vendor,
             "model": req.model,
@@ -2111,11 +2255,15 @@ async def inference_stream(req: InferenceRequest):
         # verbose=True 时：包装层开启与 taskId 同名的 jsonl 日志文件，
         # preview/skills/react_loop 各阶段的 LLM 调用会通过 verbose_logger 落盘，
         # 与 /api/reason/submit 的日志结构完全一致。
+        # NOTE：pipeline.run 内部走 hybrid_search 时需要使用带 chunkSize 后缀的 index_policy_id
+        # 作为服务端表名；req.policyId 仅在外层用于 redis 快照 / 抽取 root 反查 / 日志可读。
         asyncio.create_task(
             _run_inference_with_verbose(
                 task_id=task_id,
                 question=req.question,
                 policy_id=req.policyId,
+                index_policy_id=index_policy_id,
+                chunk_size=chunk_size,
                 rs=rs,
                 options=options,
                 verbose=bool(req.verbose),

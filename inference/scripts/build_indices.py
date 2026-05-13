@@ -72,7 +72,10 @@ async def _amain(args: argparse.Namespace) -> int:
         relation_remote_timeout=args.relation_remote_timeout,
     )
     print(
-        f"[done] policy={result['policy_id']} chunks={result['chunks']} "
+        f"[done] policy={result['policy_id']} "
+        f"index_policy={result.get('index_policy_id')} "
+        f"chunk_size={result.get('chunk_size')} "
+        f"chunks={result['chunks']} "
         f"(original={result['n_original']} derived={result['n_derived']}) "
         f"embeddings={'ok' if result['embeddings'] else 'skip'} "
         f"relation_targets={result['relation_targets']}"
@@ -89,8 +92,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--policy-id", help="policyId（与 --root 二选一）")
     parser.add_argument("--root", help="知识根目录绝对/相对路径（与 --policy-id 二选一）")
     parser.add_argument(
-        "--chunk-size", type=int, default=config.CHUNK_SIZE,
-        help=f"切块字符上限（默认 {config.CHUNK_SIZE}）",
+        "--chunk-size", type=int, default=config.INFERENCE_DEFAULT_CHUNK_SIZE,
+        help=(
+            f"切块字符上限（默认 {config.INFERENCE_DEFAULT_CHUNK_SIZE}）。"
+            f"同 root 下不同 chunkSize 的索引落到独立的 LanceDB 表："
+            f"``{{policyId}}__cs{{chunkSize}}``，互不覆盖。"
+        ),
     )
     parser.add_argument(
         "--batch-size", type=int, default=10,

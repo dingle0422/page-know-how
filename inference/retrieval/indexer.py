@@ -10,9 +10,11 @@
 3. 客户端 :func:`inference.retrieval.bm25.tokenize_join` 计算 ``content_tokenized``；
 4. 调 :func:`inference.embedding_client.embed_texts` 批量取向量；
 5. 通过 :class:`inference.retrieval.client.RetrievalServiceClient` 一次性 ``upsert(mode="overwrite")``；
-6. 落 ``page_knowledge/{root}/_index_meta.json``（schema_version + stale 标记 + built_at），
-   供 ``app.py`` 的 cascade stale 标记机制使用。``_relation_targets.json`` 不再写——
-   反向追踪通过 ``client.lookup_dependents`` 在线查询。
+6. 落 ``page_knowledge/{root}/_index_meta__cs{chunk_size}.json``
+   （schema_version + stale 标记 + built_at + chunk_size），供 ``app.py`` 的 cascade
+   stale 标记机制按 ``(root, chunkSize)`` 维度精准失效。``_relation_targets.json``
+   不再写——反向追踪通过 ``client.lookup_dependents`` 在线查询；同 root 下不同
+   chunkSize 的索引落到独立 LanceDB 表（``{policy_id}__cs{chunk_size}``）互不覆盖。
 
 幂等：``mode=overwrite`` 整表替换，不增量。
 """
@@ -23,6 +25,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
@@ -43,6 +46,44 @@ from .client import get_default_client
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------- chunk_size 维度的索引身份
+#
+# 同一 policyId 下可能存在多套 chunkSize 的索引（``/api/inference/stream`` 允许
+# 按请求覆盖）。为了让它们在 LanceDB 中互不覆盖，约定：
+#
+#   - 服务端表名 = ``{base_policy_id}__cs{chunk_size}``（``make_index_policy_id``）
+#   - 元数据文件 = ``page_knowledge/<root>/_index_meta__cs{chunk_size}.json``
+#     （``index_meta_filename``）
+#
+# ``parse_index_policy_id`` 用于 cascade 反查：lookup_dependents 返回的
+# ``source_policy_id`` 是已带后缀的，需要拆回 ``(base_policy_id, chunk_size)``
+# 才能定位到 page_knowledge 目录与对应的 meta 文件。
+
+
+_INDEX_POLICY_ID_PATTERN = re.compile(r"^(.*)__cs(\d+)$")
+
+
+def make_index_policy_id(policy_id: str, chunk_size: int) -> str:
+    """把基础 ``policy_id`` 与 ``chunk_size`` 拍成 LanceDB 表名。"""
+
+    return f"{policy_id}__cs{int(chunk_size)}"
+
+
+def index_meta_filename(chunk_size: int) -> str:
+    """``_index_meta__cs{chunk_size}.json``：同 root 下按 chunk_size 隔离的 meta 文件名。"""
+
+    return f"_index_meta__cs{int(chunk_size)}.json"
+
+
+def parse_index_policy_id(index_policy_id: str) -> tuple[str, Optional[int]]:
+    """``A__cs500`` -> ``("A", 500)``；无后缀返回 ``(index_policy_id, None)``。"""
+
+    m = _INDEX_POLICY_ID_PATTERN.match(index_policy_id or "")
+    if not m:
+        return index_policy_id, None
+    return m.group(1), int(m.group(2))
+
+
 # ---------------------------------------------------------------- policy_id 解析
 
 
@@ -51,10 +92,11 @@ _PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
 _POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
 
 
-def _write_index_meta(root_dir: str, payload: dict) -> None:
-    """整文件原子写 ``_index_meta.json``，失败仅记 WARN（缺 meta 会被 stale 兜底重建）。"""
+def _write_index_meta(root_dir: str, payload: dict, *, chunk_size: int) -> None:
+    """整文件原子写 ``_index_meta__cs{chunk_size}.json``，失败仅记 WARN
+    （缺 meta 会被 stale 兜底重建）。"""
 
-    meta_path = os.path.join(root_dir, "_index_meta.json")
+    meta_path = os.path.join(root_dir, index_meta_filename(chunk_size))
     try:
         os.makedirs(os.path.dirname(os.path.abspath(meta_path)), exist_ok=True)
         tmp = meta_path + ".tmp"
@@ -280,7 +322,7 @@ async def build_for_root(
     root_dir: str,
     *,
     policy_id: str | None = None,
-    chunk_size: int = config.CHUNK_SIZE,
+    chunk_size: int = config.INFERENCE_DEFAULT_CHUNK_SIZE,
     embedding_batch_size: int = 10,
     embedding_model: Optional[str] = None,
     skip_embedding: bool = False,
@@ -292,16 +334,23 @@ async def build_for_root(
 ) -> dict:
     """对单个知识根目录建全套索引，整表 overwrite 到 retrieval_service。
 
+    ``policy_id`` 为业务侧基础 ID（与 ``_policy_index.json`` 对齐）；本函数内部会
+    根据 ``chunk_size`` 派生服务端表名 ``make_index_policy_id(policy_id, chunk_size)``，
+    并把 meta 文件落到 ``_index_meta__cs{chunk_size}.json``。同一 root 下多套
+    chunkSize 的索引互不覆盖。
+
     返回 ``{"chunks", "n_original", "n_derived", "relation_targets",
-    "embeddings": bool, "policy_id"}``。
+    "embeddings": bool, "policy_id"（基础 ID）, "index_policy_id"（服务端表名）,
+    "chunk_size"}``。
     """
 
     if not os.path.isdir(root_dir):
         raise FileNotFoundError(f"知识根目录不存在: {root_dir}")
 
-    pid = policy_id or _resolve_policy_id_for_root(root_dir)
-    if not pid:
+    base_pid = policy_id or _resolve_policy_id_for_root(root_dir)
+    if not base_pid:
         raise ValueError(f"无法解析 policy_id: root_dir={root_dir}")
+    pid = make_index_policy_id(base_pid, chunk_size)
 
     include_relations = (
         config.INCLUDE_HIGHLIGHTED_RELATIONS_IN_INDEX
@@ -367,16 +416,20 @@ async def build_for_root(
             logger.debug("[Indexer] drop 空 policy 失败（忽略）: %s", e)
         _write_index_meta(root_dir, {
             "schema_version": config.INDEX_SCHEMA_VERSION,
-            "policy_id": pid,
+            "policy_id": base_pid,
+            "index_policy_id": pid,
+            "chunk_size": int(chunk_size),
             "with_relations": bool(include_relations),
             "n_original": 0,
             "n_derived": 0,
             "embeddings": False,
             "stale": False,
             "built_at": int(time.time() * 1000),
-        })
+        }, chunk_size=chunk_size)
         return {
-            "policy_id": pid,
+            "policy_id": base_pid,
+            "index_policy_id": pid,
+            "chunk_size": int(chunk_size),
             "chunks": 0,
             "n_original": 0,
             "n_derived": 0,
@@ -420,17 +473,21 @@ async def build_for_root(
     # _inference_artifacts_stale 兜底重建。
     _write_index_meta(root_dir, {
         "schema_version": config.INDEX_SCHEMA_VERSION,
-        "policy_id": pid,
+        "policy_id": base_pid,
+        "index_policy_id": pid,
+        "chunk_size": int(chunk_size),
         "with_relations": bool(include_relations),
         "n_original": n_original,
         "n_derived": n_derived,
         "embeddings": emb_ok,
         "stale": False,
         "built_at": int(time.time() * 1000),
-    })
+    }, chunk_size=chunk_size)
 
     return {
-        "policy_id": pid,
+        "policy_id": base_pid,
+        "index_policy_id": pid,
+        "chunk_size": int(chunk_size),
         "chunks": int(result.get("table_size", len(chunks))),
         "n_original": n_original,
         "n_derived": n_derived,

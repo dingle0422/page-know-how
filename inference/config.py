@@ -13,6 +13,22 @@ import os
 CHUNK_SIZE: int = 5000
 """单轮 ReAct 喂给模型的拼接证据上限（字符数）。"""
 
+INFERENCE_DEFAULT_CHUNK_SIZE: int = int(
+    os.getenv("INFERENCE_DEFAULT_CHUNK_SIZE", "500")
+)
+"""离线建索引（``build_knowledge_chunks`` / ``split_relations_into_chunks``）默认 chunk_size。
+
+与 ``CHUNK_SIZE``（ReAct 单轮证据拼接上限）是两个不同概念：
+
+- ``CHUNK_SIZE``：检索后把 KnowledgeChunk 列表打包成"轮组"喂给 LLM 的字符上限；
+- ``INFERENCE_DEFAULT_CHUNK_SIZE``：建索引时切原文 chunk 的字符上限，
+  逻辑沿用 V3：单节点超 chunk_size 独立成块、不超则与前块拼接。
+
+``/api/inference/stream`` 的 ``chunkSize`` 入参未传时取本值；
+同一 ``policyId`` 下不同 chunkSize 会落到不同的 LanceDB 表
+（表名 ``{policyId}__cs{chunkSize}``）。
+"""
+
 REACT_MAX_ROUNDS: int = 5
 """ReAct 主循环硬上限：到顶后强制以"最终轮"语义出 answer。"""
 
