@@ -62,7 +62,7 @@ def make_initial_snapshot(
         "react": {"round": 0, "chunks": [], "usedHeadings": []},
         # topicLocate：仅 /api/inference/stream 在用户未指定 policyId 时会写入，
         # 用于把外部【专题Know How定位】SSE 的 reasoning 流式转发到 think 字段，
-        # 并以 ``###【专题Know How定位】\n\t{ywzt}`` 收口。各字段语义：
+        # 并以 ``###【专题Know How定位】\n{ywzt}`` 收口。各字段语义：
         # - reasoning: 外部 SSE ``data.reasoning``（每帧全量字符串，覆盖式更新）
         # - ywzt:      外部 SSE finish 帧的业务专题名（命中时填）
         # - done:      finish 且唯一命中时为 True，触发 ywzt 收口段渲染
@@ -104,8 +104,9 @@ def recompute_aggregates(
     2. **preview**：``preview.think`` / ``preview.answer``。
     3. **react 中间轮**：开关关时仅最终轮前一轮的 ``answer``；开关开时全部非最终轮 ``think+answer``。
     4. **react 最终轮**：
-       - ``react.usedHeadings`` 非空时先渲染 ``###【引用知识章节】\\n{每行一条}``；
-       - 然后再追加 final chunk 的 ``think``（final.answer 落到接口 ``answer``）。
+       - 先追加 final chunk 的 ``think``（final.answer 落到接口 ``answer``）；
+       - 然后若 ``react.usedHeadings`` 非空再追加 ``###【引用知识章节】\\n{每行一条}``,
+         作为 think 字段的尾段，便于前端把"答案推理→引用清单"按段落顺读。
 
     ``answer`` 默认取最终轮 ``chunk.answer``；若 ``topicLocate.refusal`` 非空（候选业务专题
     非唯一/定位失败的拒答场景）则**优先覆盖**为拒答文案，便于前端直接展示。
@@ -165,14 +166,14 @@ def recompute_aggregates(
                 if prev_answer:
                     parts.append(prev_answer)
 
-        # 4) 最终轮：先【引用知识章节】，再 final.think
+        # 4) 最终轮：先 final.think，再【引用知识章节】（作为 think 字段尾段）
         if final_think:
+            parts.append(final_think)
             used_headings = react.get("usedHeadings") or []
             if used_headings:
                 cited = "\n".join(str(h) for h in used_headings if h)
                 if cited:
                     parts.append(f"###【引用知识章节】\n{cited}")
-            parts.append(final_think)
         answer = final_answer
 
     # 拒答覆盖：候选业务专题非唯一时整体退化为单条拒答 answer。
