@@ -80,6 +80,7 @@ def recompute_aggregates(
 
     - 默认模式（开关关）：``preview.think + preview.answer + chunks[final-1].answer + chunks[final].think``
     - 开关开：``preview.* + 非最终轮(think+answer) 全拼接 + chunks[final].think``
+    - 各拼接块之间以空行（``\\n\\n``）分隔，便于前端按 markdown 段落渲染。
     - ``answer`` 始终只取最终轮 ``chunk.answer``，未到最终轮则为空字符串。
     """
 
@@ -127,7 +128,7 @@ def recompute_aggregates(
             parts.append(final_think)
         answer = final_answer
 
-    think = "\n".join(parts).strip()
+    think = "\n\n".join(parts).strip()
     return think, answer
 
 
