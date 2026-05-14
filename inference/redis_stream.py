@@ -132,7 +132,7 @@ def recompute_aggregates(
         if topic_locate.get("done"):
             ywzt = (topic_locate.get("ywzt") or "").strip()
             if ywzt:
-                parts.append(f"###【专题Know How定位】\n\t{ywzt}")
+                parts.append(f"【专题Know How定位】\n{ywzt}")
 
     # 2) preview 段
     p_think = (preview.get("think") or "").strip()
@@ -166,14 +166,14 @@ def recompute_aggregates(
                 if prev_answer:
                     parts.append(prev_answer)
 
-        # 4) 最终轮：先 final.think，再【引用知识章节】（作为 think 字段尾段）
+        # 4) 最终轮：先【引用知识章节】，再 final.think
         if final_think:
-            parts.append(final_think)
             used_headings = react.get("usedHeadings") or []
             if used_headings:
                 cited = "\n".join(str(h) for h in used_headings if h)
                 if cited:
-                    parts.append(f"###【引用知识章节】\n{cited}")
+                    parts.append(f"【引用知识章节】\n{cited}")
+            parts.append(final_think)
         answer = final_answer
 
     # 拒答覆盖：候选业务专题非唯一时整体退化为单条拒答 answer。
