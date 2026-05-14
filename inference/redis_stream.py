@@ -56,7 +56,25 @@ def make_initial_snapshot(
         "status": "pending",
         "preview": {"think": "", "answer": "", "done": False},
         "skills": [],
-        "react": {"round": 0, "chunks": []},
+        # react.usedHeadings：react_loop 在确定要进 final 轮之前回填的"真正进入
+        # prompt 的知识章节叶子标题"列表（原样形如 ``1.1_章节名``，去重保序）。
+        # 仅供 SSE think 聚合时渲染【引用知识章节】段；不影响给 LLM 的 prompt。
+        "react": {"round": 0, "chunks": [], "usedHeadings": []},
+        # topicLocate：仅 /api/inference/stream 在用户未指定 policyId 时会写入，
+        # 用于把外部【专题Know How定位】SSE 的 reasoning 流式转发到 think 字段，
+        # 并以 ``###【专题Know How定位】\n\t{ywzt}`` 收口。各字段语义：
+        # - reasoning: 外部 SSE ``data.reasoning``（每帧全量字符串，覆盖式更新）
+        # - ywzt:      外部 SSE finish 帧的业务专题名（命中时填）
+        # - done:      finish 且唯一命中时为 True，触发 ywzt 收口段渲染
+        # - skipped:   用户已传 policyId（或 V4 路径）时为 True，整段不展示
+        # - refusal:   候选业务专题非唯一（0/多）时的拒答文案，由聚合规则覆盖到接口 answer
+        "topicLocate": {
+            "reasoning": "",
+            "ywzt": "",
+            "done": False,
+            "skipped": False,
+            "refusal": "",
+        },
         "intermediateThinkEnabled": flag,
         "think": "",
         "answer": "",
@@ -76,12 +94,21 @@ def recompute_aggregates(
     snapshot: Snapshot,
     intermediate_think_enabled: Optional[bool] = None,
 ) -> tuple[str, str]:
-    """根据 react/preview 子结构重算接口 ``think`` / ``answer``。
+    """根据 react/preview/topicLocate 子结构重算接口 ``think`` / ``answer``。
 
-    - 默认模式（开关关）：``preview.think + preview.answer + chunks[final-1].answer + chunks[final].think``
-    - 开关开：``preview.* + 非最终轮(think+answer) 全拼接 + chunks[final].think``
-    - 各拼接块之间以空行（``\\n\\n``）分隔，便于前端按 markdown 段落渲染。
-    - ``answer`` 始终只取最终轮 ``chunk.answer``，未到最终轮则为空字符串。
+    拼接顺序（块间以空行 ``\\n\\n`` 分隔）：
+
+    1. **topicLocate**（仅 ``skipped=False`` 时输出，按需）：
+       - 流式覆盖的 ``reasoning``；
+       - finish 后命中且 ``ywzt`` 非空：``###【专题Know How定位】\\n\\t{ywzt}``。
+    2. **preview**：``preview.think`` / ``preview.answer``。
+    3. **react 中间轮**：开关关时仅最终轮前一轮的 ``answer``；开关开时全部非最终轮 ``think+answer``。
+    4. **react 最终轮**：
+       - ``react.usedHeadings`` 非空时先渲染 ``###【引用知识章节】\\n{每行一条}``；
+       - 然后再追加 final chunk 的 ``think``（final.answer 落到接口 ``answer``）。
+
+    ``answer`` 默认取最终轮 ``chunk.answer``；若 ``topicLocate.refusal`` 非空（候选业务专题
+    非唯一/定位失败的拒答场景）则**优先覆盖**为拒答文案，便于前端直接展示。
     """
 
     if intermediate_think_enabled is None:
@@ -92,8 +119,21 @@ def recompute_aggregates(
     preview = snapshot.get("preview") or {}
     react = snapshot.get("react") or {}
     chunks = react.get("chunks") or []
+    topic_locate = snapshot.get("topicLocate") or {}
 
     parts: list[str] = []
+
+    # 1) topicLocate 段：仅在未跳过时尝试输出。reasoning 先到、ywzt 收口后到。
+    if not topic_locate.get("skipped"):
+        tl_reason = (topic_locate.get("reasoning") or "").strip()
+        if tl_reason:
+            parts.append(tl_reason)
+        if topic_locate.get("done"):
+            ywzt = (topic_locate.get("ywzt") or "").strip()
+            if ywzt:
+                parts.append(f"###【专题Know How定位】\n\t{ywzt}")
+
+    # 2) preview 段
     p_think = (preview.get("think") or "").strip()
     p_answer = (preview.get("answer") or "").strip()
     if p_think:
@@ -108,6 +148,7 @@ def recompute_aggregates(
         final_think = (final_chunk.get("think") or "").strip()
         final_answer = (final_chunk.get("answer") or "").strip()
 
+        # 3) 中间轮拼接
         if intermediate_think_enabled:
             for i in range(final_idx):
                 c = chunks[i] or {}
@@ -124,9 +165,20 @@ def recompute_aggregates(
                 if prev_answer:
                     parts.append(prev_answer)
 
+        # 4) 最终轮：先【引用知识章节】，再 final.think
         if final_think:
+            used_headings = react.get("usedHeadings") or []
+            if used_headings:
+                cited = "\n".join(str(h) for h in used_headings if h)
+                if cited:
+                    parts.append(f"###【引用知识章节】\n{cited}")
             parts.append(final_think)
         answer = final_answer
+
+    # 拒答覆盖：候选业务专题非唯一时整体退化为单条拒答 answer。
+    refusal = (topic_locate.get("refusal") or "").strip()
+    if refusal:
+        answer = refusal
 
     think = "\n\n".join(parts).strip()
     return think, answer
@@ -372,6 +424,94 @@ class RedisStream:
             chunks[round_idx]["complete"] = bool(complete)
             if verdict is not None:
                 chunks[round_idx]["verdict"] = verdict
+
+        return await self.update(task_id, _mut)
+
+    async def set_used_headings(
+        self,
+        task_id: str,
+        headings: list[str],
+    ) -> Snapshot:
+        """react_loop 在确定要进 final 轮之前回填"真正进入 prompt 的章节叶子标题"。
+
+        ``headings`` 已由调用方去重保序，元素形如 ``1.1_章节名``。聚合规则会在 final
+        chunk think 之前渲染 ``###【引用知识章节】`` 段（仅影响 SSE think 字段，不影响
+        给 LLM 的 prompt）。
+        """
+
+        def _mut(s: Snapshot) -> None:
+            react = s.setdefault("react", {"round": 0, "chunks": []})
+            react["usedHeadings"] = [str(h) for h in (headings or []) if h]
+
+        return await self.update(task_id, _mut)
+
+    # ----- topic locate ---------------------------------------------
+    #
+    # 仅 /api/inference/stream 在用户未指定 policyId 时调用。所有写法都走 update,
+    # 让 recompute_aggregates 自动把 topicLocate 段拼到接口 think/answer 上。
+
+    async def append_topic_locate_reasoning(
+        self,
+        task_id: str,
+        reasoning_full: str,
+    ) -> Snapshot:
+        """**覆盖式**写入外部【专题Know How定位】SSE 的 ``data.reasoning``。
+
+        外部接口每帧推送的就是当前累积的全量 reasoning 字符串（非增量 delta），
+        这里直接覆盖最自然，且能避免重复拼接放大体积。
+        """
+
+        def _mut(s: Snapshot) -> None:
+            tl = s.setdefault("topicLocate", {
+                "reasoning": "", "ywzt": "", "done": False,
+                "skipped": False, "refusal": "",
+            })
+            tl["reasoning"] = reasoning_full or ""
+
+        return await self.update(task_id, _mut)
+
+    async def set_topic_locate_done(
+        self,
+        task_id: str,
+        ywzt: str,
+    ) -> Snapshot:
+        """外部 SSE finish 帧、且候选业务专题唯一命中时调用，触发 ywzt 收口段渲染。"""
+
+        def _mut(s: Snapshot) -> None:
+            tl = s.setdefault("topicLocate", {
+                "reasoning": "", "ywzt": "", "done": False,
+                "skipped": False, "refusal": "",
+            })
+            tl["ywzt"] = (ywzt or "").strip()
+            tl["done"] = True
+
+        return await self.update(task_id, _mut)
+
+    async def set_topic_locate_skipped(self, task_id: str) -> Snapshot:
+        """已传 policyId（或 V4 路径）时调用：整段【专题Know How定位】不展示。"""
+
+        def _mut(s: Snapshot) -> None:
+            tl = s.setdefault("topicLocate", {
+                "reasoning": "", "ywzt": "", "done": False,
+                "skipped": False, "refusal": "",
+            })
+            tl["skipped"] = True
+
+        return await self.update(task_id, _mut)
+
+    async def set_topic_locate_refusal(
+        self,
+        task_id: str,
+        refusal: str,
+    ) -> Snapshot:
+        """候选业务专题非唯一/定位异常时写入拒答文案，由聚合规则覆盖到接口 answer。"""
+
+        def _mut(s: Snapshot) -> None:
+            tl = s.setdefault("topicLocate", {
+                "reasoning": "", "ywzt": "", "done": False,
+                "skipped": False, "refusal": "",
+            })
+            tl["refusal"] = (refusal or "").strip()
 
         return await self.update(task_id, _mut)
 

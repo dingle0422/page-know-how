@@ -242,10 +242,17 @@ class ReasonRequest(BaseModel):
         description="知识分块模式的字符数上限，0 表示不启用（web 默认 3000 启用 chunk 模式）",
     )
     version: str = Field(
-        default="v3",
+        default="v4",
         description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt, "
                     "v3=v2 基础上把最终汇总节点 system prompt 切换为 _CORPUS_SYSTEM_PROMPT 训练样本风格；"
-                    "默认 v2）",
+                    "v4=底层切到 /api/inference/stream 那套 pipeline（preview+skills+hybrid 检索+多轮 ReAct），"
+                    "等 inference 任务跑完再把 react 流式最后一个 final 节点的 think/answer 同步回填到 ReasonData，"
+                    "khObj 取实际进入 react prompt 的 chunks 的 heading_paths 叶子；"
+                    "v4 下 reasoner 专属字段（cleanAnswer/summaryBatchSize/retrievalMode/checkPitfalls/"
+                    "summaryCleanAnswer/answerSystemPrompt/lastThink/thinkMode/enableRelations/relationMaxDepth/"
+                    "relationMaxNodes/relationWorkers/relationsExpansionMode/summaryPipelineMode/reduceMaxPartDepth/"
+                    "pureModelResult/answerRefine/enableSkillDoubleCheck）一律忽略；"
+                    "默认 v4）",
     )
     enableSkills: bool = Field(
         default=True,
@@ -369,6 +376,38 @@ class ReasonRequest(BaseModel):
                     "精简结果写入响应 answer 字段；thinkMode=False 时直接覆盖响应 answer 字段。"
                     "与 cleanAnswer / summaryCleanAnswer / thinkMode / lastThink 完全正交。"
                     "仅在 version=v1/v2 下生效",
+    )
+    # ----- V4 专属字段（仅在 version=v4 下生效）-----
+    # 这几个字段对齐 InferenceRequest 的同名字段，让 v4 路径可以从 ReasonRequest 入口
+    # 调到底层 inference pipeline 里的 preview/skills/hybrid 三件参数。
+    # 其他 version 收到这些字段会被忽略，不打 warning（保持 V3 路径噪音零）。
+    streamChunkSize: int = Field(
+        default=500,
+        ge=100,
+        le=20000,
+        description="V4 专属：inference 离线建索引时切原文 chunk 的字符上限"
+                    "（与 InferenceRequest.chunkSize 同义，默认 500 对齐 INFERENCE_DEFAULT_CHUNK_SIZE）。"
+                    "**与 reasoner 的 chunkSize 完全解耦** —— 同一 policyId 下不同 streamChunkSize 会落到独立"
+                    "的 LanceDB 表（``{policyId}__cs{streamChunkSize}``），互不覆盖，按需触发建库。"
+                    "其他 version 忽略本字段（reasoner 路径继续走自身 chunkSize）",
+    )
+    previewEnabled: bool = Field(
+        default=True,
+        description="V4：是否在 inference pipeline 中启动 preview 阶段（与 InferenceRequest.previewEnabled 同义）。"
+                    "其他 version 忽略",
+    )
+    topN: int = Field(
+        default=20, ge=1, le=200,
+        description="V4：hybrid_search 的 semantic 召回上限（与 InferenceRequest.topN 同义）。其他 version 忽略",
+    )
+    topM: int = Field(
+        default=20, ge=1, le=200,
+        description="V4：hybrid_search 的 BM25 召回上限（与 InferenceRequest.topM 同义）。其他 version 忽略",
+    )
+    intermediateThinkEnabled: bool | None = Field(
+        default=True,
+        description="V4：中间 ReAct 轮是否开 think（与 InferenceRequest.intermediateThinkEnabled 同义）。"
+                    "null 表示沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK；其他 version 忽略",
     )
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
@@ -1480,18 +1519,26 @@ async def _reason_executor(request_payload: dict) -> dict:
     输出：与 ReasonData 字段一致的 dict，便于 result / 同步包装接口直接构造 ReasonData。
 
     异常会被 WorkerPool 捕获并写入 task.error / status=failed，这里只管正常路径抛干净的异常。
+
+    版本路由：
+
+    - ``version=v4``  -> :func:`_run_inference_v4_executor`：底层切到 inference pipeline
+      （preview + skills + hybrid 检索 + 多轮 ReAct），最终从 redis 快照回填 react 流式
+      最后一个 final 节点的 think/answer。
+    - ``version=v0/v1/v2/v3`` -> :func:`_run_reasoning`：原 reasoner 路径完全保持不变。
     """
     policy_id = request_payload["policyId"]
     question = request_payload["question"]
     task_id = request_payload.get("taskId") or str(uuid.uuid4())
     req_verbose = bool(request_payload.get("verbose", VERBOSE_DEFAULT_ENABLED))
+    version = request_payload.get("version", "v4")
 
     session_meta = {
         "endpoint": "/api/reason/submit",
         "taskId": task_id,
         "policyId": policy_id,
         "question": question,
-        "version": request_payload.get("version", "v1"),
+        "version": version,
         "vendor": request_payload.get("vendor"),
         "model": request_payload.get("model"),
         "retrievalMode": request_payload.get("retrievalMode"),
@@ -1502,6 +1549,21 @@ async def _reason_executor(request_payload: dict) -> dict:
         "pureModelResult": request_payload.get("pureModelResult"),
         "answerRefine": request_payload.get("answerRefine"),
     }
+    if version == "v4":
+        # V4 走 inference pipeline，单独打几个面向 inference 的 meta 字段，便于
+        # verbose_logs/ 下与 reasoner 路径区分；reasoner 专属字段在 V4 路径下不生效，
+        # 但仍保留在 meta 里作为请求原貌存档。
+        session_meta.update({
+            "engine": "inference_pipeline",
+            "streamChunkSize": request_payload.get("streamChunkSize"),
+            "previewEnabled": request_payload.get("previewEnabled"),
+            "skillsEnabled": request_payload.get("enableSkills"),
+            "topN": request_payload.get("topN"),
+            "topM": request_payload.get("topM"),
+            "intermediateThinkEnabled": request_payload.get("intermediateThinkEnabled"),
+            "maxRounds": request_payload.get("maxRounds"),
+        })
+
     with _open_verbose_session(
         session_id=task_id,
         meta=session_meta,
@@ -1509,17 +1571,24 @@ async def _reason_executor(request_payload: dict) -> dict:
     ) as _session:
         resp_log_name = _session.file_path.name if _session is not None else None
 
+        if version == "v4":
+            # V4：底层 inference pipeline 自带知识/索引兜底（_run_inference_v4_executor
+            # 内部会调 _get_or_extract_knowledge + _ensure_inference_artifacts），这里
+            # 直接转发 request_payload，避免重复 IO。
+            return await _run_inference_v4_executor(
+                request_payload,
+                task_id=task_id,
+                log_name=resp_log_name,
+            )
+
+        # ----- 原 reasoner 路径（v0/v1/v2/v3）：以下逻辑保持不变 -----
+        # reasoner 直接消费 page_knowledge/{root}/ 下的 markdown 树，与 inference
+        # 模块（hybrid_search / LanceDB）零耦合 —— 这里不再"顺手"建 inference 默认
+        # chunkSize 索引。新 policy 的 inference 索引由 /api/kh/update 抽取成功后
+        # 主动建一次默认 chunkSize 索引；老 policy 走 /api/inference/stream 时由
+        # 路由内部的 _ensure_inference_artifacts 按入参 chunkSize 兜底建库。V4 路径
+        # 也走自身的 streamChunkSize 维度独立兜底，不依赖这里。
         knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
-        # 兜底：历史 policy 可能没建过 inference 检索索引（缺默认 chunkSize 的 meta 文件），
-        # 这里检测一次，缺啥补啥。不影响 reasoner 主流程，只是为了让同 policy 后续走
-        # /api/inference/stream 默认 chunkSize 时也能直接命中 hybrid 检索；
-        # 非默认 chunkSize 的索引仍由 /api/inference/stream 自身按需建库。
-        from inference import config as _inf_config
-        await _ensure_inference_artifacts(
-            knowledge_dir,
-            policy_id=policy_id,
-            chunk_size=_inf_config.INFERENCE_DEFAULT_CHUNK_SIZE,
-        )
         if req_verbose:
             _log_verbose_event(
                 "knowledge_ready",
@@ -1529,7 +1598,7 @@ async def _reason_executor(request_payload: dict) -> dict:
 
         result = await asyncio.to_thread(
             _run_reasoning, question, knowledge_dir,
-            version=request_payload.get("version", "v1"),
+            version=version,
             max_rounds=request_payload.get("maxRounds", 10),
             vendor=request_payload.get("vendor", "aliyun"),
             model=request_payload.get("model", "deepseek-v3.2"),
@@ -2041,7 +2110,19 @@ from inference.redis_stream import RedisStream as _InferenceRedisStream  # noqa:
 
 
 class InferenceRequest(BaseModel):
-    policyId: str
+    # policyId 可为空：未传/空字符串时触发【专题Know How定位】流程，自动用问题去
+    # 外部 SSE 接口（http://mlp.paas.dc.servyou-it.com/kh_classify/ywzt_classify_stream）
+    # 拿到 ywzt + policyId 唯一命中后再继续走原 inference 流程；非唯一命中时直接拒答。
+    # 历史调用方一直传字符串的兼容性不变。
+    policyId: str | None = Field(
+        default=None,
+        description=(
+            "知识库的 policyId。未传或空字符串时会先调用【专题Know How定位】"
+            "外部 SSE 接口自动定位（接口流式输出会同步转发到 think 字段），"
+            "命中唯一业务专题后用解析出的 policyId 走后续 preview→skills→react 流程；"
+            "命中 0 个或多个专题时直接在 answer 字段拒答。"
+        ),
+    )
     question: str
     taskId: str | None = None
     vendor: str = "aliyun"
@@ -2189,88 +2270,268 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
         await asyncio.sleep(tick)
 
 
+def _build_inference_options(req: InferenceRequest) -> _InferenceOptions:
+    """从请求体构造 _InferenceOptions。已传 policyId 与自动定位两条路径共用。"""
+
+    return _InferenceOptions(
+        vendor=req.vendor,
+        model=req.model,
+        preview_enabled=bool(req.previewEnabled),
+        skills_enabled=bool(req.skillsEnabled),
+        top_n=int(req.topN),
+        top_m=int(req.topM),
+        intermediate_think_enabled=req.intermediateThinkEnabled,
+    )
+
+
+def _build_inference_session_meta(
+    *,
+    task_id: str,
+    policy_id: str,
+    index_policy_id: str,
+    chunk_size: int,
+    req: InferenceRequest,
+    topic_located: bool,
+) -> dict:
+    """构造 verbose session 元数据。``topic_located=True`` 表示本次 policyId 是
+    通过【专题Know How定位】自动拿到的（便于后续诊断对账）。"""
+
+    return {
+        "endpoint": "/api/inference/stream",
+        "taskId": task_id,
+        "policyId": policy_id,
+        "indexPolicyId": index_policy_id,
+        "chunkSize": chunk_size,
+        "question": req.question,
+        "vendor": req.vendor,
+        "model": req.model,
+        "previewEnabled": bool(req.previewEnabled),
+        "skillsEnabled": bool(req.skillsEnabled),
+        "topN": int(req.topN),
+        "topM": int(req.topM),
+        "intermediateThinkEnabled": req.intermediateThinkEnabled,
+        "topicLocated": bool(topic_located),
+    }
+
+
+async def _run_inference_with_topic_locator(
+    *,
+    task_id: str,
+    chunk_size: int,
+    rs: _InferenceRedisStream,
+    req: InferenceRequest,
+) -> None:
+    """未指定 policyId 时的后台主任务：先跑【专题Know How定位】拿 policyId，
+    再走与 ``_run_inference_with_verbose`` 完全一致的后续流程。
+
+    与原 ``inference_stream`` 的差异在于：知识准备 / 索引兜底也被推到后台执行
+    （因为它们依赖定位结果），请求 handler 只做 ``rs.init`` 后立即返回 SSE relay,
+    避免阻塞 SSE 第一帧。
+    """
+
+    from inference.topic_locator import run_topic_locator
+    from inference.retrieval.indexer import make_index_policy_id as _make_index_policy_id
+
+    # 1) 调外部 SSE 拿 policyId / ywzt
+    try:
+        policy_id, ywzt, refusal = await run_topic_locator(
+            task_id, req.question, rs
+        )
+    except Exception as e:
+        logger.exception(
+            "[inference_stream] task=%s 专题定位调用异常: %s", task_id, e
+        )
+        try:
+            await rs.set_topic_locate_refusal(
+                task_id, f"专题定位调用失败：{e}"
+            )
+        finally:
+            await rs.set_status(task_id, "done")
+        return
+
+    if refusal is not None:
+        logger.info(
+            "[inference_stream] task=%s 专题定位拒答: %s", task_id, refusal
+        )
+        try:
+            await rs.set_topic_locate_refusal(task_id, refusal)
+        finally:
+            await rs.set_status(task_id, "done")
+        return
+
+    # 2) 拿到 policyId 后跑原 inference 流程（与已传 policyId 分支同构）
+    logger.info(
+        "[inference_stream] task=%s 专题定位命中 policyId=%s ywzt=%s，"
+        "继续走 inference pipeline",
+        task_id, policy_id, ywzt,
+    )
+    try:
+        knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
+    except Exception as e:
+        logger.exception(
+            "[inference_stream] task=%s policyId=%s 知识准备失败: %s",
+            task_id, policy_id, e,
+        )
+        try:
+            await rs.set_topic_locate_refusal(
+                task_id, f"知识准备失败（policyId={policy_id}）：{e}"
+            )
+        finally:
+            await rs.set_status(task_id, "done")
+        return
+
+    try:
+        await _ensure_inference_artifacts(
+            knowledge_dir,
+            policy_id=policy_id,
+            chunk_size=chunk_size,
+        )
+    except Exception as e:
+        logger.exception(
+            "[inference_stream] task=%s policyId=%s 索引兜底失败: %s",
+            task_id, policy_id, e,
+        )
+        try:
+            await rs.set_topic_locate_refusal(
+                task_id, f"索引兜底失败（policyId={policy_id}）：{e}"
+            )
+        finally:
+            await rs.set_status(task_id, "done")
+        return
+
+    index_policy_id = _make_index_policy_id(policy_id, chunk_size)
+    options = _build_inference_options(req)
+    session_meta = _build_inference_session_meta(
+        task_id=task_id,
+        policy_id=policy_id,
+        index_policy_id=index_policy_id,
+        chunk_size=chunk_size,
+        req=req,
+        topic_located=True,
+    )
+
+    await _run_inference_with_verbose(
+        task_id=task_id,
+        question=req.question,
+        policy_id=policy_id,
+        index_policy_id=index_policy_id,
+        chunk_size=chunk_size,
+        rs=rs,
+        options=options,
+        verbose=bool(req.verbose),
+        session_meta=session_meta,
+    )
+
+
 @app.post("/api/inference/stream")
 async def inference_stream(req: InferenceRequest):
-    """启动（或接力）一个快速流式推理任务，以 SSE 推送 (think, answer, status)。"""
+    """启动（或接力）一个快速流式推理任务，以 SSE 推送 (think, answer, status)。
+
+    分两条路径：
+
+    - **已传 policyId**：完全沿用历史行为——同步做知识准备 + 索引兜底，再把
+      pipeline 丢到后台 task；topicLocate 段标记为 ``skipped=True`` 不展示。
+    - **未传 policyId**（``None`` 或空字符串）：``rs.init`` 后立刻把整个
+      "topic_locator → 知识准备 → 索引兜底 → pipeline" 链路丢到后台 task,
+      请求侧立刻返回 SSE relay，让外部 SSE 的 reasoning 通过聚合规则转发到 think。
+    """
 
     client = _require_redis()
     rs = _InferenceRedisStream(client)
 
     task_id = (req.taskId or str(uuid.uuid4())).strip() or str(uuid.uuid4())
     chunk_size = int(req.chunkSize)
-    # 服务端 LanceDB 表名：基础 policyId 拼 chunkSize 后缀，区分同 policy 下的多套 chunkSize 索引。
+    raw_pid = (req.policyId or "").strip()
+
     from inference.retrieval.indexer import make_index_policy_id as _make_index_policy_id
 
-    index_policy_id = _make_index_policy_id(req.policyId, chunk_size)
     existed = await rs.exists(task_id)
     if not existed:
-        # 复用现有抽取流程，确保 knowledge_dir 存在；返回值用于后续检索索引兜底。
-        try:
-            knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, req.policyId)
-        except Exception as e:
-            logger.exception(f"[inference_stream] policyId={req.policyId} 知识准备失败: {e}")
-            raise HTTPException(status_code=400, detail=f"知识准备失败: {e}") from e
-
-        # 兜底：当前 (policyId, chunkSize) 维度的 meta 缺失/过期时即时建库；
-        # 同 root 下其它 chunkSize 的索引不会被本次构建覆盖。
-        await _ensure_inference_artifacts(
-            knowledge_dir,
-            policy_id=req.policyId,
-            chunk_size=chunk_size,
-        )
-
+        # rs.init 不强依赖 policyId：自动定位路径下后续会用解析出的 policyId 走 pipeline,
+        # 这里 rs 快照只承担 SSE think/answer 聚合的载体，policyId 字段空也没影响。
         await rs.init(
             req.question,
-            req.policyId,
+            raw_pid,
             task_id=task_id,
             intermediate_think_enabled=req.intermediateThinkEnabled,
         )
 
-        options = _InferenceOptions(
-            vendor=req.vendor,
-            model=req.model,
-            preview_enabled=bool(req.previewEnabled),
-            skills_enabled=bool(req.skillsEnabled),
-            top_n=int(req.topN),
-            top_m=int(req.topM),
-            intermediate_think_enabled=req.intermediateThinkEnabled,
-        )
-        session_meta = {
-            "endpoint": "/api/inference/stream",
-            "taskId": task_id,
-            "policyId": req.policyId,
-            "indexPolicyId": index_policy_id,
-            "chunkSize": chunk_size,
-            "question": req.question,
-            "vendor": req.vendor,
-            "model": req.model,
-            "previewEnabled": bool(req.previewEnabled),
-            "skillsEnabled": bool(req.skillsEnabled),
-            "topN": int(req.topN),
-            "topM": int(req.topM),
-            "intermediateThinkEnabled": req.intermediateThinkEnabled,
-        }
-        # 后台 pipeline 与请求生命周期解耦：客户端断连后台仍继续跑，
-        # 重连时凭 taskId 即可继续转发同一份快照。
-        # verbose=True 时：包装层开启与 taskId 同名的 jsonl 日志文件，
-        # preview/skills/react_loop 各阶段的 LLM 调用会通过 verbose_logger 落盘，
-        # 与 /api/reason/submit 的日志结构完全一致。
-        # NOTE：pipeline.run 内部走 hybrid_search 时需要使用带 chunkSize 后缀的 index_policy_id
-        # 作为服务端表名；req.policyId 仅在外层用于 redis 快照 / 抽取 root 反查 / 日志可读。
-        asyncio.create_task(
-            _run_inference_with_verbose(
+        if raw_pid:
+            # 已传 policyId：标记 topicLocate.skipped=True，让聚合规则跳过该段渲染。
+            try:
+                await rs.set_topic_locate_skipped(task_id)
+            except Exception as e:
+                logger.warning(
+                    "[inference_stream] task=%s 设置 topicLocate.skipped 失败（忽略）: %s",
+                    task_id, e,
+                )
+
+            # 同步做知识准备，便于在 handler 阶段把"policyId 不存在"等错误以 4xx 直接告知客户端。
+            try:
+                knowledge_dir = await asyncio.to_thread(
+                    _get_or_extract_knowledge, raw_pid
+                )
+            except Exception as e:
+                logger.exception(
+                    f"[inference_stream] policyId={raw_pid} 知识准备失败: {e}"
+                )
+                raise HTTPException(
+                    status_code=400, detail=f"知识准备失败: {e}"
+                ) from e
+
+            # 兜底：当前 (policyId, chunkSize) 维度的 meta 缺失/过期时即时建库；
+            # 同 root 下其它 chunkSize 的索引不会被本次构建覆盖。
+            await _ensure_inference_artifacts(
+                knowledge_dir,
+                policy_id=raw_pid,
+                chunk_size=chunk_size,
+            )
+
+            index_policy_id = _make_index_policy_id(raw_pid, chunk_size)
+            options = _build_inference_options(req)
+            session_meta = _build_inference_session_meta(
                 task_id=task_id,
-                question=req.question,
-                policy_id=req.policyId,
+                policy_id=raw_pid,
                 index_policy_id=index_policy_id,
                 chunk_size=chunk_size,
-                rs=rs,
-                options=options,
-                verbose=bool(req.verbose),
-                session_meta=session_meta,
-            ),
-            name=f"inference-pipeline:{task_id}",
-        )
+                req=req,
+                topic_located=False,
+            )
+            # 后台 pipeline 与请求生命周期解耦：客户端断连后台仍继续跑，
+            # 重连时凭 taskId 即可继续转发同一份快照。
+            # verbose=True 时：包装层开启与 taskId 同名的 jsonl 日志文件,
+            # preview/skills/react_loop 各阶段的 LLM 调用会通过 verbose_logger 落盘,
+            # 与 /api/reason/submit 的日志结构完全一致。
+            # NOTE：pipeline.run 内部走 hybrid_search 时需要使用带 chunkSize 后缀的
+            # index_policy_id 作为服务端表名；raw_pid 仅在外层用于 redis 快照 /
+            # 抽取 root 反查 / 日志可读。
+            asyncio.create_task(
+                _run_inference_with_verbose(
+                    task_id=task_id,
+                    question=req.question,
+                    policy_id=raw_pid,
+                    index_policy_id=index_policy_id,
+                    chunk_size=chunk_size,
+                    rs=rs,
+                    options=options,
+                    verbose=bool(req.verbose),
+                    session_meta=session_meta,
+                ),
+                name=f"inference-pipeline:{task_id}",
+            )
+        else:
+            # 未传 policyId：整个 topic_locator + 知识准备 + pipeline 都丢后台。
+            # 任何阶段的失败都会被 helper 内部翻译成 topicLocate.refusal + status=done,
+            # 不会让客户端 SSE 接力卡住。
+            asyncio.create_task(
+                _run_inference_with_topic_locator(
+                    task_id=task_id,
+                    chunk_size=chunk_size,
+                    rs=rs,
+                    req=req,
+                ),
+                name=f"inference-pipeline-auto:{task_id}",
+            )
 
     return StreamingResponse(
         _sse_relay(task_id, rs),
@@ -2281,6 +2542,383 @@ async def inference_stream(req: InferenceRequest):
             "X-Accel-Buffering": "no",  # 兜住 nginx 默认 buffering 把 SSE 卡到关流才下发
         },
     )
+
+
+# ---------------------------------------------------------------- V4 reason 执行器
+#
+# V4：/api/reason/submit 走 inference 这套 pipeline（preview + skills + hybrid 检索 +
+# 多轮 ReAct），等任务跑完后把流式 react 最后一个 final 节点的 think/answer 同步收口
+# 为 ReasonData。与 /api/inference/stream 唯一的差异是不通过 SSE 推送，最终结果按
+# /api/reason/submit + /api/reason/result/{taskId} 的同步语义返回。
+#
+# 不侵入 inference/ 源码，只复用其公共函数：
+#   - inference.preview.run / inference.skills_runner.run
+#   - inference.retrieval.hybrid_search
+#   - inference.react_loop.run（chunks 打包 + 多轮 ReAct 主循环）
+#   - inference.redis_stream.RedisStream
+#   - inference.retrieval.indexer.make_index_policy_id
+#
+# react_loop 内部把 chunks 按字符上限重打包成"轮组"再喂模型，可能在中间轮判
+# `complete` 后提前收尾——只有真正进入 prompt 的 chunks 才计入 khObj，避免把召回但
+# 未被使用的章节挂到 ReasonData 上误导前端。
+
+# 与 inference.react_loop._CHUNK_SEPARATOR 对齐的 group 拼接分隔符；这里就地复制
+# 一份常量避免对 inference 私有成员的强依赖。任何一边升级该常量都要顺手对齐这里。
+_V4_PACK_SEPARATOR = "\n\n---\n\n"
+
+
+def _v4_repack_groups_with_chunk_indices(
+    chunks: list,
+    *,
+    chunk_size: int,
+    max_rounds: int,
+) -> list[list[int]]:
+    """复算 :func:`inference.react_loop.pack_chunks_by_size`，但保留每组对应的 chunk 索引。
+
+    与原算法逐条对齐（含 ``max_rounds`` 上限合并尾部的兜底）。本函数只暴露索引列表，
+    不做字符串拼接，避免重复内存。返回 ``list[list[int]]``，与 react_loop 内部 ``groups``
+    一一对应；``len(groups)`` 即 react_loop 主循环的 ``total_groups``。
+    """
+
+    sep_len = len(_V4_PACK_SEPARATOR)
+    groups: list[list[int]] = []
+    current: list[int] = []
+    current_len = 0
+    for i, c in enumerate(chunks):
+        text = (getattr(c, "content", "") or "").strip()
+        if not text:
+            continue
+        addition = len(text) + (sep_len if current else 0)
+        if current and current_len + addition > chunk_size:
+            groups.append(current)
+            current = []
+            current_len = 0
+            addition = len(text)
+        current.append(i)
+        current_len += addition
+    if current:
+        groups.append(current)
+
+    if max_rounds > 0 and len(groups) > max_rounds:
+        head = groups[: max_rounds - 1]
+        tail = [idx for grp in groups[max_rounds - 1 :] for idx in grp]
+        groups = head + [tail]
+    return groups
+
+
+def _v4_resolve_used_chunk_indices(
+    groups: list[list[int]],
+    rounds_done: int,
+) -> list[int]:
+    """根据 :func:`inference.react_loop.run` 返回的 ``rounds`` 反推哪些 chunks 真正进入了 prompt。
+
+    react_loop.run 行为约定（见 ``inference/react_loop.py`` 主循环）：
+
+    - 跑到最后一组证据自然收尾：``rounds_done == len(groups)``，全部 group 被使用；
+    - 中间轮 verdict=``complete`` 触发"强制 final"：``rounds_done = forced_final_after_idx + 2``,
+      forced final 复用同一 group_idx 不引入新 group，所以 used = ``rounds_done - 1``;
+    - 没有 chunks 时 react_loop 会塞一条占位证据，``rounds_done=1, total_groups=1``,
+      但此时 chunks 列表本身就空，``groups`` 也为空，本函数返回 ``[]``。
+    """
+
+    if not groups or rounds_done <= 0:
+        return []
+    total = len(groups)
+    if rounds_done >= total:
+        used_groups = groups
+    else:
+        # 中间轮 complete + 强制 final：实际只跑了 rounds_done-1 个真实 group。
+        used_groups = groups[: max(rounds_done - 1, 0)]
+    used: set[int] = set()
+    for grp in used_groups:
+        used.update(grp)
+    return sorted(used)
+
+
+def _v4_build_kh_obj_from_chunks(chunks: list) -> dict[str, str]:
+    """从 ``KnowledgeChunk.heading_paths`` 聚合 khObj。
+
+    每条 path 形如 ``["1_增值税", "1.1_xxx"]``，取叶子拆 ``chapter_num + chapter_name``,
+    与 :func:`_build_kh_obj_from_headings`（reasoner 路径）的接口语义保持一致：
+
+    - 叶子必须 ``"_"`` 分隔且数字开头才计入；
+    - 同名章节先到先得（保留首次写入）。
+    """
+
+    kh_map: dict[str, str] = {}
+    for c in chunks:
+        for path in (getattr(c, "heading_paths", None) or []):
+            if not path:
+                continue
+            leaf = path[-1]
+            if not isinstance(leaf, str) or "_" not in leaf:
+                continue
+            chapter_num, chapter_name = leaf.split("_", 1)
+            if chapter_num and chapter_num[0].isdigit() and chapter_name not in kh_map:
+                kh_map[chapter_name] = chapter_num
+    return kh_map
+
+
+def _v4_skills_result_from_snapshot(skills_snapshot: list[dict] | None) -> dict[str, str]:
+    """把 inference 写入 redis 的 skills 快照转成 ReasonData.skillsResult 形态。
+
+    与 :func:`_build_skills_result`（reasoner 路径）行为对齐：
+
+    - skill 关闭 / 未触发 / 失败 / stdout 为空：跳过；
+    - 同名 skill 多条 stdout：以两个换行拼接。
+    """
+
+    if not skills_snapshot:
+        return {}
+    bucket: dict[str, list[str]] = {}
+    for rec in skills_snapshot:
+        if not isinstance(rec, dict) or not rec.get("success"):
+            continue
+        text = (rec.get("stdout") or "").strip()
+        if not text:
+            continue
+        name = rec.get("name") or ""
+        if not name:
+            continue
+        bucket.setdefault(name, []).append(text)
+    return {n: "\n\n".join(parts) for n, parts in bucket.items()}
+
+
+async def _v4_await_or_log(coro, *, label: str) -> None:
+    """V4 后台任务（preview/skills）异常仅打日志，不影响主流程；与 inference.pipeline._await_or_log 对齐。"""
+
+    try:
+        await coro
+    except Exception as e:
+        logger.exception("[v4] %s 失败: %s", label, e)
+
+
+async def _run_inference_v4_executor(
+    request_payload: dict,
+    *,
+    task_id: str,
+    log_name: str | None,
+) -> dict:
+    """version=v4 路径：以同步语义跑一遍 inference pipeline，返回 ReasonData 字段对齐的 dict。
+
+    与 :func:`_run_inference_with_verbose` + ``inference.pipeline.run`` 的关键差异：
+
+    - 不通过 SSE 推送 ``(think, answer)``，本协程内 await 整个 pipeline 跑完；
+    - 收尾时直接读 redis 里 ``react.chunks[-1]`` 的 think/answer 当作 ReasonData
+      的 think/answer（**不是聚合 think**），符合 V4 用户对"最终总结节点"的语义；
+    - 反推实际进入 react prompt 的 chunks，仅用它们的 ``heading_paths`` 构建 khObj；
+    - skills 直接读 redis 快照里 inference 写入的列表聚合。
+
+    本函数内部不开 verbose session（由 :func:`_reason_executor` 在外层统一打开）;
+    传入的 ``log_name`` 仅用于回写 redis 快照，方便 SSE 客户端 / 后续诊断对齐与 reasoner
+    路径一致的 ``logName`` 字段。
+
+    刻意没直接调用 ``inference.pipeline.run``：react_loop 内部不向外暴露 chunks 列表，
+    而 V4 收尾需要拿原始 chunks 反推 khObj，所以 hybrid_search → react_loop 的串接
+    在本函数局部完成；preview/skills/检索的并发结构与 ``inference.pipeline.run`` 一致。
+    """
+
+    from inference import config as _inf_config
+    from inference.pipeline import InferenceOptions as _Opts
+    from inference.preview import run as _run_preview
+    from inference.skills_runner import run as _run_skills
+    from inference.react_loop import run as _run_react_loop
+    from inference.retrieval import hybrid_search
+    from inference.retrieval.indexer import make_index_policy_id as _make_index_policy_id
+
+    policy_id = request_payload["policyId"]
+    question = request_payload["question"]
+    # V4 走 streamChunkSize（独立于 reasoner 的 chunkSize），缺省/非法时回落到 inference 默认值。
+    # 注意：reasoner 的 chunkSize 在 V4 路径下完全不读取，避免两套语义混用导致 LanceDB 表名漂移。
+    stream_chunk_size_raw = request_payload.get("streamChunkSize")
+    stream_chunk_size = (
+        int(stream_chunk_size_raw)
+        if stream_chunk_size_raw
+        else int(_inf_config.INFERENCE_DEFAULT_CHUNK_SIZE)
+    )
+    if stream_chunk_size <= 0:
+        stream_chunk_size = int(_inf_config.INFERENCE_DEFAULT_CHUNK_SIZE)
+    index_policy_id = _make_index_policy_id(policy_id, stream_chunk_size)
+
+    # 1) 知识 + 索引兜底（与 /api/inference/stream 路由完全一致）
+    knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
+    await _ensure_inference_artifacts(
+        knowledge_dir,
+        policy_id=policy_id,
+        chunk_size=stream_chunk_size,
+    )
+
+    # 2) inference 自己的快照存储（key 前缀 ``inference:task:``），与 /api/reason/result/{taskId}
+    #    走的 ``task:`` 前缀互不冲突；保留这份快照便于 V4 任务也能被 inference SSE 接力查看。
+    rs = _InferenceRedisStream(_require_redis())
+    intermediate_think_raw = request_payload.get("intermediateThinkEnabled", True)
+    intermediate_think_enabled = (
+        bool(intermediate_think_raw) if intermediate_think_raw is not None else None
+    )
+    # overwrite=True：V4 的 task_id 来自 task_queue.submit_task 新生成的 UUID，理论上
+    # 不会撞到 /api/inference/stream 已建过的 inference:task:{taskId}；但为防止极端
+    # race 复用了旧 task_id 时把陈旧快照当作初值聚合 think/answer，这里强制重置一份。
+    await rs.init(
+        question,
+        policy_id,
+        task_id=task_id,
+        intermediate_think_enabled=intermediate_think_enabled,
+        overwrite=True,
+    )
+    # V4 路径不走【专题Know How定位】流程：把 topicLocate 段标记 skipped 让聚合规则
+    # 不渲染该段，避免空字段挂在 SSE think 字段头部（V4 也复用 inference 快照）。
+    try:
+        await rs.set_topic_locate_skipped(task_id)
+    except Exception as e:
+        logger.warning(
+            "[v4] task=%s 设置 topicLocate.skipped 失败（忽略）: %s", task_id, e
+        )
+    if log_name is not None:
+        try:
+            await rs.set_log_name(task_id, log_name)
+        except Exception as e:
+            logger.warning(
+                "[v4] task=%s 回写 logName 到 inference 快照失败（忽略）: %s",
+                task_id, e,
+            )
+
+    opts = _Opts(
+        vendor=request_payload.get("vendor", "aliyun"),
+        model=request_payload.get("model", "deepseek-v3.2"),
+        preview_enabled=bool(request_payload.get("previewEnabled", True)),
+        skills_enabled=bool(request_payload.get("enableSkills", True)),
+        top_n=int(request_payload.get("topN") or _inf_config.TOP_N),
+        top_m=int(request_payload.get("topM") or _inf_config.TOP_M),
+        intermediate_think_enabled=intermediate_think_enabled,
+    )
+
+    react_max_rounds_raw = request_payload.get("maxRounds")
+    react_max_rounds = int(react_max_rounds_raw) if react_max_rounds_raw else int(_inf_config.REACT_MAX_ROUNDS)
+    if react_max_rounds <= 0:
+        react_max_rounds = int(_inf_config.REACT_MAX_ROUNDS)
+
+    # 3) preview/skills 后台并发，hybrid 阻塞主线，react_loop 收尾。
+    bg_tasks: list[asyncio.Task] = []
+    react_result: dict = {}
+    chunks: list = []
+
+    try:
+        await rs.set_status(task_id, "preview")
+
+        if opts.preview_enabled:
+            bg_tasks.append(asyncio.create_task(
+                _v4_await_or_log(
+                    _run_preview(
+                        task_id, question, rs,
+                        vendor=opts.vendor, model=opts.model,
+                    ),
+                    label=f"preview task={task_id}",
+                ),
+                name=f"v4-preview:{task_id}",
+            ))
+        if opts.skills_enabled:
+            bg_tasks.append(asyncio.create_task(
+                _v4_await_or_log(
+                    _run_skills(
+                        task_id, question, rs,
+                        vendor=opts.vendor, model=opts.model,
+                    ),
+                    label=f"skills task={task_id}",
+                ),
+                name=f"v4-skills:{task_id}",
+            ))
+
+        chunks = await hybrid_search(
+            question, index_policy_id,
+            top_n=opts.top_n, top_m=opts.top_m,
+        )
+        logger.info(
+            "[v4] task=%s 检索到 %d 个 chunk（streamChunkSize=%d react_max_rounds=%d）",
+            task_id, len(chunks), stream_chunk_size, react_max_rounds,
+        )
+
+        react_result = await _run_react_loop(
+            task_id, question, chunks, rs,
+            vendor=opts.vendor, model=opts.model,
+            chunk_size=_inf_config.CHUNK_SIZE,  # react 内部按字符上限重打包，与 pipeline.run 一致
+            max_rounds=react_max_rounds,
+            intermediate_think_enabled=intermediate_think_enabled,
+        )
+
+        if bg_tasks:
+            await asyncio.gather(*bg_tasks, return_exceptions=True)
+        await rs.set_status(task_id, "done")
+    except asyncio.CancelledError:
+        logger.warning("[v4] task=%s 被取消", task_id)
+        for t in bg_tasks:
+            t.cancel()
+        try:
+            await rs.set_status(task_id, "failed", error="cancelled")
+        except Exception:
+            pass
+        raise
+    except Exception as e:
+        logger.exception("[v4] task=%s 失败: %s", task_id, e)
+        for t in bg_tasks:
+            t.cancel()
+        try:
+            await rs.set_status(task_id, "failed", error=str(e)[:500])
+        except Exception:
+            pass
+        raise
+
+    # 4) 收尾：从 redis 快照取 react 流式最后一个 chunk 的 think/answer。
+    snapshot = await rs.get(task_id) or {}
+    react_snap = snapshot.get("react") or {}
+    react_chunks_snap: list[dict] = react_snap.get("chunks") or []
+    if react_chunks_snap:
+        final_chunk = react_chunks_snap[-1] or {}
+        think_text = (final_chunk.get("think") or "").strip()
+        answer_text = (final_chunk.get("answer") or "").strip()
+    else:
+        # 极端情况：react_loop 因输入异常没产出任何 chunk；用其返回的 answer 兜底。
+        think_text = ""
+        answer_text = (react_result.get("answer") or "").strip()
+
+    # 5) 反推实际进入 react prompt 的 chunks，构建 khObj。
+    rounds_done = int(react_result.get("rounds") or 0)
+    pack_groups = _v4_repack_groups_with_chunk_indices(
+        chunks,
+        chunk_size=_inf_config.CHUNK_SIZE,
+        max_rounds=react_max_rounds,
+    )
+    used_indices = _v4_resolve_used_chunk_indices(pack_groups, rounds_done)
+    used_chunks = [chunks[i] for i in used_indices]
+    kh_obj = _v4_build_kh_obj_from_chunks(used_chunks)
+
+    if log_name is not None:
+        try:
+            _log_verbose_event(
+                "v4_finished",
+                taskId=task_id,
+                policyId=policy_id,
+                indexPolicyId=index_policy_id,
+                streamChunkSize=stream_chunk_size,
+                reactMaxRounds=react_max_rounds,
+                roundsDone=rounds_done,
+                totalChunks=len(chunks),
+                usedChunks=len(used_chunks),
+                khLeafCount=len(kh_obj),
+                answerPreview=answer_text[:200],
+            )
+        except Exception:
+            # verbose 落盘失败不影响主流程；与 reasoner 路径同口径。
+            pass
+
+    return {
+        "khObj": json.dumps(kh_obj, ensure_ascii=False),
+        "answer": answer_text,
+        "think": think_text,
+        "skillsResult": _v4_skills_result_from_snapshot(snapshot.get("skills")),
+        "policyId": policy_id,
+        "taskId": task_id,
+        "logName": log_name,
+    }
 
 
 if __name__ == "__main__":

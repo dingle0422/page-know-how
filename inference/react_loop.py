@@ -83,6 +83,71 @@ def pack_chunks_by_size(
     return [_CHUNK_SEPARATOR.join(g) for g in groups]
 
 
+def _pack_chunks_with_indices(
+    chunks: list[KnowledgeChunk],
+    *,
+    chunk_size: int = config.CHUNK_SIZE,
+) -> list[list[int]]:
+    """与 :func:`pack_chunks_by_size` 同算法，但返回每组对应的 chunk 索引列表。
+
+    用于 :func:`run` 在确定 final 轮之前反推"真正进入 prompt 的 chunks 集合",
+    把这些 chunk 的 ``heading_paths`` 叶子写到 redis 快照的 ``react.usedHeadings``,
+    供 SSE think 聚合渲染【引用知识章节】段。
+
+    与 :func:`pack_chunks_by_size` 的差异**仅**在返回形态：
+
+    - 这里不做字符串拼接（避免重复内存）；
+    - 跳过的 ``empty`` chunk（content 为空）同样跳过，确保索引语义与上面那套一致。
+    """
+
+    if not chunks:
+        return []
+    sep_len = len(_CHUNK_SEPARATOR)
+    groups: list[list[int]] = []
+    current: list[int] = []
+    current_len = 0
+    for i, c in enumerate(chunks):
+        text = (getattr(c, "content", "") or "").strip()
+        if not text:
+            continue
+        addition = len(text) + (sep_len if current else 0)
+        if current and current_len + addition > chunk_size:
+            groups.append(current)
+            current = []
+            current_len = 0
+            addition = len(text)
+        current.append(i)
+        current_len += addition
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _collect_used_headings(
+    chunks: list[KnowledgeChunk],
+    used_indices: list[int],
+) -> list[str]:
+    """从命中 chunks 的 ``heading_paths`` 中收集叶子标题，去重保序。
+
+    返回元素形如 ``1.1_章节名``（按用户口径直接用叶子原文）。同名叶子（即使来自
+    不同 chunk）只保留首次出现，保证渲染时的稳定顺序。
+    """
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for i in used_indices:
+        if i < 0 or i >= len(chunks):
+            continue
+        for path in (getattr(chunks[i], "heading_paths", None) or []):
+            if not path:
+                continue
+            leaf = path[-1]
+            if isinstance(leaf, str) and leaf and leaf not in seen:
+                seen.add(leaf)
+                out.append(leaf)
+    return out
+
+
 # ---------------------------------------------------------------- 单轮流式
 
 
@@ -291,6 +356,11 @@ async def run(
     )
 
     groups = pack_chunks_by_size(chunks, chunk_size=chunk_size)
+    # groups_indices：与 groups 一一对应的"原始 chunk 索引"列表，用于后续反推
+    # used chunks → heading_paths，供 SSE think 聚合渲染【引用知识章节】段。
+    # chunks 为空时 groups 会被填占位证据，groups_indices 保持空 list,
+    # 此时 _collect_used_headings 自然返回空，aggregates 不渲染该段。
+    groups_indices = _pack_chunks_with_indices(chunks, chunk_size=chunk_size)
     if not groups:
         groups = ["（本次未检索到任何证据，请基于通识做最终回答。）"]
     if max_rounds > 0 and len(groups) > max_rounds:
@@ -298,6 +368,13 @@ async def run(
         head = groups[: max_rounds - 1]
         tail = _CHUNK_SEPARATOR.join(groups[max_rounds - 1 :])
         groups = head + [tail]
+        # 索引侧同步合并：head + 把尾部各 group 的 indices 拍平为一组。
+        if groups_indices and len(groups_indices) > max_rounds:
+            head_idx = groups_indices[: max_rounds - 1]
+            tail_idx = [
+                idx for grp in groups_indices[max_rounds - 1 :] for idx in grp
+            ]
+            groups_indices = head_idx + [tail_idx]
 
     await redis_stream.set_status(task_id, "reasoning")
 
@@ -380,6 +457,21 @@ async def run(
     for round_idx, group_text in enumerate(groups):
         rounds_done = round_idx + 1
         is_last_chunk = round_idx == total_groups - 1
+        # 正常收尾分支：本轮就是 final（最后一组），在 _run_one_round 调用前
+        # 先把"全部进入过 prompt 的 chunks"对应的 heading 叶子写到 redis 快照,
+        # 让 SSE think 第一帧 final.think delta 落地的同时就带上【引用知识章节】段。
+        # 注意这里 used = 全部 indices：模型跑到最后一组自然收尾时所有 group 都被消费。
+        if is_last_chunk:
+            try:
+                used_indices = [idx for grp in groups_indices for idx in grp]
+                used_headings = _collect_used_headings(chunks, used_indices)
+                await redis_stream.set_used_headings(task_id, used_headings)
+            except Exception as e:
+                # 写失败不阻塞推理：缺这段段头只影响 SSE 渲染，不影响最终 answer。
+                logger.warning(
+                    "[InferenceReact] task=%s 写 used_headings 失败（忽略）: %s",
+                    task_id, e,
+                )
         verdict, full_think, full_answer = await _run_one_round(
             round_idx=round_idx,
             group_text=group_text,
@@ -413,6 +505,21 @@ async def run(
             "追加强制 final 轮 round=%d 收尾",
             task_id, forced_final_after_idx, forced_round_idx,
         )
+        # 强制 final 路径：used = 已跑过的 0..forced_final_after_idx（含）所有 group
+        # 对应的 indices 拍平。与 _v4_resolve_used_chunk_indices 的 forced 分支语义一致。
+        try:
+            used_indices = [
+                idx
+                for grp in groups_indices[: forced_final_after_idx + 1]
+                for idx in grp
+            ]
+            used_headings = _collect_used_headings(chunks, used_indices)
+            await redis_stream.set_used_headings(task_id, used_headings)
+        except Exception as e:
+            logger.warning(
+                "[InferenceReact] task=%s 写 used_headings (forced) 失败（忽略）: %s",
+                task_id, e,
+            )
         verdict, full_think, full_answer = await _run_one_round(
             round_idx=forced_round_idx,
             # 沿用最后一轮中间轮的 evidence：模型刚分析完这组就判 complete,
