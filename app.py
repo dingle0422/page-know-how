@@ -216,7 +216,7 @@ def _is_valid_knowledge_dir(dir_path: str) -> bool:
 class ReasonRequest(BaseModel):
     policyId: str
     question: str
-    maxRounds: int = Field(default=10, description="每个子智能体的最大 ReAct 轮次（默认 5）")
+    maxRounds: int = Field(default=5, description="每个子智能体的最大 ReAct 轮次（默认 5）")
     vendor: str = Field(default="aliyun", description="LLM 供应商（默认 aliyun）")
     model: str = Field(default="deepseek-v3.2", description="LLM 模型名称（默认 deepseek-v3.2）")
     cleanAnswer: bool = Field(
@@ -2155,6 +2155,38 @@ class InferenceRequest(BaseModel):
     )
 
 
+async def _run_inference_pipeline_inner(
+    *,
+    task_id: str,
+    question: str,
+    policy_id: str,
+    index_policy_id: str,
+    chunk_size: int,
+    rs: _InferenceRedisStream,
+    options: _InferenceOptions,
+) -> None:
+    """跑核心 inference pipeline，假设外层已经处理 verbose session。
+
+    本函数不开/不关 verbose session，但仍会写 ``inference_pipeline_start`` /
+    ``inference_pipeline_finished`` 事件。当 session 未开启时 ``_log_verbose_event``
+    自身是 no-op，所以无论 verbose 与否调用都是安全的。
+    """
+
+    _log_verbose_event(
+        "inference_pipeline_start",
+        policyId=policy_id,
+        indexPolicyId=index_policy_id,
+        chunkSize=int(chunk_size),
+        question=question,
+        vendor=options.vendor,
+        model=options.model,
+        previewEnabled=options.preview_enabled,
+        skillsEnabled=options.skills_enabled,
+    )
+    await _inference_run(task_id, question, index_policy_id, rs, options=options)
+    _log_verbose_event("inference_pipeline_finished")
+
+
 async def _run_inference_with_verbose(
     *,
     task_id: str,
@@ -2191,20 +2223,15 @@ async def _run_inference_with_verbose(
                 logger.warning(
                     f"[inference_stream] task={task_id} 回写 logName 到 redis 失败（忽略）: {e}"
                 )
-            _log_verbose_event(
-                "inference_pipeline_start",
-                policyId=policy_id,
-                indexPolicyId=index_policy_id,
-                chunkSize=int(chunk_size),
-                question=question,
-                vendor=options.vendor,
-                model=options.model,
-                previewEnabled=options.preview_enabled,
-                skillsEnabled=options.skills_enabled,
-            )
-        await _inference_run(task_id, question, index_policy_id, rs, options=options)
-        if log_name is not None:
-            _log_verbose_event("inference_pipeline_finished")
+        await _run_inference_pipeline_inner(
+            task_id=task_id,
+            question=question,
+            policy_id=policy_id,
+            index_policy_id=index_policy_id,
+            chunk_size=chunk_size,
+            rs=rs,
+            options=options,
+        )
 
 
 def _format_sse(event: str, data: dict) -> str:
@@ -2231,7 +2258,9 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
     # _run_inference_with_verbose 异步回填，仅此一次。把它放进 signature 能确保
     # logName 首次出现时立即触发一帧 snapshot，否则会被相同的 (think, answer, status)
     # 误判为无变化而漏推。
-    last_signature: tuple[str, str, str, str] | None = None
+    # answerable 也纳入 signature：业务专题识别拒答 / 解析失败时该字段从 True 翻成
+    # False，此时 think/answer 会被聚合规则一起置空，必须保证这一帧立即推给客户端。
+    last_signature: tuple[str, str, str, str, bool] | None = None
     last_emit_ts = time.monotonic()
     terminal = False
     while True:
@@ -2239,11 +2268,14 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
         if snapshot is None:
             yield _format_sse("error", {"taskId": task_id, "message": "task not found"})
             return
+        # answerable 缺省视为 True（兼容历史快照 / 边界场景）。
+        answerable = bool(snapshot.get("answerable", True))
         signature = (
             snapshot.get("think") or "",
             snapshot.get("answer") or "",
             snapshot.get("status") or "",
             snapshot.get("logName") or "",
+            answerable,
         )
         now = time.monotonic()
         if signature != last_signature:
@@ -2252,6 +2284,9 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
                 "status": snapshot.get("status"),
                 "think": signature[0],
                 "answer": signature[1],
+                # answerable=False 时，think/answer 已被聚合规则强制置空,
+                # 前端只需读 answerable 判定是否短路结束。
+                "answerable": answerable,
                 "previewDone": bool((snapshot.get("preview") or {}).get("done")),
                 "reactRound": (snapshot.get("react") or {}).get("round"),
                 "error": snapshot.get("error"),
@@ -2265,7 +2300,10 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
             last_emit_ts = now
         if terminal:
             return
-        if snapshot.get("status") in {"done", "failed"}:
+        # 终态有两种：常规的 status in {done, failed}，
+        # 或者业务专题识别短路 answerable=False（此时后台会紧接着把 status 置为 done,
+        # 这里提前一拍标记终态，确保即使 status 还没翻也能让客户端尽快断流收尾）。
+        if snapshot.get("status") in {"done", "failed"} or not answerable:
             terminal = True  # 再循环一次确保最新帧被推过；下个 tick 再 return
         await asyncio.sleep(tick)
 
@@ -2327,100 +2365,156 @@ async def _run_inference_with_topic_locator(
     与原 ``inference_stream`` 的差异在于：知识准备 / 索引兜底也被推到后台执行
     （因为它们依赖定位结果），请求 handler 只做 ``rs.init`` 后立即返回 SSE relay,
     避免阻塞 SSE 第一帧。
+
+    日志：本函数在入口处就开启 verbose session（policyId 未知时先用占位 meta），
+    使得【专题Know How定位】外部服务的入参 / 返回结果（含 ywzt / policyId / refusal /
+    异常）能与后续 pipeline 一同落到同一份 jsonl 中，便于线下复盘。
     """
 
     from inference.topic_locator import run_topic_locator
     from inference.retrieval.indexer import make_index_policy_id as _make_index_policy_id
 
-    # 1) 调外部 SSE 拿 policyId / ywzt
-    try:
-        policy_id, ywzt, refusal = await run_topic_locator(
-            task_id, req.question, rs
-        )
-    except Exception as e:
-        logger.exception(
-            "[inference_stream] task=%s 专题定位调用异常: %s", task_id, e
-        )
-        try:
-            await rs.set_topic_locate_refusal(
-                task_id, f"专题定位调用失败：{e}"
-            )
-        finally:
-            await rs.set_status(task_id, "done")
-        return
-
-    if refusal is not None:
-        logger.info(
-            "[inference_stream] task=%s 专题定位拒答: %s", task_id, refusal
-        )
-        try:
-            await rs.set_topic_locate_refusal(task_id, refusal)
-        finally:
-            await rs.set_status(task_id, "done")
-        return
-
-    # 2) 拿到 policyId 后跑原 inference 流程（与已传 policyId 分支同构）
-    logger.info(
-        "[inference_stream] task=%s 专题定位命中 policyId=%s ywzt=%s，"
-        "继续走 inference pipeline",
-        task_id, policy_id, ywzt,
-    )
-    try:
-        knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
-    except Exception as e:
-        logger.exception(
-            "[inference_stream] task=%s policyId=%s 知识准备失败: %s",
-            task_id, policy_id, e,
-        )
-        try:
-            await rs.set_topic_locate_refusal(
-                task_id, f"知识准备失败（policyId={policy_id}）：{e}"
-            )
-        finally:
-            await rs.set_status(task_id, "done")
-        return
-
-    try:
-        await _ensure_inference_artifacts(
-            knowledge_dir,
-            policy_id=policy_id,
-            chunk_size=chunk_size,
-        )
-    except Exception as e:
-        logger.exception(
-            "[inference_stream] task=%s policyId=%s 索引兜底失败: %s",
-            task_id, policy_id, e,
-        )
-        try:
-            await rs.set_topic_locate_refusal(
-                task_id, f"索引兜底失败（policyId={policy_id}）：{e}"
-            )
-        finally:
-            await rs.set_status(task_id, "done")
-        return
-
-    index_policy_id = _make_index_policy_id(policy_id, chunk_size)
-    options = _build_inference_options(req)
-    session_meta = _build_inference_session_meta(
+    # session 元数据：policy_id / index_policy_id 在 topic_locator 命中前是未知的，
+    # 这里先填空串占位，topic_locator_result 事件里会记录真实结果，按需对账即可。
+    placeholder_session_meta = _build_inference_session_meta(
         task_id=task_id,
-        policy_id=policy_id,
-        index_policy_id=index_policy_id,
+        policy_id="",
+        index_policy_id="",
         chunk_size=chunk_size,
         req=req,
         topic_located=True,
     )
 
-    await _run_inference_with_verbose(
-        task_id=task_id,
-        question=req.question,
-        policy_id=policy_id,
-        index_policy_id=index_policy_id,
-        chunk_size=chunk_size,
-        rs=rs,
-        options=options,
-        verbose=bool(req.verbose),
-        session_meta=session_meta,
-    )
+    with _open_verbose_session(
+        session_id=task_id,
+        meta=placeholder_session_meta,
+        enabled=bool(req.verbose),
+    ) as _session:
+        log_name = _session.file_path.name if _session is not None else None
+        if log_name is not None:
+            try:
+                await rs.set_log_name(task_id, log_name)
+            except Exception as e:
+                logger.warning(
+                    "[inference_stream] task=%s 回写 logName 到 redis 失败（忽略）: %s",
+                    task_id, e,
+                )
+
+        _log_verbose_event(
+            "topic_locator_start",
+            taskId=task_id,
+            question=req.question,
+        )
+
+        # 1) 调外部 SSE 拿 policyId / ywzt
+        try:
+            policy_id, ywzt, refusal = await run_topic_locator(
+                task_id, req.question, rs
+            )
+        except Exception as e:
+            logger.exception(
+                "[inference_stream] task=%s 专题定位调用异常: %s", task_id, e
+            )
+            _log_verbose_event(
+                "topic_locator_error",
+                taskId=task_id,
+                error=repr(e),
+            )
+            try:
+                await rs.set_topic_locate_refusal(
+                    task_id, f"专题定位调用失败：{e}"
+                )
+            finally:
+                await rs.set_status(task_id, "done")
+            return
+
+        # 始终落一帧 topic_locator_result：把外部服务的返回结果（命中 / 拒答）原样存档。
+        _log_verbose_event(
+            "topic_locator_result",
+            taskId=task_id,
+            policyId=policy_id,
+            ywzt=ywzt,
+            refusal=refusal,
+            hit=refusal is None,
+        )
+
+        if refusal is not None:
+            logger.info(
+                "[inference_stream] task=%s 专题定位拒答: %s", task_id, refusal
+            )
+            try:
+                await rs.set_topic_locate_refusal(task_id, refusal)
+            finally:
+                await rs.set_status(task_id, "done")
+            return
+
+        # 2) 拿到 policyId 后跑原 inference 流程（与已传 policyId 分支同构）
+        logger.info(
+            "[inference_stream] task=%s 专题定位命中 policyId=%s ywzt=%s，"
+            "继续走 inference pipeline",
+            task_id, policy_id, ywzt,
+        )
+        try:
+            knowledge_dir = await asyncio.to_thread(
+                _get_or_extract_knowledge, policy_id
+            )
+        except Exception as e:
+            logger.exception(
+                "[inference_stream] task=%s policyId=%s 知识准备失败: %s",
+                task_id, policy_id, e,
+            )
+            _log_verbose_event(
+                "knowledge_prepare_error",
+                taskId=task_id,
+                policyId=policy_id,
+                error=repr(e),
+            )
+            try:
+                await rs.set_topic_locate_refusal(
+                    task_id, f"知识准备失败（policyId={policy_id}）：{e}"
+                )
+            finally:
+                await rs.set_status(task_id, "done")
+            return
+
+        try:
+            await _ensure_inference_artifacts(
+                knowledge_dir,
+                policy_id=policy_id,
+                chunk_size=chunk_size,
+            )
+        except Exception as e:
+            logger.exception(
+                "[inference_stream] task=%s policyId=%s 索引兜底失败: %s",
+                task_id, policy_id, e,
+            )
+            _log_verbose_event(
+                "index_ensure_error",
+                taskId=task_id,
+                policyId=policy_id,
+                error=repr(e),
+            )
+            try:
+                await rs.set_topic_locate_refusal(
+                    task_id, f"索引兜底失败（policyId={policy_id}）：{e}"
+                )
+            finally:
+                await rs.set_status(task_id, "done")
+            return
+
+        index_policy_id = _make_index_policy_id(policy_id, chunk_size)
+        options = _build_inference_options(req)
+
+        # 复用外层 session 直接跑 pipeline，避免嵌套 open_session 生成两份 jsonl。
+        await _run_inference_pipeline_inner(
+            task_id=task_id,
+            question=req.question,
+            policy_id=policy_id,
+            index_policy_id=index_policy_id,
+            chunk_size=chunk_size,
+            rs=rs,
+            options=options,
+        )
 
 
 @app.post("/api/inference/stream")

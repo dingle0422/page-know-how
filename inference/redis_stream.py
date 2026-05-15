@@ -78,6 +78,12 @@ def make_initial_snapshot(
         "intermediateThinkEnabled": flag,
         "think": "",
         "answer": "",
+        # answerable：本次任务是否可以继续/已经给出有效答案。
+        # - True（默认）：业务专题识别正常命中、推理正在/已经推进；
+        # - False：第一步【专题Know How定位】命中拒答条件（0/多候选）或解析失败，
+        #   此时 think/answer 强制为空字符串，前端应据此短路结束 SSE 接力。
+        # 由 recompute_aggregates 根据 topicLocate.refusal 自动派生，写入路径无需感知。
+        "answerable": True,
         "error": None,
         # verbose 模式下 task 启动后由 pipeline 包装层回填，
         # 对应 <project>/verbose_logs/<YYYYMMDD_HHMMSS>_<taskId>.jsonl。
@@ -93,8 +99,8 @@ def make_initial_snapshot(
 def recompute_aggregates(
     snapshot: Snapshot,
     intermediate_think_enabled: Optional[bool] = None,
-) -> tuple[str, str]:
-    """根据 react/preview/topicLocate 子结构重算接口 ``think`` / ``answer``。
+) -> tuple[str, str, bool]:
+    """根据 react/preview/topicLocate 子结构重算接口 ``think`` / ``answer`` / ``answerable``。
 
     拼接顺序（块间以空行 ``\\n\\n`` 分隔）：
 
@@ -108,8 +114,10 @@ def recompute_aggregates(
        - 然后若 ``react.usedHeadings`` 非空再追加 ``###【引用知识章节】\\n{每行一条}``,
          作为 think 字段的尾段，便于前端把"答案推理→引用清单"按段落顺读。
 
-    ``answer`` 默认取最终轮 ``chunk.answer``；若 ``topicLocate.refusal`` 非空（候选业务专题
-    非唯一/定位失败的拒答场景）则**优先覆盖**为拒答文案，便于前端直接展示。
+    ``answer`` 默认取最终轮 ``chunk.answer``。当 ``topicLocate.refusal`` 非空时
+    （候选业务专题 0/多 命中，或外部 SSE 解析失败等定位异常场景），整条任务被判定为
+    **不可应答**：``think`` / ``answer`` 强制返回空字符串，``answerable=False``，
+    调用方据此立即结束 SSE 接力；正常路径 ``answerable=True``。
     """
 
     if intermediate_think_enabled is None:
@@ -176,13 +184,15 @@ def recompute_aggregates(
                     parts.append(f"【引用知识章节】\n{cited}")
         answer = final_answer
 
-    # 拒答覆盖：候选业务专题非唯一时整体退化为单条拒答 answer。
+    # 拒答 / 解析错误：业务专题识别没拿到可用 policyId，本次推理不可应答。
+    # 整条任务退化为"think 空 + answer 空 + answerable=False"，前端据此立即收尾,
+    # 不再渲染前面累积的 topicLocate.reasoning 等任何中间段。
     refusal = (topic_locate.get("refusal") or "").strip()
     if refusal:
-        answer = refusal
+        return "", "", False
 
     think = "\n\n".join(parts).strip()
-    return think, answer
+    return think, answer, True
 
 
 # ---------------------------------------------------------------- 主门面
@@ -285,9 +295,10 @@ class RedisStream:
                 current = make_initial_snapshot(task_id, "", "")
             mutated = mutator(current)
             snapshot = mutated if isinstance(mutated, dict) else current
-            think, answer = recompute_aggregates(snapshot)
+            think, answer, answerable = recompute_aggregates(snapshot)
             snapshot["think"] = think
             snapshot["answer"] = answer
+            snapshot["answerable"] = answerable
             snapshot["updatedAt"] = time.time()
             await self._client.set(self.key_for(task_id), snapshot, ttl_seconds=self._ttl)
             return snapshot
@@ -536,9 +547,10 @@ async def with_recompute(
             current = make_initial_snapshot(task_id, "", "")
         result = await work(current)
         snapshot = result if isinstance(result, dict) else current
-        think, answer = recompute_aggregates(snapshot)
+        think, answer, answerable = recompute_aggregates(snapshot)
         snapshot["think"] = think
         snapshot["answer"] = answer
+        snapshot["answerable"] = answerable
         snapshot["updatedAt"] = time.time()
         await stream._client.set(  # noqa: SLF001
             stream.key_for(task_id), snapshot, ttl_seconds=stream._ttl  # noqa: SLF001
