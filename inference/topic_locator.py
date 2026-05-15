@@ -21,7 +21,9 @@
 本模块只做两件事：
 
 1. 流式过程中把每帧 ``data.reasoning`` 通过 ``RedisStream.append_topic_locate_reasoning``
-   覆盖式写到 redis 快照，由 ``recompute_aggregates`` 把它前置拼到接口 ``think``;
+   覆盖式写到 redis 快照（仅用于诊断 / 外部观测；当前
+   ``recompute_aggregates`` **不**会把它输出到接口 ``think`` 字段，避免把中间
+   推理过程暴露给前端）;
 2. ``status=finish`` 时按 ``len(ywzt)==1 and len(policyId)==1`` 判定:
    - 唯一命中：调 ``set_topic_locate_done`` 触发 ``###【专题Know How定位】\\n\\t{ywzt}``
      收口段渲染，并把 ``(policyId, ywzt, None)`` 返回给调用方继续走 inference;

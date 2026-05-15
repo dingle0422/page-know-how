@@ -81,9 +81,12 @@ def make_initial_snapshot(
             "finalLocked": False,
         },
         # topicLocate：仅 /api/inference/stream 在用户未指定 policyId 时会写入，
-        # 用于把外部【专题Know How定位】SSE 的 reasoning 流式转发到 think 字段，
-        # 并以 ``###【专题Know How定位】\n{ywzt}`` 收口。各字段语义：
-        # - reasoning: 外部 SSE ``data.reasoning``（每帧全量字符串，覆盖式更新）
+        # 命中唯一业务专题时以 ``###【专题Know How定位】\n\t{ywzt}`` 收口段渲染到
+        # 接口 think 字段开头。各字段语义：
+        # - reasoning: 外部 SSE ``data.reasoning``（每帧全量字符串，覆盖式更新）。
+        #              **写入快照仅用于诊断 / 外部观测**，聚合规则 ``recompute_aggregates``
+        #              **不**将其渲染到接口 think 字段——用户侧只需要专题命中结果,
+        #              中间推理过程不应外露给前端。
         # - ywzt:      外部 SSE finish 帧的业务专题名（命中时填）
         # - done:      finish 且唯一命中时为 True，触发 ywzt 收口段渲染
         # - skipped:   用户已传 policyId（或 V4 路径）时为 True，整段不展示
@@ -134,9 +137,11 @@ def recompute_aggregates(
 
     拼接顺序（块间以空行 ``\\n\\n`` 分隔）：
 
-    1. **topicLocate**（仅 ``skipped=False`` 时输出，按需）：
-       - 流式覆盖的 ``reasoning``；
-       - finish 后命中且 ``ywzt`` 非空：``###【专题Know How定位】\\n\\t{ywzt}``。
+    1. **topicLocate**（仅 ``skipped=False`` 且 ``done=True`` 时输出）：
+       ``###【专题Know How定位】\\n\\t{ywzt}`` 收口段。注意：外部接口的
+       ``data.reasoning`` 仍由 :func:`inference.topic_locator.run_topic_locator`
+       覆盖式写到 ``topicLocate.reasoning``（用于诊断 / 外部观测），但**不**渲染
+       到接口 think 字段——用户侧只需要"专题命中结果"，不需要中间推理过程。
     2. **preview**：``preview.think`` / ``preview.answer``（顺序固定、内部 append-only）。
     3. **react 中间轮**：可见性需要 ``preview.done && skillsDone``，否则不拼。
        开关关时仅取最后一个中间轮的 ``answer``（兼容旧规则，实际为空）；
@@ -189,15 +194,14 @@ def recompute_aggregates(
 
     parts: list[str] = []
 
-    # 1) topicLocate 段：仅在未跳过时尝试输出。reasoning 先到、ywzt 收口后到。
-    if not topic_locate.get("skipped"):
-        tl_reason = (topic_locate.get("reasoning") or "").strip()
-        if tl_reason:
-            parts.append(tl_reason)
-        if topic_locate.get("done"):
-            ywzt = (topic_locate.get("ywzt") or "").strip()
-            if ywzt:
-                parts.append(f"【专题Know How定位】\n\t{ywzt}")
+    # 1) topicLocate 段：仅在未跳过且命中唯一（done=True）时输出 ywzt 收口段。
+    # 注意 ``topicLocate.reasoning`` 字段仍由 topic_locator 覆盖式写入快照（外部
+    # SSE 每帧全量），保留在 redis 里供诊断；但**不**渲染到接口 think 字段——
+    # 用户侧只需要"专题命中结果"，中间推理过程不应外露给前端。
+    if not topic_locate.get("skipped") and topic_locate.get("done"):
+        ywzt = (topic_locate.get("ywzt") or "").strip()
+        if ywzt:
+            parts.append(f"【专题Know How定位】\n\t{ywzt}")
 
     # 2) preview 段：始终展示（preview 是 react 之前的最前段，内部 append-only，
     # 不会让前面的 topicLocate 段发生位置变化）。
@@ -602,6 +606,11 @@ class RedisStream:
 
         外部接口每帧推送的就是当前累积的全量 reasoning 字符串（非增量 delta），
         这里直接覆盖最自然，且能避免重复拼接放大体积。
+
+        注意：本字段写入快照后**不**会被 :func:`recompute_aggregates` 输出到接口
+        ``think`` 字段（用户侧只需要 ywzt 收口段，中间推理过程不外露）。保留写入
+        是为了诊断 / 外部观测（如外部接口异常时手动拉 redis 快照查看 reasoning
+        全文）。如果将来想把它重新展示出来，只需修改聚合规则一处。
         """
 
         def _mut(s: Snapshot) -> None:
