@@ -319,7 +319,7 @@ async def clean_queued_tasks(client) -> list[dict]:
 
     实现采用 ``_gather_bounded`` 限并发：原本的 for 串行在长队列上会逐条等 RTT,
     并发后在大队列上能从 O(K·rtt) 降到 ~O(K·rtt/limit)；同时严格控制并发数，
-    避免与 ``cleanup_running_tasks_by_age`` 一样把短池打满。
+    避免与 ``requeue_stale_running_tasks`` 一样把短池打满。
     每个 entry 的逻辑保持完全幂等，重试本函数同样安全。
     """
     task_ids = await client.lrange(QUEUE_REASON_PENDING, 0, -1)
@@ -452,20 +452,28 @@ async def cleanup_stale_running_tasks(
     return cleaned
 
 
-async def cleanup_running_tasks_by_age(
+async def requeue_stale_running_tasks(
     client,
     threshold_seconds: float,
     *,
     current_instance_id: str = "",
     dry_run: bool = False,
     ttl_seconds: float = DEFAULT_TASK_TTL_SECONDS,
-    error_message: Optional[str] = None,
 ) -> list[dict]:
-    """按 running 耗时阈值清理任务：命中项改写为 failed。
+    """按 running 耗时阈值"重新入队"任务：命中项重置为 pending 并 RPUSH 回队列。
 
-    与 ``cleanup_stale_running_tasks``（按 instance_id 匹配，专治"重启后的僵尸"）不同,
-    本函数的判据是"now - start_time > threshold_seconds"，**不区分** instance_id,
-    用于服务**未重启**、某些 task 因下游/逻辑卡死长时间停在 running 的运维场景。
+    与 ``cleanup_stale_running_tasks``（按 instance_id 匹配、专治"重启后的僵尸"，
+    直接写为 failed）不同，本函数的判据是"now - start_time > threshold_seconds",
+    **不区分** instance_id，用于服务**未重启**、某些 task 因下游/逻辑卡死长时间停在
+    running 的运维场景。
+
+    与历史版本"写为 failed"不同，本函数**不再终结任务**，而是：
+        1. 将 task KV 重置为 pending 状态（清空 start_time / end_time / result /
+           error / worker_id / instance_id，刷新 enqueue_time，并把 retry_count + 1）；
+        2. RPUSH 回 ``queue:reason:pending``，让任意空闲 worker 像首次 BLPOP 那样
+           重新拉起执行；
+        3. 从 ``queue:reason:running`` 里 LREM 掉残留索引项。
+    客户端轮询会一直停留在 pending → running 直到本次重试出结果，无需感知重试动作。
 
     parameters
     ----------
@@ -474,30 +482,33 @@ async def cleanup_running_tasks_by_age(
         负数会被当成 0（等价全部 running 都命中）。
     current_instance_id :
         可选。仅用于在返回 entry 里标注 ``matches_current_instance``，方便调用方
-        识别"这条可能是本进程真实在跑的"而谨慎处理；本函数**不会**因此跳过清理。
+        识别"这条可能是本进程真实在跑的"而谨慎处理；本函数**不会**因此跳过重试。
     dry_run :
-        True 时只返回命中候选、不写回 redis，便于运维先预览再决定是否真清。
-    error_message :
-        写入被清理任务的 ``error`` 字段；默认带阈值信息，便于事后排查。
+        True 时只返回命中候选、不写回 redis，便于运维先预览再决定是否真重试。
     ttl_seconds :
-        写回时继续延续的 TTL。
+        写回 KV 时继续延续的 TTL，与首次 submit 保持一致。
 
     返回
     ----
     list[dict]，按 running_seconds 降序（最可疑的在前），每条包含：
       task_id / policy_id / question / running_seconds / start_time /
-      worker_id / instance_id / matches_current_instance / cleaned /
-      skipped_reason(可选)。
+      worker_id / instance_id / matches_current_instance / requeued /
+      retry_count / skipped_reason(可选)。
 
-    并发安全
-    --------
-    写回 failed 前做一次二次 GET，若期间 worker 正好写了 done/failed，则本次跳过,
-    缩窄"把已完成任务回写成 failed"的 race 窗口。
+    并发与重复执行
+    --------------
+    - 写回前做一次二次 GET，若期间 worker 正好把 task 写成 done/failed，则本次跳过,
+      避免把已完成的任务回退成 pending。
+    - 仍可能与"超时但其实还在跑"的 worker 共存：本函数**只动 redis、不会** cancel
+      worker 协程。极端情况下原 worker 之后会把 done/failed 覆盖到我们刚改写的
+      pending 上，导致本次重试丢失。建议先用 ``dry_run=true`` 预览、对照
+      ``matchesCurrentInstance`` 与 runningSeconds 判断后再执行。
+    - 写回顺序：先 SET KV 为 pending，再 RPUSH 入队，最后 LREM 出 running 索引。
+      若 RPUSH 失败会尝试把 KV 回滚到原 running 状态，避免出现"KV 已是 pending
+      但没人来消费"的孤儿；若回滚也失败则降级为 warning，依赖 TTL 兜底。
     """
     if threshold_seconds < 0:
         threshold_seconds = 0.0
-    if error_message is None:
-        error_message = f"manually cleaned: running over {threshold_seconds:.0f}s"
 
     keys = await client.keys(prefix=TASK_KEY_PREFIX)
     if not keys:
@@ -536,6 +547,10 @@ async def cleanup_running_tasks_by_age(
     for record, age in candidates:
         task_id = record.get("task_id")
         request_payload = record.get("request") or {}
+        try:
+            prev_retry_count = int(record.get("retry_count") or 0)
+        except (TypeError, ValueError):
+            prev_retry_count = 0
         entry: dict = {
             "task_id": task_id or "",
             "policy_id": request_payload.get("policyId", ""),
@@ -548,7 +563,8 @@ async def cleanup_running_tasks_by_age(
                 current_instance_id
                 and record.get("instance_id") == current_instance_id
             ),
-            "cleaned": False,
+            "retry_count": prev_retry_count,
+            "requeued": False,
         }
 
         if dry_run or not task_id:
@@ -564,28 +580,71 @@ async def cleanup_running_tasks_by_age(
             result.append(entry)
             continue
 
-        latest["status"] = STATUS_FAILED
+        # 备份原 record，用于 RPUSH 失败时回滚 KV，避免 KV 与队列脱节。
+        rollback = dict(latest)
+
+        try:
+            new_retry_count = int(latest.get("retry_count") or 0) + 1
+        except (TypeError, ValueError):
+            new_retry_count = 1
+
+        latest["status"] = STATUS_PENDING
+        latest["start_time"] = None
+        latest["end_time"] = None
         latest["result"] = None
-        latest["error"] = error_message
-        latest["end_time"] = _now()
+        latest["error"] = None
+        latest["worker_id"] = None
+        latest["instance_id"] = None
+        latest["enqueue_time"] = _now()
+        latest["retry_count"] = new_retry_count
+        entry["retry_count"] = new_retry_count
+
         try:
             await client.set(
                 _task_key(task_id), latest, ttl_seconds=ttl_seconds
             )
-            await _remove_running_task(client, task_id)
-            entry["cleaned"] = True
         except Exception as e:
-            entry["skipped_reason"] = f"write back failed: {e}"
+            entry["skipped_reason"] = f"write back pending failed: {e}"
             logger.warning(
-                f"[cleanup_running_tasks_by_age] task={task_id} 写回 failed 异常: {e}"
+                f"[requeue_stale_running_tasks] task={task_id} 写回 pending 异常: {e}"
             )
+            result.append(entry)
+            continue
+
+        try:
+            await client.rpush(QUEUE_REASON_PENDING, task_id)
+        except Exception as e:
+            # RPUSH 失败：尽力把 KV 回滚到原 running 状态，避免出现"已是 pending 但
+            # 不在队列内"的孤儿，否则得等 TTL 才能消失。
+            entry["skipped_reason"] = f"rpush pending failed: {e}"
+            logger.warning(
+                f"[requeue_stale_running_tasks] task={task_id} RPUSH pending 异常: {e}; "
+                f"尝试回滚 KV 到原 running 状态"
+            )
+            try:
+                await client.set(
+                    _task_key(task_id), rollback, ttl_seconds=ttl_seconds
+                )
+                # 回滚成功，retry_count 也要还原为重试前的值，避免误计数。
+                entry["retry_count"] = prev_retry_count
+            except Exception as rb_err:
+                logger.warning(
+                    f"[requeue_stale_running_tasks] task={task_id} 回滚 KV 也失败: {rb_err}; "
+                    f"task 当前为 pending 但不在队列内，依赖 TTL 兜底"
+                )
+            result.append(entry)
+            continue
+
+        # 入队成功后再清掉 running 索引；失败只 warning，list_running_tasks 会自愈。
+        await _remove_running_task(client, task_id)
+        entry["requeued"] = True
         result.append(entry)
 
     if not dry_run:
-        cleaned = sum(1 for e in result if e.get("cleaned"))
-        if cleaned:
+        requeued = sum(1 for e in result if e.get("requeued"))
+        if requeued:
             logger.info(
-                f"[cleanup_running_tasks_by_age] 清理 {cleaned}/{len(result)} 条超时 running 任务 "
+                f"[requeue_stale_running_tasks] 重新入队 {requeued}/{len(result)} 条超时 running 任务 "
                 f"(threshold={threshold_seconds}s)"
             )
     return result

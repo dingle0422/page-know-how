@@ -88,23 +88,15 @@ def _parse_sse_line(line: str) -> Optional[dict]:
 
 # ---------------------------------------------------------------- 拒答文案
 #
-# TODO: 暂行策略——候选业务专题非唯一时直接拒答。
-# 后续可能改为：多候选时并行跑多套 inference 取首个/取最高分；0 候选时回落到
-# 一个"通用 policyId"等。改动时同步修改本函数与 ``app._run_inference_with_topic_locator``
-# 里对 refusal 的处理。
-
-def _build_refusal(ywzt: list, policy_id: list) -> str:
-    """根据 ywzt/policyId 的命中数量生成拒答文案。"""
-
-    if not ywzt or not policy_id:
-        return (
-            "未能定位到匹配的业务专题，无法继续推理，"
-            "请补充更具体的问题描述或显式指定 policyId。"
-        )
-    return (
-        f"问题命中多个业务专题（{', '.join(str(x) for x in ywzt)}），"
-        "暂不支持多专题并行推理，请进一步明确意图或显式指定 policyId。"
-    )
+# 按语义只分两种 refusal 文案：
+# - REFUSAL_NO_HIT：finish 帧返回 0/多 候选，模型对该问题无法对齐到唯一业务专题。
+#   暂行策略下直接拒答（后续若改为"多候选并行/0 候选回落通用 policyId"，需同步调整
+#   :func:`run_topic_locator` 内的命中判定与 :mod:`app` 中对 refusal 的处理）。
+# - REFUSAL_SERVICE_ERROR：外部专题定位服务侧异常（HTTP/网络/接口数据异常/流被切断
+#   等），属于可重试场景；由 :mod:`app._run_inference_with_topic_locator` 在 catch
+#   ``run_topic_locator`` 异常时也复用。
+REFUSAL_NO_HIT = "当前版本无法回答该业务专题下的问题"
+REFUSAL_SERVICE_ERROR = "业务专题定位服务异常，请重试"
 
 
 # ---------------------------------------------------------------- 主入口
@@ -125,9 +117,11 @@ async def run_topic_locator(
 
     - 唯一命中：``(policyId[0], ywzt[0], None)``，并已经把 done=True/ywzt 写到快照,
       调用方应继续用该 ``policyId`` 跑 inference pipeline；
-    - 0/多个候选：``(None, None, refusal_text)``，调用方应写 ``topicLocate.refusal``
+    - 0/多个候选：``(None, None, REFUSAL_NO_HIT)``，调用方应写 ``topicLocate.refusal``
       并把任务置为 ``status=done`` 直接拒答；
-    - 网络/HTTP/解析异常：直接向上抛 ``Exception`` 由调用方兜底。
+    - 流被切断 / 接口数据异常：``(None, None, REFUSAL_SERVICE_ERROR)``；
+    - 网络/HTTP/解析异常：直接向上抛 ``Exception`` 由调用方兜底（调用方应同样使用
+      ``REFUSAL_SERVICE_ERROR`` 文案，保持端到端一致）。
 
     与 :func:`inference.llm_stream.chat_stream` 风格一致：``client`` 可外部注入复用
     连接池，不传则本地 new 一个并自动 close。
@@ -196,12 +190,13 @@ async def run_topic_locator(
                         final_ywzt = (str(ywzt_list[0]) or "").strip()
                         final_policy_id = (str(pid_list[0]) or "").strip()
                         if not final_ywzt or not final_policy_id:
-                            # 命中但取值空：当作未命中拒答。
-                            refusal = _build_refusal(ywzt_list, pid_list)
+                            # 命中但取值空：接口数据异常，归为服务异常拒答。
+                            refusal = REFUSAL_SERVICE_ERROR
                             final_ywzt = None
                             final_policy_id = None
                     else:
-                        refusal = _build_refusal(ywzt_list, pid_list)
+                        # 0/多 候选：模型本轮无法定位到唯一业务专题。
+                        refusal = REFUSAL_NO_HIT
                     # finish 帧已经携带终态，可以提前 break；服务端也会在下一刻关流。
                     break
     finally:
@@ -209,8 +204,8 @@ async def run_topic_locator(
             await cli.aclose()
 
     if not saw_finish:
-        # 流被中途切断也按拒答兜底（与 0 候选同语义）。
-        return None, None, _build_refusal([], [])
+        # 流被中途切断：未拿到 finish 帧，归为服务异常。
+        return None, None, REFUSAL_SERVICE_ERROR
 
     if final_policy_id and final_ywzt:
         try:
@@ -222,4 +217,4 @@ async def run_topic_locator(
             )
         return final_policy_id, final_ywzt, None
 
-    return None, None, refusal or _build_refusal([], [])
+    return None, None, refusal or REFUSAL_SERVICE_ERROR

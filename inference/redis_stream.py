@@ -78,12 +78,18 @@ def make_initial_snapshot(
         "intermediateThinkEnabled": flag,
         "think": "",
         "answer": "",
-        # answerable：本次任务是否可以继续/已经给出有效答案。
-        # - True（默认）：业务专题识别正常命中、推理正在/已经推进；
+        # answerable：本次任务是否可以继续/已经给出有效答案。三态语义：
+        # - None（默认 / 未确定）：开启了【专题Know How定位】路径但还未拿到终态结论
+        #   （topicLocate 既未 skipped 也未 done，refusal 也为空），此时 think/answer
+        #   强制为空字符串，SSE 接力侧据此**完全不流出 snapshot**，避免把中间 reasoning
+        #   过程暴露给前端；
+        # - True：业务专题已唯一命中（topicLocate.done=True）或本次任务直接跳过专题定位
+        #   （topicLocate.skipped=True，已传 policyId / V4 路径），推理可正常推进；
         # - False：第一步【专题Know How定位】命中拒答条件（0/多候选）或解析失败，
         #   此时 think/answer 强制为空字符串，前端应据此短路结束 SSE 接力。
-        # 由 recompute_aggregates 根据 topicLocate.refusal 自动派生，写入路径无需感知。
-        "answerable": True,
+        # 由 recompute_aggregates 根据 topicLocate.{skipped,done,refusal} 自动派生，
+        # 写入路径无需感知。
+        "answerable": None,
         "error": None,
         # verbose 模式下 task 启动后由 pipeline 包装层回填，
         # 对应 <project>/verbose_logs/<YYYYMMDD_HHMMSS>_<taskId>.jsonl。
@@ -99,7 +105,7 @@ def make_initial_snapshot(
 def recompute_aggregates(
     snapshot: Snapshot,
     intermediate_think_enabled: Optional[bool] = None,
-) -> tuple[str, str, bool]:
+) -> tuple[str, str, Optional[bool]]:
     """根据 react/preview/topicLocate 子结构重算接口 ``think`` / ``answer`` / ``answerable``。
 
     拼接顺序（块间以空行 ``\\n\\n`` 分隔）：
@@ -114,10 +120,16 @@ def recompute_aggregates(
        - 然后若 ``react.usedHeadings`` 非空再追加 ``###【引用知识章节】\\n{每行一条}``,
          作为 think 字段的尾段，便于前端把"答案推理→引用清单"按段落顺读。
 
-    ``answer`` 默认取最终轮 ``chunk.answer``。当 ``topicLocate.refusal`` 非空时
-    （候选业务专题 0/多 命中，或外部 SSE 解析失败等定位异常场景），整条任务被判定为
-    **不可应答**：``think`` / ``answer`` 强制返回空字符串，``answerable=False``，
-    调用方据此立即结束 SSE 接力；正常路径 ``answerable=True``。
+    ``answer`` 默认取最终轮 ``chunk.answer``。``answerable`` 三态：
+
+    - ``False``：``topicLocate.refusal`` 非空（候选业务专题 0/多 命中，或外部 SSE 解析
+      失败等定位异常场景），整条任务被判定为不可应答，``think`` / ``answer`` 强制返回
+      空字符串，调用方据此立即结束 SSE 接力；
+    - ``None``：未确定 —— 开启了【专题Know How定位】路径但还在跑（既未 ``skipped`` 也
+      未 ``done``，且 ``refusal`` 为空），``think`` / ``answer`` 强制返回空字符串，
+      SSE 接力侧应**完全跳过 snapshot 推送**，避免把中间 reasoning 暴露给前端；
+    - ``True``：正常路径，``topicLocate.skipped=True`` 或 ``topicLocate.done=True``，
+      此时按上述拼接规则正常输出 ``think`` / ``answer``。
     """
 
     if intermediate_think_enabled is None:
@@ -190,6 +202,12 @@ def recompute_aggregates(
     refusal = (topic_locate.get("refusal") or "").strip()
     if refusal:
         return "", "", False
+
+    # 未确定：开启了【专题Know How定位】路径但仍在 reasoning 阶段（skipped=False 且
+    # done=False，refusal 也为空）。此时本次任务尚未确认是否能继续推理，think/answer
+    # 强制置空，answerable=None，由调用方在 SSE 端跳过整帧推送，避免把中间过程外泄。
+    if not topic_locate.get("skipped") and not topic_locate.get("done"):
+        return "", "", None
 
     think = "\n\n".join(parts).strip()
     return think, answer, True

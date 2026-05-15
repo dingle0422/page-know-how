@@ -7,6 +7,7 @@ import asyncio
 import time
 import uuid
 from contextlib import asynccontextmanager
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -565,15 +566,24 @@ class CleanupStaleRunningEntry(BaseModel):
     matchesCurrentInstance: bool = Field(
         description=(
             "该记录的 instance_id 是否等于当前进程 INSTANCE_ID。"
-            "True 代表可能是本进程 worker 真正还在跑的任务，清理后会让客户端"
-            "立刻看到 failed，但同名 worker 仍可能晚一步把结果写回 done/failed（覆盖掉本次清理）。"
-            "False 通常是历史进程残留的僵尸，清理是安全的。"
+            "True 代表可能是本进程 worker 真正还在跑的任务，重新入队会与原 worker 并发执行，"
+            "原 worker 之后写回的 done/failed 仍可能覆盖本次重试结果（参考接口文档）。"
+            "False 通常是历史进程残留的僵尸，重新入队是安全的。"
         ),
     )
-    cleaned: bool = Field(description="是否成功写回 failed；dryRun=true 时恒为 false")
+    retryCount: int = Field(
+        default=0,
+        description="该 task 累计被本接口重新入队的次数（含本次成功后才会自增）",
+    )
+    requeued: bool = Field(
+        description=(
+            "是否成功重置为 pending 并 RPUSH 回 ``queue:reason:pending`` 队列；"
+            "dryRun=true 时恒为 false"
+        ),
+    )
     skippedReason: str | None = Field(
         default=None,
-        description="cleaned=False 时的跳过原因（例如扫描期间状态已变、写回异常等）",
+        description="requeued=False 时的跳过原因（例如扫描期间状态已变、写回/入队异常等）",
     )
 
 
@@ -582,8 +592,15 @@ class CleanupStaleRunningData(BaseModel):
     dryRun: bool
     instanceId: str = Field(description="当前服务进程的 INSTANCE_ID，供比对 matchesCurrentInstance")
     matchedCount: int = Field(description="命中阈值的 running 任务数")
-    cleanedCount: int = Field(description="实际写回 failed 成功的任务数（dryRun 恒为 0）")
-    skippedCount: int = Field(description="命中但未清理的任务数（dryRun 下等于 matched；真清时通常为 race 跳过）")
+    requeuedCount: int = Field(
+        description="实际重置为 pending 并入队成功的任务数（dryRun 恒为 0）",
+    )
+    skippedCount: int = Field(
+        description=(
+            "命中但未重新入队的任务数（dryRun 下等于 matched；真执行时通常为 race 跳过、"
+            "写回 KV 异常或 RPUSH 异常）"
+        ),
+    )
     tasks: list[CleanupStaleRunningEntry] = Field(
         description="按 runningSeconds 降序排列（最可疑在前）的命中任务明细",
     )
@@ -1861,7 +1878,9 @@ async def clean_queue():
     """清除 redis 中所有仍在 pending 队列里的任务。
 
     只处理还停留在 ``queue:reason:pending`` 的任务；已经被 worker 取走的 running 任务
-    不会被删除。如需清理卡住的 running 任务，使用 ``/api/reason/cleanupStaleRunning``。
+    不会被删除。如需让卡住的 running 任务重新入队等待重试，使用
+    ``/api/reason/cleanupStaleRunning``；如需直接终结某条 running 写为 failed,
+    使用 ``/api/cleanRunningTask``。
     """
     try:
         client = _require_redis()
@@ -1917,36 +1936,43 @@ async def clean_queue():
     response_model=CleanupStaleRunningResponse,
 )
 async def cleanup_stale_running(req: CleanupStaleRunningRequest):
-    """手动清理 redis 中 running 耗时超过阈值的卡死任务。
+    """手动**重新入队** redis 中 running 耗时超过阈值的卡死任务。
 
     用途
     ----
     - 服务**未重启**、某些 task 因下游长尾或逻辑卡死持续停在 running,
       占满 ``runningCount`` 让新任务排不到 worker；
-    - 想让轮询 ``/api/reason/result/{taskId}`` 的客户端立刻感知到 failed。
-    - 启动期自动清理已关闭：进程重启遗留的僵尸 running 不会再被 lifespan 自动改写，
-      需通过本接口或 ``/api/cleanRunningTask`` 手动清理，或等待 TTL 到期自然消失。
+    - 想让这类卡死的 task **不丢失**地由空闲 worker 重新拉起执行,
+      客户端轮询 ``/api/reason/result/{taskId}`` 不需要重新提交。
+    - 启动期自动清理已关闭：进程重启遗留的僵尸 running 不会再被 lifespan 自动改写,
+      需通过本接口（重新入队）或 ``/api/cleanRunningTask``（写为 failed）手动处理,
+      或等待 TTL 到期自然消失。
 
     行为
     ----
     1. 扫描 redis 的 ``task:*``；
     2. 挑出 ``status=running`` 且 ``now - start_time > thresholdSeconds`` 的任务；
-    3. 写回前做一次二次 GET 校验，若 worker 刚好完成已变 done/failed 则跳过;
-    4. 命中项改写为 ``status=failed``、``error="manually cleaned: running over <N>s"``、
-       ``end_time=now``，供客户端轮询立刻感知。
+    3. 写回前做一次二次 GET 校验，若 worker 刚好完成已变 done/failed 则跳过；
+    4. 命中项重置为 ``status=pending``：清空 ``start_time / end_time / result /
+       error / worker_id / instance_id``、刷新 ``enqueue_time``、``retry_count + 1``,
+       并 RPUSH 回 ``queue:reason:pending``，最后 LREM 出 running 索引。
+       任意空闲 worker BLPOP 后会像首次提交那样重新执行该 task。
 
     重要限制
     --------
-    - 只动 redis，**不会** cancel 仍在跑的 worker 协程；若 worker 真在跑，
-      写回 done 的时间可能晚于本次清理，客户端可能看到 failed→done 跳变。
+    - 只动 redis，**不会** cancel 仍在跑的 worker 协程；若原 worker 之后真的把结果
+      写回 done/failed，会**覆盖**我们刚改写的 pending，导致本次重试落空（task 仍会
+      给客户端返回原结果）。
     - 因此建议先用 ``dryRun=true`` 预览、对照 ``matchesCurrentInstance``:
-      False 的条目（上一代进程僵尸）清理是安全的；True 的条目是本进程 worker,
-      请结合 runningSeconds 判断是否真的卡死。
-    - 判据是时间阈值，与 ``instance_id`` 无关；启动期自动清理已关闭，本接口作为唯一运行时入口。
+      False 的条目（上一代进程僵尸）重新入队是安全的；True 的条目是本进程 worker,
+      请结合 runningSeconds 判断是否真的卡死，避免误伤短暂卡顿但仍会完成的任务。
+    - 判据是时间阈值，与 ``instance_id`` 无关；启动期自动清理已关闭，本接口作为
+      唯一运行时入口。
+    - 想直接终结某条 running、不想重试，请改用 ``/api/cleanRunningTask``。
     """
     try:
         client = _require_redis()
-        entries = await _tq.cleanup_running_tasks_by_age(
+        entries = await _tq.requeue_stale_running_tasks(
             client,
             threshold_seconds=req.thresholdSeconds,
             current_instance_id=INSTANCE_ID,
@@ -1954,8 +1980,8 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
             ttl_seconds=REASON_TASK_TTL_SECONDS,
         )
         matched = len(entries)
-        cleaned = sum(1 for e in entries if e.get("cleaned"))
-        skipped = matched - cleaned
+        requeued = sum(1 for e in entries if e.get("requeued"))
+        skipped = matched - requeued
 
         tasks_out: list[CleanupStaleRunningEntry] = []
         for e in entries:
@@ -1965,6 +1991,10 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
                 worker_id = int(worker_id_raw) if worker_id_raw is not None else None
             except (TypeError, ValueError):
                 worker_id = None
+            try:
+                retry_count = int(e.get("retry_count") or 0)
+            except (TypeError, ValueError):
+                retry_count = 0
             tasks_out.append(
                 CleanupStaleRunningEntry(
                     taskId=str(e.get("task_id", "")),
@@ -1975,14 +2005,15 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
                     workerId=worker_id,
                     instanceId=e.get("instance_id"),
                     matchesCurrentInstance=bool(e.get("matches_current_instance")),
-                    cleaned=bool(e.get("cleaned")),
+                    retryCount=retry_count,
+                    requeued=bool(e.get("requeued")),
                     skippedReason=e.get("skipped_reason"),
                 )
             )
 
         logger.info(
             f"[/api/reason/cleanupStaleRunning] threshold={req.thresholdSeconds}s "
-            f"dry_run={req.dryRun} matched={matched} cleaned={cleaned} skipped={skipped}"
+            f"dry_run={req.dryRun} matched={matched} requeued={requeued} skipped={skipped}"
         )
 
         return CleanupStaleRunningResponse(
@@ -1991,7 +2022,7 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
                 dryRun=req.dryRun,
                 instanceId=INSTANCE_ID,
                 matchedCount=matched,
-                cleanedCount=cleaned,
+                requeuedCount=requeued,
                 skippedCount=skipped,
                 tasks=tasks_out,
             ),
@@ -1999,11 +2030,11 @@ async def cleanup_stale_running(req: CleanupStaleRunningRequest):
             message="success",
         )
     except Exception as e:
-        logger.exception(f"清理超时 running 任务失败: {e}")
+        logger.exception(f"重新入队超时 running 任务失败: {e}")
         return CleanupStaleRunningResponse(
             data=None,
             status_code=500,
-            message=f"清理超时 running 任务失败: {str(e)}",
+            message=f"重新入队超时 running 任务失败: {str(e)}",
         )
 
 
@@ -2260,7 +2291,9 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
     # 误判为无变化而漏推。
     # answerable 也纳入 signature：业务专题识别拒答 / 解析失败时该字段从 True 翻成
     # False，此时 think/answer 会被聚合规则一起置空，必须保证这一帧立即推给客户端。
-    last_signature: tuple[str, str, str, str, bool] | None = None
+    # answerable 用 Optional[bool]：None 表示【专题Know How定位】尚未给出唯一结论
+    # （仍在 reasoning 阶段），此时本 relay 完全不向客户端推 snapshot，只发心跳。
+    last_signature: tuple[str, str, str, str, Optional[bool]] | None = None
     last_emit_ts = time.monotonic()
     terminal = False
     while True:
@@ -2268,8 +2301,26 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
         if snapshot is None:
             yield _format_sse("error", {"taskId": task_id, "message": "task not found"})
             return
-        # answerable 缺省视为 True（兼容历史快照 / 边界场景）。
-        answerable = bool(snapshot.get("answerable", True))
+        # answerable 三态：True/False/None。缺省按 None 处理（更保守：未确定不外推）。
+        answerable = snapshot.get("answerable")
+        if answerable is not None:
+            answerable = bool(answerable)
+        now = time.monotonic()
+        # answerable 未确定（仍在跑【专题Know How定位】）：本帧不向客户端推 snapshot,
+        # 只在静默期发 SSE 注释心跳保活；等 answerable 翻成 True/False 再开始流式。
+        # 同时该路径下不更新 last_signature，确保确定后第一帧仍能被识别为变化。
+        if answerable is None:
+            if now - last_emit_ts >= heartbeat_interval:
+                yield ": ping\n\n"
+                last_emit_ts = now
+            # 未确定状态下只可能因为外部异常导致 status 提前置为 done/failed,
+            # 此时仍要尊重终态退出（虽然按现有 helper 实现，refusal 一定先被写入,
+            # answerable 已经会变成 False，不会卡在 None 上）。
+            if snapshot.get("status") in {"done", "failed"}:
+                return
+            await asyncio.sleep(tick)
+            continue
+
         signature = (
             snapshot.get("think") or "",
             snapshot.get("answer") or "",
@@ -2277,7 +2328,6 @@ async def _sse_relay(task_id: str, rs: _InferenceRedisStream):
             snapshot.get("logName") or "",
             answerable,
         )
-        now = time.monotonic()
         if signature != last_signature:
             yield _format_sse("snapshot", {
                 "taskId": task_id,
@@ -2371,7 +2421,7 @@ async def _run_inference_with_topic_locator(
     异常）能与后续 pipeline 一同落到同一份 jsonl 中，便于线下复盘。
     """
 
-    from inference.topic_locator import run_topic_locator
+    from inference.topic_locator import run_topic_locator, REFUSAL_SERVICE_ERROR
     from inference.retrieval.indexer import make_index_policy_id as _make_index_policy_id
 
     # session 元数据：policy_id / index_policy_id 在 topic_locator 命中前是未知的，
@@ -2421,9 +2471,10 @@ async def _run_inference_with_topic_locator(
                 error=repr(e),
             )
             try:
-                await rs.set_topic_locate_refusal(
-                    task_id, f"专题定位调用失败：{e}"
-                )
+                # 网络/HTTP/解析异常统一对外回 REFUSAL_SERVICE_ERROR，与
+                # run_topic_locator 内部"流被切断/接口数据异常"路径保持一致；
+                # 具体异常详情仅落 verbose log，不暴露给前端。
+                await rs.set_topic_locate_refusal(task_id, REFUSAL_SERVICE_ERROR)
             finally:
                 await rs.set_status(task_id, "done")
             return
