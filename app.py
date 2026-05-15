@@ -2961,6 +2961,15 @@ async def _run_inference_v4_executor(
                 ),
                 name=f"v4-preview:{task_id}",
             ))
+        else:
+            # preview 不跑时立即翻 done 标志，避免本 task 被 /api/inference/stream
+            # 接力查看时 SSE 聚合卡在 "preview.done && skillsDone" 门控上。
+            try:
+                await rs.set_preview_done(task_id, True)
+            except Exception as e:
+                logger.warning(
+                    "[v4] task=%s set_preview_done(skip) 失败（忽略）: %s", task_id, e
+                )
         if opts.skills_enabled:
             bg_tasks.append(asyncio.create_task(
                 _v4_await_or_log(
@@ -2972,6 +2981,13 @@ async def _run_inference_v4_executor(
                 ),
                 name=f"v4-skills:{task_id}",
             ))
+        else:
+            try:
+                await rs.set_skills_done(task_id, True)
+            except Exception as e:
+                logger.warning(
+                    "[v4] task=%s set_skills_done(skip) 失败（忽略）: %s", task_id, e
+                )
 
         chunks = await hybrid_search(
             question, index_policy_id,
@@ -2982,12 +2998,16 @@ async def _run_inference_v4_executor(
             task_id, len(chunks), stream_chunk_size, react_max_rounds,
         )
 
+        # bg_tasks 透传给 react_loop：与 inference.pipeline.run 行为对齐——react_loop
+        # 在进 final/forced_final 之前会 await 它们 + 翻 intermediateLocked / finalLocked,
+        # 让本 task 被 /api/inference/stream 接力查看时 SSE think 字段保持 append-only。
         react_result = await _run_react_loop(
             task_id, question, chunks, rs,
             vendor=opts.vendor, model=opts.model,
             chunk_size=_inf_config.CHUNK_SIZE,  # react 内部按字符上限重打包，与 pipeline.run 一致
             max_rounds=react_max_rounds,
             intermediate_think_enabled=intermediate_think_enabled,
+            bg_tasks=bg_tasks or None,
         )
 
         if bg_tasks:

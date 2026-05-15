@@ -337,6 +337,7 @@ async def run(
     chunk_size: int = config.CHUNK_SIZE,
     max_rounds: int = config.REACT_MAX_ROUNDS,
     intermediate_think_enabled: Optional[bool] = None,
+    bg_tasks: Optional[list[asyncio.Task]] = None,
 ) -> dict:
     """运行 ReAct 主循环。返回 ``{"rounds": int, "verdict": str, "answer": str}``。
 
@@ -347,6 +348,18 @@ async def run(
       用同一组证据 + 累积 ``prev_think`` 让模型真正写出用户可见答案，然后退出。
     - 跑到最后一组证据仍未 ``complete``：最后一组本身就按 final 跑，正常收尾。
     - 入参 ``chunks`` 为空时直接以一轮 "无检索证据" 跑最终轮。
+
+    SSE 聚合"段间锁"配合（详见 ``redis_stream.recompute_aggregates``）：
+
+    - **进 final 轮（含 forced_final）之前**：先 ``await bg_tasks``（preview / skills 还在
+      跑就等它们收尾，保证 final prompt 能读到完整 preview/skills 快照），再把
+      ``react.intermediateLocked`` 翻 True 以解锁 final.think 段的可见性。
+    - **final 轮 ``set_react_chunk_complete`` 之后**：把 ``react.finalLocked`` 翻 True,
+      以解锁 think 末尾的 ``【引用知识章节】`` 段。
+
+    ``bg_tasks`` 由 pipeline 注入（preview + skills 的 ``asyncio.Task``）。传 ``None``
+    或空 list 时跳过 await，仅翻锁；调用方在 ``preview_enabled=False`` /
+    ``skills_enabled=False`` 时应预先把对应 done 标志翻 True。
     """
 
     flag = (
@@ -377,6 +390,62 @@ async def run(
             groups_indices = head_idx + [tail_idx]
 
     await redis_stream.set_status(task_id, "reasoning")
+
+    async def _prepare_final(final_round_idx: int) -> None:
+        """进 final/forced_final 之前的统一收口（顺序至关重要）：
+
+        1. **先 ensure final chunk**：把 ``chunks[final_round_idx]`` 占位空 chunk
+           写到 redis。**必须先于翻 intermediateLocked**——否则翻锁瞬间
+           ``chunks[-1]`` 还是上一中间轮 ``c(N-1)``，会被聚合规则误当成 final 输出,
+           随后 _run_one_round 再次调用 ensure_react_chunk 又把它推回中间轮，
+           前端会看到一次"final 段瞬时出现又消失"的翻转。``ensure_react_chunk``
+           本身是幂等的，重复调用无副作用。
+        2. **再 await bg_tasks**：等 preview/skills 收尾，保证 final prompt 拿到
+           完整的 preview/skills 快照（这是用户对 final 提示词完整性的硬要求）。
+        3. **最后翻 intermediateLocked=True**：解锁 final.think 段的 SSE 可见性。
+           此时 ``chunks[-1]`` = 空 final chunk，聚合输出 final.think="" 不影响
+           前面已展示的 mid_chunks，append-only 不破坏。
+
+        任一步异常都不抛出——只记录日志：preview/skills 在自己的 finally 里已经
+        兜底翻了对应 done 标志，bg_task 抛异常时也被 ``pipeline._await_or_log``
+        吞掉。即便 lock 翻失败，也不能阻塞 final 推理；最差只是 SSE 端少展示
+        final 段。
+        """
+
+        try:
+            await redis_stream.ensure_react_chunk(task_id, final_round_idx)
+        except Exception as e:
+            logger.warning(
+                "[InferenceReact] task=%s ensure_react_chunk(final=%d) 失败: %s",
+                task_id, final_round_idx, e,
+            )
+        if bg_tasks:
+            try:
+                await asyncio.gather(*bg_tasks, return_exceptions=True)
+            except Exception as e:
+                logger.warning(
+                    "[InferenceReact] task=%s 等待 preview/skills 收尾异常: %s",
+                    task_id, e,
+                )
+        try:
+            await redis_stream.set_react_intermediate_locked(task_id, True)
+        except Exception as e:
+            logger.warning(
+                "[InferenceReact] task=%s set_react_intermediate_locked 失败: %s",
+                task_id, e,
+            )
+
+    async def _lock_final() -> None:
+        """final/forced_final 整体收尾后翻 ``react.finalLocked=True``,
+        解锁 think 末尾的【引用知识章节】段。"""
+
+        try:
+            await redis_stream.set_react_final_locked(task_id, True)
+        except Exception as e:
+            logger.warning(
+                "[InferenceReact] task=%s set_react_final_locked 失败: %s",
+                task_id, e,
+            )
 
     # 仅保留"上一轮"的思考摘要，避免跨轮无限膨胀。
     prev_think = ""
@@ -459,9 +528,13 @@ async def run(
         is_last_chunk = round_idx == total_groups - 1
         # 正常收尾分支：本轮就是 final（最后一组），在 _run_one_round 调用前
         # 先把"全部进入过 prompt 的 chunks"对应的 heading 叶子写到 redis 快照,
-        # 让 SSE think 第一帧 final.think delta 落地的同时就带上【引用知识章节】段。
+        # 让 SSE think 在 finalLocked 翻 True 后能立即带上【引用知识章节】段。
         # 注意这里 used = 全部 indices：模型跑到最后一组自然收尾时所有 group 都被消费。
         if is_last_chunk:
+            # 进 final 前的"段间锁"收口：先 ensure 占位 final chunk，再 await
+            # preview/skills 收尾，最后翻 intermediateLocked。详见 _prepare_final
+            # docstring 里关于顺序的解释（顺序不对会产生 final 段瞬时翻转）。
+            await _prepare_final(round_idx)
             try:
                 used_indices = [idx for grp in groups_indices for idx in grp]
                 used_headings = _collect_used_headings(chunks, used_indices)
@@ -489,6 +562,8 @@ async def run(
 
         if is_last_chunk:
             # 最后一组本来就走 final，直接结束；last_answer 已是用户答案。
+            # final 收尾，翻 finalLocked 解锁【引用知识章节】段。
+            await _lock_final()
             break
         if verdict == "complete":
             # 模型在中间轮判定信息已足够；不再读新证据，下面追加一轮强制 final
@@ -505,6 +580,10 @@ async def run(
             "追加强制 final 轮 round=%d 收尾",
             task_id, forced_final_after_idx, forced_round_idx,
         )
+        # 进 forced final 前的"段间锁"收口：先 ensure 占位 forced final chunk，再
+        # await preview/skills 收尾，最后翻 intermediateLocked。详见 _prepare_final
+        # docstring。
+        await _prepare_final(forced_round_idx)
         # 强制 final 路径：used = 已跑过的 0..forced_final_after_idx（含）所有 group
         # 对应的 indices 拍平。与 _v4_resolve_used_chunk_indices 的 forced 分支语义一致。
         try:
@@ -533,6 +612,8 @@ async def run(
         last_answer = full_answer
         if full_think:
             prev_think = full_think.strip()
+        # forced final 收尾，翻 finalLocked 解锁【引用知识章节】段。
+        await _lock_final()
 
     return {
         "rounds": rounds_done,

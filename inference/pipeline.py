@@ -6,6 +6,11 @@
 - 检索结果回来后立即开 react_loop；
 - preview / skills 即便晚于 react_loop 启动也无所谓，react_loop 在每轮内会重读
   redis 里的最新 preview / skills 快照；
+- **SSE 段间锁**：bg_tasks（preview/skills）被透传给 react_loop，让 react_loop 在
+  进 final/forced_final 之前 ``await`` 它们收尾，再翻 ``react.intermediateLocked``
+  让 SSE 聚合解锁 final 段——这样客户端看到的 think 字段是 append-only，前面已经
+  吐过的内容不会被改写。``preview_enabled=False`` / ``skills_enabled=False`` 时本模块
+  会立刻把对应的 ``preview.done`` / ``skillsDone`` 翻 True 解锁后续段，避免卡住；
 - 任意阶段异常都被翻译成 ``status="failed"`` + ``error="..."`` 写回 redis；
 - 终态 ``status in {"done", "failed"}`` 后调用方（SSE relay）会再 push 一帧并断流。
 """
@@ -76,6 +81,16 @@ async def run(
                 ),
                 name=f"inference-preview:{task_id}",
             ))
+        else:
+            # preview 不跑时直接翻 done 标志，否则 SSE 聚合的"中间 react 段"门控
+            # （需要 preview.done && skillsDone）永远不成立，前端看不到 react 段。
+            try:
+                await redis_stream.set_preview_done(task_id, True)
+            except Exception as e:
+                logger.warning(
+                    "[InferencePipeline] task=%s set_preview_done(skip) 失败: %s",
+                    task_id, e,
+                )
 
         if opts.skills_enabled:
             from .skills_runner import run as run_skills
@@ -90,6 +105,15 @@ async def run(
                 ),
                 name=f"inference-skills:{task_id}",
             ))
+        else:
+            # 同 preview，skills 跳过时立即翻 skillsDone 解锁后续段。
+            try:
+                await redis_stream.set_skills_done(task_id, True)
+            except Exception as e:
+                logger.warning(
+                    "[InferencePipeline] task=%s set_skills_done(skip) 失败: %s",
+                    task_id, e,
+                )
 
         # 检索阻塞主线：拿到结果才能开 react_loop
         chunks = await hybrid_search(
@@ -100,13 +124,18 @@ async def run(
             "[InferencePipeline] task=%s 检索到 %d 个 chunk", task_id, len(chunks)
         )
 
+        # bg_tasks 传给 react_loop：它会在进 final/forced_final 之前 await，保证
+        # final prompt 拿到完整的 preview / skills 快照；同时翻 intermediateLocked
+        # 让 SSE 聚合解锁 final 段。中间轮跟 preview/skills 完全并发跑，性能不降。
         await run_react_loop(
             task_id, question, chunks, redis_stream,
             vendor=opts.vendor, model=opts.model,
             intermediate_think_enabled=opts.intermediate_think_enabled,
+            bg_tasks=bg_tasks or None,
         )
 
-        # react_loop 结束后等 preview / skills 收尾，确保聚合 think 包含它们最终内容。
+        # react_loop 内部已经在进 final 前 await 过 bg_tasks，这里再 gather 一次
+        # 兜底（理论上立即返回）：若 react_loop 走异常路径未能 await，避免泄漏 task。
         if bg_tasks:
             await asyncio.gather(*bg_tasks, return_exceptions=True)
 
