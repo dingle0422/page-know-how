@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # 与 llm/client.py 的网关授权信息保持一致；后续若改成 env 注入，两处一起改即可。
 _DEFAULT_APP_ID = "sk-0609aa6d08de4413a72e14b3fb8fbab1"
 _DEEPSEEK_APP_ID = "sk-0609aa6d08de4413a72e14b3fb8fbab1"
-_SERVYOU_APP_ID = "sk-d75b519b704d4d348245efe435f08ff3"
+_SERVYOU_APP_ID = "sk-a57093c05ed94f37a7c845ff3fd688e2"
 
 
 # ---------------------------------------------------------------- vendor 路由
@@ -86,7 +86,7 @@ def _build_request(
             payload["chat_template_kwargs"] = {"enable_thinking": True}
     else:
         if vendor == "servyou":
-            url = f"http://10.199.0.7:5000/api/llm/{vendor}/v1/chat/completions"
+            url = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
             app_id = _SERVYOU_APP_ID
         else:
             url = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
@@ -155,8 +155,8 @@ def _extract_deltas(chunk: dict) -> list[tuple[str, str]]:
 async def chat_stream(
     messages: str,
     *,
-    vendor: str = "aliyun",
-    model: str = "deepseek-v3.2",
+    vendor: str = "servyou",
+    model: str = "deepseek-v3.2-1163259bcc6c",
     system: Optional[str] = None,
     enable_thinking: bool = False,
     timeout_seconds: float = 360.0,

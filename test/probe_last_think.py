@@ -2,7 +2,7 @@
 
 用法：
     python test/probe_last_think.py                     # 跑默认 vendor 矩阵
-    python test/probe_last_think.py --vendor servyou --model deepseek-v3.2
+    python test/probe_last_think.py --vendor servyou --model deepseek-v3.2-1163259bcc6c
     python test/probe_last_think.py --timeout 60
 
 输出每个 vendor 的：
@@ -14,7 +14,7 @@
 运行前请确保能访问：
     - qwen3.5-122b-a10b: http://211.137.21.19:17860
     - qwen3.6-35b-a3b / qwen3.5-27b: http://mlp.paas.dc.servyou-it.com
-    - mudgate / servyou: 对应内网
+    - mudgate / servyou: 走 mudgate 网关（http://mlp.paas.dc.servyou-it.com/mudgate/...）
 
 注意：本脚本绕过了 llm/client.py 的 content 归一化逻辑，直接打印原始响应，
 方便看清不同 vendor 到底把 think 放在 content 还是 reasoning_content。
@@ -47,7 +47,7 @@ DEFAULT_MATRIX: list[dict[str, str]] = [
     {"vendor": "qwen3.6-35b-a3b", "model": "Qwen/Qwen3.6-35B-A3B"},
     {"vendor": "qwen3.5-27b", "model": "Qwen/Qwen3.5-27B"},
     # mudgate 下常见模型；如失败请把 vendor/model 改成环境中真实可用的 slug。
-    {"vendor": "servyou", "model": "deepseek-v3.2"},
+    {"vendor": "servyou", "model": "deepseek-v3.2-1163259bcc6c"},
     {"vendor": "deepseek-v3.2", "model": "deepseek-v3.2"},
     {"vendor": "aliyun", "model": "qwen-plus"},
 ]
@@ -101,8 +101,8 @@ def _build_request(vendor: str, model: str, prompt: str, enable_thinking: bool) 
         }
     else:
         if vendor == "servyou":
-            url = f"http://10.199.0.7:5000/api/llm/{vendor}/v1/chat/completions"
-            app_id = "sk-d75b519b704d4d348245efe435f08ff3"
+            url = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
+            app_id = "sk-a57093c05ed94f37a7c845ff3fd688e2"
         else:
             url = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
             app_id = "sk-0609aa6d08de4413a72e14b3fb8fbab1"

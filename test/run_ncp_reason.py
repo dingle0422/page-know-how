@@ -198,8 +198,8 @@ def main() -> int:
         default="",
         help="从文件读取 answerSystemPrompt 内容（utf-8）",
     )
-    parser.add_argument("--vendor", default="", help="LLM vendor，如 aliyun / qwen3.5-122b-a10b；为空走服务端默认")
-    parser.add_argument("--model", default="", help="LLM model 名，如 deepseek-v3.2；为空走服务端默认")
+    parser.add_argument("--vendor", default="", help="LLM vendor，如 servyou / qwen3.5-122b-a10b；为空走服务端默认")
+    parser.add_argument("--model", default="", help="LLM model 名，如 deepseek-v3.2-1163259bcc6c；为空走服务端默认")
     parser.add_argument(
         "--extra-json",
         default="",

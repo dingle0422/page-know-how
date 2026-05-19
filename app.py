@@ -110,10 +110,20 @@ async def lifespan(_app: FastAPI):
     global _redis_client, _worker_pool, INSTANCE_ID
     INSTANCE_ID = str(uuid.uuid4())
     logger.info(f"[lifespan] 启动，REDIS_SERVER_URL={REDIS_SERVER_URL} INSTANCE_ID={INSTANCE_ID}")
+    # 连接池容量直接决定单实例能扛多少路并发推理。/api/inference/stream 每路至少有：
+    #   - SSE relay：每 SSE_TICK_MS 一次 GET
+    #   - ReAct 流式 writer_loop：每个 delta = 一次 get + 一次 set
+    # 默认 64 在 64 并发就会被打满 → 出现 httpx.PoolTimeout。
+    # 这里把短池放大到 256、pool_timeout 放宽到 10s，给排队留出余地；
+    # max_keepalive_connections 同步放大，避免高并发下反复重建连接。
     _redis_client = RedisServerClient(
         REDIS_SERVER_URL,
         auth_token=REDIS_SERVER_AUTH_TOKEN,
         timeout_seconds=15.0,
+        pool_timeout_seconds=10.0,
+        max_connections=256,
+        max_keepalive_connections=128,
+        long_poll_max_connections=64,
     )
     # 服务进程启动时探一次 health，失败就立刻抛错，避免 worker 陷入重复失败循环。
     try:
@@ -218,8 +228,11 @@ class ReasonRequest(BaseModel):
     policyId: str
     question: str
     maxRounds: int = Field(default=5, description="每个子智能体的最大 ReAct 轮次（默认 5）")
-    vendor: str = Field(default="aliyun", description="LLM 供应商（默认 aliyun）")
-    model: str = Field(default="deepseek-v3.2", description="LLM 模型名称（默认 deepseek-v3.2）")
+    vendor: str = Field(default="servyou", description="LLM 供应商（默认 servyou）")
+    model: str = Field(
+        default="deepseek-v3.2-1163259bcc6c",
+        description="LLM 模型名称（默认 deepseek-v3.2-1163259bcc6c）",
+    )
     cleanAnswer: bool = Field(
         default=False,
         description="启用答案清洗：在 summary 后追加一轮 LLM 调用，以咨询客服口吻输出精简结论（默认 False）",
@@ -940,8 +953,8 @@ def _run_reasoning(
     knowledge_dir: str,
     version: str = "v1",
     max_rounds: int = 5,
-    vendor: str = "aliyun",
-    model: str = "deepseek-v3.2",
+    vendor: str = "servyou",
+    model: str = "deepseek-v3.2-1163259bcc6c",
     clean_answer: bool = False,
     summary_batch_size: int = 0,
     retrieval_mode: bool = False,
@@ -1623,8 +1636,8 @@ async def _reason_executor(request_payload: dict) -> dict:
             _run_reasoning, question, knowledge_dir,
             version=version,
             max_rounds=request_payload.get("maxRounds", 10),
-            vendor=request_payload.get("vendor", "aliyun"),
-            model=request_payload.get("model", "deepseek-v3.2"),
+            vendor=request_payload.get("vendor", "servyou"),
+            model=request_payload.get("model", "deepseek-v3.2-1163259bcc6c"),
             clean_answer=request_payload.get("cleanAnswer", False),
             summary_batch_size=request_payload.get("summaryBatchSize", 3),
             retrieval_mode=request_payload.get("retrievalMode", True),
@@ -2162,8 +2175,8 @@ class InferenceRequest(BaseModel):
     )
     question: str
     taskId: str | None = None
-    vendor: str = "aliyun"
-    model: str = "deepseek-v3.2"
+    vendor: str = "servyou"
+    model: str = "deepseek-v3.2-1163259bcc6c"
     previewEnabled: bool = True
     skillsEnabled: bool = True
     topN: int = Field(default=20, ge=1, le=200)
@@ -2949,8 +2962,8 @@ async def _run_inference_v4_executor(
             )
 
     opts = _Opts(
-        vendor=request_payload.get("vendor", "aliyun"),
-        model=request_payload.get("model", "deepseek-v3.2"),
+        vendor=request_payload.get("vendor", "servyou"),
+        model=request_payload.get("model", "deepseek-v3.2-1163259bcc6c"),
         preview_enabled=bool(request_payload.get("previewEnabled", True)),
         skills_enabled=bool(request_payload.get("enableSkills", True)),
         top_n=int(request_payload.get("topN") or _inf_config.TOP_N),

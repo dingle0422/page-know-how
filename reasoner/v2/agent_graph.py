@@ -1269,7 +1269,7 @@ class AgentGraph:
             吐纯散文）。必须保持 JSON 首选 + HTML 兜底。
 
         判定逻辑：vendor 或 model 名包含 "deepseek" 即视作 deepseek 系列，无论走哪条
-        通道（aliyun mudgate / servyou 内网 / mudgate v4-pro/flash），也兼容未来版本。
+        通道（servyou mudgate / aliyun mudgate / mudgate v4-pro/flash），也兼容未来版本。
         """
         v = (self.vendor or "").lower()
         m = (self.model or "").lower()

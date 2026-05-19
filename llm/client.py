@@ -39,7 +39,8 @@ def chat(
     - vendor="deepseek-v4-flash" / "deepseek-v4-pro": MLP mudgate DeepSeek，
       网关 http://…/mudgate/api/llm/deepseek/v1/chat/completions，
       payload 内 model 分别为 deepseek-v4-flash、deepseek-v4-pro（与 vendor 同名）
-    - vendor="servyou": 内网直连
+    - vendor="servyou": MLP mudgate servyou 路径，默认承载 deepseek-v3.2 私有部署
+      （model 形如 deepseek-v3.2-1163259bcc6c），key=sk-a57093c05ed94f37a7c845ff3fd688e2
     - 其他: 走 mudgate 网关（path 中为 vendor 名称）
     """
     messages_payload = []
@@ -92,8 +93,8 @@ def chat(
             PAYLOAD["chat_template_kwargs"] = {"enable_thinking": True}
     else:
         if vendor == "servyou":
-            URL = f"http://10.199.0.7:5000/api/llm/{vendor}/v1/chat/completions"
-            app_id = "sk-d75b519b704d4d348245efe435f08ff3"
+            URL = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
+            app_id = "sk-a57093c05ed94f37a7c845ff3fd688e2"
         else:
             URL = f"http://mlp.paas.dc.servyou-it.com/mudgate/api/llm/{vendor}/v1/chat/completions"
             app_id = "sk-0609aa6d08de4413a72e14b3fb8fbab1"

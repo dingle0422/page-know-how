@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class InferenceOptions:
-    vendor: str = "aliyun"
-    model: str = "deepseek-v3.2"
+    vendor: str = "servyou"
+    model: str = "deepseek-v3.2-1163259bcc6c"
     preview_enabled: bool = True
     skills_enabled: bool = True
     top_n: int = 20

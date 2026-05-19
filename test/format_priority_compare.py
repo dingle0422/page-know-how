@@ -8,7 +8,7 @@
     需要多轮多问题确认是不是稳定现象，以决定是否要切换默认首选格式或按 vendor 自动切换。
 
 实验设计：
-    - 模型矩阵：deepseek-v3.2（vendor=aliyun）+ qwen3.6-35b-a3b（vendor 同名）
+    - 模型矩阵：deepseek-v3.2-1163259bcc6c（vendor=servyou）+ qwen3.6-35b-a3b（vendor 同名）
     - 输出格式：JSON / HTML（直接复用 prompts.py 中已拆好的 *_THINK_PROMPT / *_THINK_HTML_PROMPT）
     - 问题集：3 个真实税务问题，每个问题配套手工编写的 numbered batch_summaries
               （模拟 _batch_final_merge 上游交付的中间产物形态）
@@ -105,8 +105,8 @@ logger = logging.getLogger("format_priority_compare")
 
 # ===== 模型矩阵 =====
 MODELS: list[dict[str, str]] = [
-    # deepseek v3.2 走 aliyun mudgate 通道（与生产 main.py default 一致）
-    {"display": "deepseek-v3.2", "vendor": "aliyun", "model": "deepseek-v3.2"},
+    # deepseek v3.2 走 servyou mudgate 通道（与生产 main.py / app.py default 一致）
+    {"display": "deepseek-v3.2", "vendor": "servyou", "model": "deepseek-v3.2-1163259bcc6c"},
     # qwen3.6 直连 mlp 自部署（client.py 里已有显式分支）
     {"display": "qwen3.6-35b-a3b", "vendor": "qwen3.6-35b-a3b", "model": "Qwen/Qwen3.6-35B-A3B"},
 ]

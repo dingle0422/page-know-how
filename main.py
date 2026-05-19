@@ -250,13 +250,13 @@ def main():
         help="每个子智能体的最大 ReAct 轮次（默认 10，与 app.py 对齐）"
     )
     reason_parser.add_argument(
-        "--vendor", default="aliyun",
-        # choices=["aliyun", "servyou", "qwen3.5-122b-a10b", "qwen3.5-27b"],
-        help="LLM 供应商（默认 aliyun，与 app.py 对齐）"
+        "--vendor", default="servyou",
+        # choices=["servyou", "aliyun", "qwen3.5-122b-a10b", "qwen3.5-27b"],
+        help="LLM 供应商（默认 servyou，与 app.py 对齐）"
     )
     reason_parser.add_argument(
-        "--model", default="deepseek-v3.2",
-        help="LLM 模型名称（默认 deepseek-v3.2，与 app.py 对齐）"
+        "--model", default="deepseek-v3.2-1163259bcc6c",
+        help="LLM 模型名称（默认 deepseek-v3.2-1163259bcc6c，与 app.py 对齐）"
     )
     reason_parser.add_argument(
         "--max-workers", "-w", type=int, default=1,

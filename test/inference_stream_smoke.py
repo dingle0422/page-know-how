@@ -122,8 +122,8 @@ def main() -> int:
     parser.add_argument("--policy-id", required=True, help="已抽取过的 policyId")
     parser.add_argument("--question", required=True, help="测试问题")
     parser.add_argument("--task-id", default=None, help="复用 taskId（不传则随机生成）")
-    parser.add_argument("--vendor", default="aliyun")
-    parser.add_argument("--model", default="deepseek-v3.2")
+    parser.add_argument("--vendor", default="servyou")
+    parser.add_argument("--model", default="deepseek-v3.2-1163259bcc6c")
     parser.add_argument(
         "--reconnect-after", type=float, default=None,
         help="在 N 秒后主动断流并凭同一 taskId 重连，验证后台不死",
