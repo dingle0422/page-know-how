@@ -1,6 +1,7 @@
 """POST /api/inference/stream 接口并发吞吐量压测。
 
-对指定 URL 以固定入参发起 N 路真并发 SSE 订阅，记录每个请求的入参、最终输出与响应时间，
+对指定 URL 以固定入参发起 N 路真并发 SSE 订阅，逐条记录入参、输出、总耗时、
+大模型首字响应时间（TTFT，SSE 快照中 think/answer 首次出现非空内容），
 并按并发档位（默认 16 / 32 / 64 / 128）分别写入 test/ 目录下的 xlsx 文件。
 
 用法示例（PowerShell）::
@@ -36,7 +37,7 @@ DEFAULT_PAYLOAD: dict[str, Any] = {
     "policyId": "KH1493204307733168128_20260519101916",
     "question": "咸鸭蛋、松花蛋在开具发票时是否可以享受免税政策？",
 }
-DEFAULT_CONCURRENCY = (64, 128)
+DEFAULT_CONCURRENCY = (16, 32, 64, 128)
 
 _print_lock = threading.Lock()
 
@@ -95,16 +96,27 @@ def percentile(values: list[float], pct: float) -> float:
 
 @dataclass
 class StreamRequestResult:
+    """单路并发请求的完整压测记录。"""
+
+    concurrency: int
     req_idx: int
     task_id: str
+    policy_id: str
+    question: str
     input_json: str
     http_status: int | None
     final_status: str | None
+    preview_done: bool | None
+    react_round: int | None
+    answerable: bool | None
     think: str
     answer: str
     error: str | None
     ok: bool
     elapsed_sec: float
+    http_connected_sec: float | None
+    first_snapshot_sec: float | None
+    ttft_sec: float | None
     started_at: str
     finished_at: str
     snapshot_count: int = 0
@@ -122,9 +134,25 @@ class ConcurrencyRun:
         return self.finished_at - self.started_at
 
 
+def _record_ttft(
+    t0: float,
+    think: str,
+    answer: str,
+    ttft_sec: float | None,
+) -> float | None:
+    """首字时间：SSE 快照中 think/answer 首次出现非空内容（含 preview / ReAct）。"""
+
+    if ttft_sec is not None:
+        return ttft_sec
+    if (think and think.strip()) or (answer and answer.strip()):
+        return time.perf_counter() - t0
+    return None
+
+
 def do_stream_request(
     url: str,
     base_payload: dict[str, Any],
+    concurrency: int,
     req_idx: int,
     timeout: float,
     verbose: bool,
@@ -132,38 +160,60 @@ def do_stream_request(
     task_id = str(uuid4())
     body = {**base_payload, "taskId": task_id}
     input_json = json.dumps(body, ensure_ascii=False)
+    policy_id = str(body.get("policyId") or "")
+    question = str(body.get("question") or "")
     started_dt = datetime.now()
     t0 = time.perf_counter()
 
     http_status: int | None = None
     final_status: str | None = None
+    preview_done: bool | None = None
+    react_round: int | None = None
+    answerable: bool | None = None
     think = ""
     answer = ""
     error: str | None = None
     ok = False
     snapshot_count = 0
+    http_connected_sec: float | None = None
+    first_snapshot_sec: float | None = None
+    ttft_sec: float | None = None
 
     try:
         with requests.post(url, json=body, stream=True, timeout=timeout) as resp:
+            http_connected_sec = time.perf_counter() - t0
             http_status = resp.status_code
             if http_status != 200:
                 error = f"HTTP {http_status}: {resp.text[:500]}"
             else:
                 for event, payload in _iter_sse(resp):
-                    if event == "snapshot" and isinstance(payload, dict):
-                        snapshot_count += 1
-                        if payload.get("taskId"):
-                            task_id = str(payload["taskId"])
-                        think = str(payload.get("think") or think)
-                        answer = str(payload.get("answer") or answer)
-                        st = payload.get("status")
-                        if st:
-                            final_status = str(st)
-                        if payload.get("error"):
-                            error = str(payload["error"])
-                        if final_status in {"done", "failed"}:
-                            ok = final_status == "done" and not error
-                            break
+                    if event != "snapshot" or not isinstance(payload, dict):
+                        continue
+                    if first_snapshot_sec is None:
+                        first_snapshot_sec = time.perf_counter() - t0
+                    snapshot_count += 1
+                    if payload.get("taskId"):
+                        task_id = str(payload["taskId"])
+                    new_think = str(payload.get("think") or "")
+                    new_answer = str(payload.get("answer") or "")
+                    ttft_sec = _record_ttft(t0, new_think, new_answer, ttft_sec)
+                    think = new_think or think
+                    answer = new_answer or answer
+                    if "previewDone" in payload:
+                        preview_done = bool(payload["previewDone"])
+                    if payload.get("reactRound") is not None:
+                        react_round = int(payload["reactRound"])
+                    if "answerable" in payload:
+                        ans = payload["answerable"]
+                        answerable = bool(ans) if ans is not None else None
+                    st = payload.get("status")
+                    if st:
+                        final_status = str(st)
+                    if payload.get("error"):
+                        error = str(payload["error"])
+                    if final_status in {"done", "failed"}:
+                        ok = final_status == "done" and not error
+                        break
     except requests.RequestException as e:
         error = f"{type(e).__name__}: {e}"
     except Exception as e:  # noqa: BLE001
@@ -179,16 +229,25 @@ def do_stream_request(
         ok = True
 
     result = StreamRequestResult(
+        concurrency=concurrency,
         req_idx=req_idx,
         task_id=task_id,
+        policy_id=policy_id,
+        question=question,
         input_json=input_json,
         http_status=http_status,
         final_status=final_status,
+        preview_done=preview_done,
+        react_round=react_round,
+        answerable=answerable,
         think=think,
         answer=answer,
         error=error,
         ok=ok,
         elapsed_sec=elapsed,
+        http_connected_sec=http_connected_sec,
+        first_snapshot_sec=first_snapshot_sec,
+        ttft_sec=ttft_sec,
         started_at=started_dt.isoformat(timespec="seconds"),
         finished_at=finished_dt.isoformat(timespec="seconds"),
         snapshot_count=snapshot_count,
@@ -196,10 +255,12 @@ def do_stream_request(
 
     if verbose:
         tag = "OK " if ok else "ERR"
+        ttft_disp = f"{ttft_sec:.2f}s" if ttft_sec is not None else "n/a"
         safe_print(
-            f"[c-run req {req_idx:>4}] {tag} taskId={task_id[:8]}... "
+            f"[c={concurrency} req {req_idx:>4}] {tag} taskId={task_id[:8]}... "
             f"http={http_status} status={final_status} "
-            f"elapsed={elapsed:.2f}s think_len={len(think)} answer_len={len(answer)}"
+            f"ttft={ttft_disp} elapsed={elapsed:.2f}s "
+            f"think_len={len(think)} answer_len={len(answer)}"
             + (f" err={error}" if error else "")
         )
 
@@ -219,7 +280,9 @@ def run_concurrency_level(
 
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         futures = [
-            pool.submit(do_stream_request, url, base_payload, i + 1, timeout, verbose)
+            pool.submit(
+                do_stream_request, url, base_payload, concurrency, i + 1, timeout, verbose,
+            )
             for i in range(concurrency)
         ]
         for fut in as_completed(futures):
@@ -249,24 +312,45 @@ def _print_run_summary(run: ConcurrencyRun) -> None:
     )
     if elapses:
         safe_print(
-            f"    耗时: min={min(elapses):.2f}s avg={statistics.mean(elapses):.2f}s "
+            f"    总耗时: min={min(elapses):.2f}s avg={statistics.mean(elapses):.2f}s "
             f"p50={percentile(elapses, 50):.2f}s p95={percentile(elapses, 95):.2f}s "
             f"max={max(elapses):.2f}s"
         )
+    ttfts = [r.ttft_sec for r in run.results if r.ttft_sec is not None]
+    if ttfts:
+        safe_print(
+            f"    首字TTFT: min={min(ttfts):.2f}s avg={statistics.mean(ttfts):.2f}s "
+            f"p50={percentile(ttfts, 50):.2f}s p95={percentile(ttfts, 95):.2f}s "
+            f"max={max(ttfts):.2f}s"
+        )
 
 
-def _build_detail_rows(run: ConcurrencyRun, url: str) -> list[dict[str, Any]]:
+def _build_detail_rows(run: ConcurrencyRun) -> list[dict[str, Any]]:
+    """每条并发一行，字段覆盖入参、时序、状态与完整输出。"""
     rows: list[dict[str, Any]] = []
     for r in run.results:
         rows.append(
             {
+                "concurrency": r.concurrency,
                 "req_idx": r.req_idx,
                 "task_id": r.task_id,
+                "policy_id": r.policy_id,
+                "question": r.question,
                 "input_json": r.input_json,
                 "http_status": r.http_status,
                 "final_status": r.final_status,
+                "preview_done": r.preview_done,
+                "react_round": r.react_round,
+                "answerable": r.answerable,
                 "ok": r.ok,
                 "error": r.error,
+                "http_connected_sec": round(r.http_connected_sec, 4)
+                if r.http_connected_sec is not None
+                else None,
+                "first_snapshot_sec": round(r.first_snapshot_sec, 4)
+                if r.first_snapshot_sec is not None
+                else None,
+                "ttft_sec": round(r.ttft_sec, 4) if r.ttft_sec is not None else None,
                 "elapsed_sec": round(r.elapsed_sec, 4),
                 "started_at": r.started_at,
                 "finished_at": r.finished_at,
@@ -290,6 +374,8 @@ def _build_summary_row(
     succ = sum(1 for r in run.results if r.ok)
     elapses = [r.elapsed_sec for r in run.results]
     succ_elapses = [r.elapsed_sec for r in run.results if r.ok]
+    ttfts = [r.ttft_sec for r in run.results if r.ttft_sec is not None]
+    succ_ttfts = [r.ttft_sec for r in run.results if r.ok and r.ttft_sec is not None]
     return {
         "ran_at": ran_at,
         "url": url,
@@ -309,6 +395,15 @@ def _build_summary_row(
         "elapsed_p99": round(percentile(elapses, 99), 4) if elapses else None,
         "elapsed_max": round(max(elapses), 4) if elapses else None,
         "success_elapsed_avg": round(statistics.mean(succ_elapses), 4) if succ_elapses else None,
+        "ttft_count": len(ttfts),
+        "ttft_min": round(min(ttfts), 4) if ttfts else None,
+        "ttft_avg": round(statistics.mean(ttfts), 4) if ttfts else None,
+        "ttft_p50": round(percentile(ttfts, 50), 4) if ttfts else None,
+        "ttft_p90": round(percentile(ttfts, 90), 4) if ttfts else None,
+        "ttft_p95": round(percentile(ttfts, 95), 4) if ttfts else None,
+        "ttft_p99": round(percentile(ttfts, 99), 4) if ttfts else None,
+        "ttft_max": round(max(ttfts), 4) if ttfts else None,
+        "success_ttft_avg": round(statistics.mean(succ_ttfts), 4) if succ_ttfts else None,
     }
 
 
@@ -319,7 +414,7 @@ def export_xlsx(
     base_payload: dict[str, Any],
     ran_at: str,
 ) -> None:
-    detail_df = pd.DataFrame(_build_detail_rows(run, url))
+    detail_df = pd.DataFrame(_build_detail_rows(run))
     summary_df = pd.DataFrame([_build_summary_row(run, url, base_payload, ran_at)])
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
