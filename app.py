@@ -2181,6 +2181,18 @@ class InferenceRequest(BaseModel):
     )
     # null = 沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK
     intermediateThinkEnabled: bool | None = True
+    answerSystemPrompt: str | None = Field(
+        default=None,
+        description="按值路由 inference pipeline 的 preview 阶段 prompt：\n"
+                    "- 非空（去空白后仍有内容）→ 走新版 PREVIEW_*_WITH_TGK，system 切到"
+                    "  \"请遵循**专题通用知识**\"版本、user prompt 多一段【专题通用知识】"
+                    "  （注入本字段内容），用于提升预答的领域背景能力；\n"
+                    "- None / 空字符串 / 纯空白 → 走原版 PREVIEW_*，与改造前完全等价"
+                    "  （system 仅要求\"基于自身常识\"、user prompt 只有【用户问题】）。\n"
+                    "本字段仅作用于 preview，react 主循环与最终轮 prompt 不受影响。"
+                    "字段名与 /api/reason 的 ReasonRequest.answerSystemPrompt 对齐，"
+                    "在 v4 路径下两者语义一致。",
+    )
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
         description="启用 verbose 模式：以 taskId 为文件名落 jsonl 推理日志，"
@@ -2375,6 +2387,9 @@ def _build_inference_options(req: InferenceRequest) -> _InferenceOptions:
         top_n=int(req.topN),
         top_m=int(req.topM),
         intermediate_think_enabled=req.intermediateThinkEnabled,
+        # answerSystemPrompt → preview 阶段【专题通用知识】路由（见 prompts.select_preview_prompt）。
+        # 非空走 PREVIEW_*_WITH_TGK，注入用户传入的专题背景；空/None 回落到原版 PREVIEW_*。
+        topic_general_knowledge=req.answerSystemPrompt,
     )
 
 
