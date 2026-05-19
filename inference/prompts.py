@@ -29,9 +29,13 @@ __all__ = [
     "CORPUS_USER_PROMPT",
     "PREVIEW_SYSTEM_PROMPT",
     "PREVIEW_USER_PROMPT",
+    "PREVIEW_SYSTEM_PROMPT_WITH_TGK",
+    "PREVIEW_USER_PROMPT_WITH_TGK",
     "REACT_INTERMEDIATE_SYSTEM_PROMPT",
     "REACT_INTERMEDIATE_USER_PROMPT",
     "REACT_FINAL_SYSTEM_PROMPT",
+    "select_preview_prompt",
+    "format_preview_user_prompt",
     "format_react_intermediate_user_prompt",
     "format_react_final_user_prompt",
     "select_react_prompt",
@@ -42,6 +46,18 @@ __all__ = [
 
 
 # -------------------------------------------------------------- preview prompt
+#
+# 双套 prompt 并存，按 ``topic_general_knowledge`` 是否提供路由（见
+# :func:`select_preview_prompt`）：
+#
+# - 老（``PREVIEW_SYSTEM_PROMPT`` / ``PREVIEW_USER_PROMPT``）：
+#   仅基于模型自身常识做轻量分析，user prompt 只有【用户问题】一段。
+#   入参缺少 ``topic_general_knowledge`` 时使用，向后兼容原有调用。
+# - 新（``PREVIEW_SYSTEM_PROMPT_WITH_TGK`` / ``PREVIEW_USER_PROMPT_WITH_TGK``）：
+#   要求模型"遵循专题通用知识 + 自身常识"，user prompt 多一段【专题通用知识】。
+#   对接外层 ``ReasonRequest.answerSystemPrompt``，让客户传入的专题背景知识
+#   参与 preview 预答。两个常量必须成对启用，避免出现 system 让模型遵循
+#   一段不存在的小节这种矛盾。
 
 PREVIEW_SYSTEM_PROMPT = """\
 你是一个资深财税实务咨询专家。
@@ -61,6 +77,77 @@ PREVIEW_SYSTEM_PROMPT = """\
 PREVIEW_USER_PROMPT = """## 【用户问题】
 {question}
 """
+
+
+PREVIEW_SYSTEM_PROMPT_WITH_TGK = """\
+你是一个资深财税实务咨询专家。
+
+请遵循**专题通用知识**，并基于自身常识，对**用户问题**做一次轻量分析
+- <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
+- <answer> 标签内容：给出还需要进一步验证的关键点（100字以内）
+
+【绝对约束】
+- 仅输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他文字。
+- 不确定的思路和常识，允许标注"待结合检索后修正"
+- 不用考虑可能的风险点
+- 严禁输出具体政策名称、内容及其相关要求（你的信息是过时的）
+- 严禁给出问题的答案，只要输出解答思路
+"""
+
+PREVIEW_USER_PROMPT_WITH_TGK = """## 【用户问题】
+{question}
+
+## 【专题通用知识】
+{topic_general_knowledge}
+"""
+
+
+def select_preview_prompt(
+    *,
+    question: str,
+    topic_general_knowledge: str | None = None,
+) -> tuple[str, str]:
+    """根据 ``topic_general_knowledge`` 是否提供，路由到老/新两套 preview prompt。
+
+    - ``topic_general_knowledge`` 非空（``str.strip()`` 后仍有内容）：
+      返回 ``(PREVIEW_SYSTEM_PROMPT_WITH_TGK, 渲染后的 PREVIEW_USER_PROMPT_WITH_TGK)``,
+      user prompt 注入【专题通用知识】小节，system 同步切到要求"遵循专题通用知识"的版本。
+    - 否则：返回 ``(PREVIEW_SYSTEM_PROMPT, 渲染后的 PREVIEW_USER_PROMPT)``,
+      与改造前的老版 preview 完全一致（只有【用户问题】、system 要求"基于自身常识"）。
+
+    返回 ``(system_prompt, user_prompt)`` tuple，结构对齐 :func:`select_react_prompt`。
+    """
+
+    tgk = (topic_general_knowledge or "").strip()
+    if tgk:
+        return (
+            PREVIEW_SYSTEM_PROMPT_WITH_TGK,
+            PREVIEW_USER_PROMPT_WITH_TGK.format(
+                question=question,
+                topic_general_knowledge=tgk,
+            ),
+        )
+    return (
+        PREVIEW_SYSTEM_PROMPT,
+        PREVIEW_USER_PROMPT.format(question=question),
+    )
+
+
+def format_preview_user_prompt(
+    *,
+    question: str,
+    topic_general_knowledge: str | None = None,
+) -> str:
+    """组装 preview 阶段 user prompt（仅返回 user 段；如需 system 请用 :func:`select_preview_prompt`）。
+
+    内部直接复用 :func:`select_preview_prompt` 的路由，行为完全等价于取其 ``[1]``。
+    """
+
+    _, user_prompt = select_preview_prompt(
+        question=question,
+        topic_general_knowledge=topic_general_knowledge,
+    )
+    return user_prompt
 
 
 # -------------------------------------------------------------- react: 中间轮

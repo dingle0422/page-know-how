@@ -273,15 +273,21 @@ class ReasonRequest(BaseModel):
     )
     answerSystemPrompt: str | None = Field(
         default=None,
-        description="最终作答阶段的 system prompt 自定义内容："
-                    "仅作用于【最终总结/作答】节点（all_in_answer / final_summary / "
-                    "batch_final_merge / retrieval_final_summary / retrieval_batch_final_merge），"
-                    "不会影响中间提炼层（SUMMARY_EXTRACT_SYSTEM_PROMPT / BATCH_REDUCE_SYSTEM_PROMPT）。"
-                    "拼接方式：不传或传空字符串时直接使用内置的 SUMMARY_ANSWER_SYSTEM_PROMPT；"
-                    "传入非空内容时不会覆盖默认 prompt，而是按"
-                    "「## 最高行为准则\\n{自定义}\\n\\n## 默认作答规范\\n{SUMMARY_ANSWER_SYSTEM_PROMPT}」"
-                    "结构拼接（自定义部分优先级最高，与默认冲突时以自定义为准）。"
-                    "仅在 version=v1/v2 下生效",
+        description="自定义专题/作答背景知识。语义随 version 分流：\n"
+                    "- version=v1/v2/v3：作为【最终作答阶段的 system prompt】，仅作用于"
+                    "  all_in_answer / final_summary / batch_final_merge / retrieval_final_summary / "
+                    "  retrieval_batch_final_merge 节点，不影响中间提炼层。"
+                    "  不传或传空字符串时直接使用内置 SUMMARY_ANSWER_SYSTEM_PROMPT；"
+                    "  传入非空内容时不会覆盖默认 prompt，而是按"
+                    "  「## 最高行为准则\\n{自定义}\\n\\n## 默认作答规范\\n{SUMMARY_ANSWER_SYSTEM_PROMPT}」"
+                    "  结构拼接（自定义部分优先级最高，与默认冲突时以自定义为准）。\n"
+                    "- version=v4：按值路由 inference pipeline 的 preview 阶段 prompt:\n"
+                    "  · 非空（去空白后仍有内容）→ 走新版 PREVIEW_*_WITH_TGK，system 切到"
+                    "    \"请遵循**专题通用知识**\"版本、user prompt 多一段【专题通用知识】"
+                    "    （注入本字段内容），用于提升预答的领域背景能力；\n"
+                    "  · None / 空字符串 / 纯空白 → 走原版 PREVIEW_*，与改造前完全等价"
+                    "    （system 仅要求\"基于自身常识\"、user prompt 只有【用户问题】）。\n"
+                    "  v4 路径下本字段仅作用于 preview，react 主循环与最终轮 prompt 不受影响。"
     )
     lastThink: bool = Field(
         default=True,
@@ -2935,6 +2941,8 @@ async def _run_inference_v4_executor(
         top_n=int(request_payload.get("topN") or _inf_config.TOP_N),
         top_m=int(request_payload.get("topM") or _inf_config.TOP_M),
         intermediate_think_enabled=intermediate_think_enabled,
+        # v4：answerSystemPrompt 作为【专题通用知识】注入 preview，提升预答基础能力。
+        topic_general_knowledge=request_payload.get("answerSystemPrompt"),
     )
 
     react_max_rounds_raw = request_payload.get("maxRounds")
@@ -2956,6 +2964,7 @@ async def _run_inference_v4_executor(
                     _run_preview(
                         task_id, question, rs,
                         vendor=opts.vendor, model=opts.model,
+                        topic_general_knowledge=opts.topic_general_knowledge,
                     ),
                     label=f"preview task={task_id}",
                 ),

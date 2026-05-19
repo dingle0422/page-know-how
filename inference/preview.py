@@ -97,18 +97,29 @@ async def run(
     model: str = "deepseek-v3.2",
     system_prompt: Optional[str] = None,
     user_prompt: Optional[str] = None,
+    topic_general_knowledge: Optional[str] = None,
     tps: int = config.PREVIEW_TPS,
 ) -> None:
     """运行 preview 阶段。
+
+    ``topic_general_knowledge``：用于 :func:`inference.prompts.select_preview_prompt`
+    的路由——非空时走 ``PREVIEW_*_WITH_TGK`` 双件套（system 要求"遵循专题通用知识"，
+    user prompt 注入【专题通用知识】小节）；为空/None 时回落到老 ``PREVIEW_*``
+    （只有【用户问题】、system 仅要求"基于自身常识"），与改造前完全等价。
+    显式传 ``system_prompt`` / ``user_prompt`` 时优先使用对应入参，路由结果被覆盖。
 
     异常会被捕获并写入 ``preview.done=True`` + 日志，不向上抛，确保 pipeline
     的 react 主路径不会被 preview 拖死。
     """
 
-    from .prompts import PREVIEW_SYSTEM_PROMPT, PREVIEW_USER_PROMPT
+    from .prompts import select_preview_prompt
 
-    sys_p = system_prompt or PREVIEW_SYSTEM_PROMPT
-    usr_p = user_prompt or PREVIEW_USER_PROMPT.format(question=question)
+    default_sys_p, default_usr_p = select_preview_prompt(
+        question=question,
+        topic_general_knowledge=topic_general_knowledge,
+    )
+    sys_p = system_prompt or default_sys_p
+    usr_p = user_prompt or default_usr_p
 
     interval = 1.0 / max(int(tps), 1)
     buffer = _ChannelBuffer()

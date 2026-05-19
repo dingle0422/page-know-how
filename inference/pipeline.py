@@ -38,6 +38,9 @@ class InferenceOptions:
     top_n: int = 20
     top_m: int = 20
     intermediate_think_enabled: Optional[bool] = None  # None=用全局开关
+    # 透传到 preview 的【专题通用知识】槽位（对应 ReasonRequest.answerSystemPrompt）；
+    # None / 空字符串时 preview 走兜底占位，不影响原有行为。
+    topic_general_knowledge: Optional[str] = None
 
 
 async def _await_or_log(coro, *, label: str) -> None:
@@ -76,6 +79,7 @@ async def run(
                     run_preview(
                         task_id, question, redis_stream,
                         vendor=opts.vendor, model=opts.model,
+                        topic_general_knowledge=opts.topic_general_knowledge,
                     ),
                     label=f"preview task={task_id}",
                 ),
