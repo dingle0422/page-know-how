@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import statistics
 import sys
 import threading
@@ -38,6 +39,12 @@ DEFAULT_PAYLOAD: dict[str, Any] = {
     "question": "咸鸭蛋、松花蛋在开具发票时是否可以享受免税政策？",
 }
 DEFAULT_CONCURRENCY = (16, 32, 48, 64)
+DEFAULT_QUESTIONS_FILE = "ncp_test_0423.csv"
+"""默认问题集文件名（相对脚本所在目录）。
+
+模拟真实场景：每条并发的 ``question`` 都来自该文件，互不重复，
+更贴近线上 SSE 流量的多 policyId/多问题分布。
+"""
 
 _print_lock = threading.Lock()
 
@@ -81,6 +88,46 @@ def _iter_sse(resp: requests.Response) -> Iterator[tuple[str, dict[str, Any]]]:
         yield event, payload if isinstance(payload, dict) else {"_raw": payload}
 
 
+def load_questions(path: str) -> list[str]:
+    """从 CSV / xlsx 读取问题集，返回去重后的列表（保留原顺序）。
+
+    兼容列名 ``问题`` / ``question`` / ``Q``，至少需要其中之一。
+    """
+
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".csv":
+        df = pd.read_csv(path)
+    elif ext in (".xlsx", ".xls"):
+        df = pd.read_excel(path, engine="openpyxl")
+    else:
+        raise ValueError(f"不支持的问题集文件类型: {ext}，仅支持 .csv / .xlsx")
+
+    cols = list(df.columns)
+    col = None
+    for cand in ("问题", "question", "Question", "Q"):
+        if cand in cols:
+            col = cand
+            break
+    if col is None:
+        raise ValueError(f"问题集缺少 '问题' 或 'question' 列，实际表头={cols}")
+
+    questions: list[str] = []
+    seen: set[str] = set()
+    for raw in df[col].tolist():
+        if raw is None:
+            continue
+        q = str(raw).strip()
+        if not q or q.lower() == "nan":
+            continue
+        if q in seen:
+            continue
+        seen.add(q)
+        questions.append(q)
+    if not questions:
+        raise ValueError(f"问题集为空: {path}")
+    return questions
+
+
 def percentile(values: list[float], pct: float) -> float:
     if not values:
         return 0.0
@@ -120,6 +167,10 @@ class StreamRequestResult:
     started_at: str
     finished_at: str
     snapshot_count: int = 0
+    # 流被网关 / 中间链路截断的次数（含「流自然结束但未收到 done/failed」）。
+    cut_count: int = 0
+    # 实际触发的重连次数；恒等于 attempts - 1。
+    reconnect_count: int = 0
 
 
 @dataclass
@@ -149,6 +200,86 @@ def _record_ttft(
     return None
 
 
+_CUT_EXCEPTIONS: tuple[type[BaseException], ...] = (
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.ConnectionError,
+)
+
+
+def _one_sse_pass(
+    url: str,
+    body: dict[str, Any],
+    t0: float,
+    state: dict[str, Any],
+    timeout: float,
+) -> tuple[bool, bool, str | None]:
+    """读一次 SSE 流，**原地**更新 ``state``。
+
+    服务端约定：``taskId`` 不变时，``/api/inference/stream`` 会继续转发同一份
+    Redis 快照（``inference:task:{taskId}`` 仍在 TTL 内），新连接的第一帧
+    就会带上累积的 think/answer。因此本函数被多次调用以实现「断流重连」。
+
+    Returns
+    -------
+    terminated : bool
+        是否走到了 ``status in {done, failed}``，即流已经看到完整终态。
+    was_cut : bool
+        是否因传输被截断（``ChunkedEncodingError`` / ``ConnectionError`` /
+        流自然结束但未收到 done/failed）而提前终止——这类情况外层会按策略重连。
+    err_str : str | None
+        若非空，用于打印 / 写入 ``state['error']``。
+    """
+
+    try:
+        with requests.post(url, json=body, stream=True, timeout=timeout) as resp:
+            if state["http_connected_sec"] is None:
+                state["http_connected_sec"] = time.perf_counter() - t0
+            state["http_status"] = resp.status_code
+            if resp.status_code != 200:
+                return False, False, f"HTTP {resp.status_code}: {resp.text[:500]}"
+            for event, payload in _iter_sse(resp):
+                if event != "snapshot" or not isinstance(payload, dict):
+                    continue
+                if state["first_snapshot_sec"] is None:
+                    state["first_snapshot_sec"] = time.perf_counter() - t0
+                state["snapshot_count"] += 1
+                if payload.get("taskId"):
+                    state["task_id"] = str(payload["taskId"])
+                new_think = str(payload.get("think") or "")
+                new_answer = str(payload.get("answer") or "")
+                state["ttft_sec"] = _record_ttft(
+                    t0, new_think, new_answer, state["ttft_sec"]
+                )
+                # 服务端 snapshot 里 think/answer 是 append-only 的全量，
+                # 重连后第一帧就会带上之前累计的内容，覆盖式赋值即可。
+                state["think"] = new_think or state["think"]
+                state["answer"] = new_answer or state["answer"]
+                if "previewDone" in payload:
+                    state["preview_done"] = bool(payload["previewDone"])
+                if payload.get("reactRound") is not None:
+                    state["react_round"] = int(payload["reactRound"])
+                if "answerable" in payload:
+                    ans = payload["answerable"]
+                    state["answerable"] = bool(ans) if ans is not None else None
+                st = payload.get("status")
+                if st:
+                    state["final_status"] = str(st)
+                if payload.get("error"):
+                    state["error"] = str(payload["error"])
+                if state["final_status"] in {"done", "failed"}:
+                    return True, False, None
+            # 走到这说明 iter_lines 干净结束但没看到 done/failed：
+            # 典型是网关 / 中间链路把 chunked 末尾的 0\r\n\r\n 也吞了，
+            # 表现为 requests 不抛异常但 SSE 半截没了——按「被切」处理重连。
+            return False, True, "SSE 流被对端无标记关闭（可能是网关 hard timeout）"
+    except _CUT_EXCEPTIONS as e:
+        return False, True, f"{type(e).__name__}: {e}"
+    except requests.RequestException as e:
+        return False, False, f"{type(e).__name__}: {e}"
+    except Exception as e:  # noqa: BLE001
+        return False, False, f"{type(e).__name__}: {e}"
+
+
 def do_stream_request(
     url: str,
     base_payload: dict[str, Any],
@@ -156,112 +287,130 @@ def do_stream_request(
     req_idx: int,
     timeout: float,
     verbose: bool,
+    *,
+    question_override: str | None = None,
+    reconnect_on_cut: bool = True,
+    max_reconnects: int = 3,
+    reconnect_backoff_sec: float = 1.0,
 ) -> StreamRequestResult:
     task_id = str(uuid4())
     body = {**base_payload, "taskId": task_id}
+    # question_override 让本路并发使用题库里专属的一条问题——
+    # 在 main 里按"每档 N 条互不重复"的策略已经分配好。
+    if question_override is not None:
+        body["question"] = question_override
     input_json = json.dumps(body, ensure_ascii=False)
     policy_id = str(body.get("policyId") or "")
     question = str(body.get("question") or "")
     started_dt = datetime.now()
     t0 = time.perf_counter()
 
-    http_status: int | None = None
-    final_status: str | None = None
-    preview_done: bool | None = None
-    react_round: int | None = None
-    answerable: bool | None = None
-    think = ""
-    answer = ""
-    error: str | None = None
-    ok = False
-    snapshot_count = 0
-    http_connected_sec: float | None = None
-    first_snapshot_sec: float | None = None
-    ttft_sec: float | None = None
+    state: dict[str, Any] = {
+        "http_status": None,
+        "final_status": None,
+        "preview_done": None,
+        "react_round": None,
+        "answerable": None,
+        "think": "",
+        "answer": "",
+        "error": None,
+        "snapshot_count": 0,
+        "http_connected_sec": None,
+        "first_snapshot_sec": None,
+        "ttft_sec": None,
+        "task_id": task_id,
+    }
 
-    try:
-        with requests.post(url, json=body, stream=True, timeout=timeout) as resp:
-            http_connected_sec = time.perf_counter() - t0
-            http_status = resp.status_code
-            if http_status != 200:
-                error = f"HTTP {http_status}: {resp.text[:500]}"
-            else:
-                for event, payload in _iter_sse(resp):
-                    if event != "snapshot" or not isinstance(payload, dict):
-                        continue
-                    if first_snapshot_sec is None:
-                        first_snapshot_sec = time.perf_counter() - t0
-                    snapshot_count += 1
-                    if payload.get("taskId"):
-                        task_id = str(payload["taskId"])
-                    new_think = str(payload.get("think") or "")
-                    new_answer = str(payload.get("answer") or "")
-                    ttft_sec = _record_ttft(t0, new_think, new_answer, ttft_sec)
-                    think = new_think or think
-                    answer = new_answer or answer
-                    if "previewDone" in payload:
-                        preview_done = bool(payload["previewDone"])
-                    if payload.get("reactRound") is not None:
-                        react_round = int(payload["reactRound"])
-                    if "answerable" in payload:
-                        ans = payload["answerable"]
-                        answerable = bool(ans) if ans is not None else None
-                    st = payload.get("status")
-                    if st:
-                        final_status = str(st)
-                    if payload.get("error"):
-                        error = str(payload["error"])
-                    if final_status in {"done", "failed"}:
-                        ok = final_status == "done" and not error
-                        break
-    except requests.RequestException as e:
-        error = f"{type(e).__name__}: {e}"
-    except Exception as e:  # noqa: BLE001
-        error = f"{type(e).__name__}: {e}"
+    cut_count = 0
+    reconnect_count = 0
+    attempts_max = 1 + (max_reconnects if reconnect_on_cut else 0)
+    last_cut_err: str | None = None
+    terminated = False
+
+    for attempt in range(attempts_max):
+        if attempt > 0:
+            reconnect_count += 1
+            if verbose:
+                safe_print(
+                    f"[c={concurrency} req {req_idx:>4}] 第 {reconnect_count} 次重连 "
+                    f"taskId={state['task_id'][:8]}... cut_count={cut_count} "
+                    f"last_err={last_cut_err}"
+                )
+            time.sleep(reconnect_backoff_sec)
+            # 重连必须带同一 taskId，让服务端把后续帧接力推过来。
+            body["taskId"] = state["task_id"]
+
+        terminated, was_cut, err_str = _one_sse_pass(url, body, t0, state, timeout)
+
+        if terminated:
+            break
+        if was_cut:
+            cut_count += 1
+            last_cut_err = err_str
+            if attempt + 1 < attempts_max:
+                continue
+            state["error"] = (
+                f"流连续 {cut_count} 次被截断（最后一次：{err_str}）"
+            )
+            break
+        if err_str and not state["error"]:
+            state["error"] = err_str
+        break
 
     elapsed = time.perf_counter() - t0
     finished_dt = datetime.now()
 
-    if http_status == 200 and final_status is None and not error:
-        error = "流结束但未收到 status=done/failed 的 snapshot"
-        ok = False
-    elif http_status == 200 and final_status == "done" and not error:
-        ok = True
+    if (
+        state["http_status"] == 200
+        and state["final_status"] is None
+        and not state["error"]
+    ):
+        state["error"] = "流结束但未收到 status=done/failed 的 snapshot"
+
+    ok = (
+        state["http_status"] == 200
+        and state["final_status"] == "done"
+        and not state["error"]
+    )
 
     result = StreamRequestResult(
         concurrency=concurrency,
         req_idx=req_idx,
-        task_id=task_id,
+        task_id=state["task_id"],
         policy_id=policy_id,
         question=question,
         input_json=input_json,
-        http_status=http_status,
-        final_status=final_status,
-        preview_done=preview_done,
-        react_round=react_round,
-        answerable=answerable,
-        think=think,
-        answer=answer,
-        error=error,
+        http_status=state["http_status"],
+        final_status=state["final_status"],
+        preview_done=state["preview_done"],
+        react_round=state["react_round"],
+        answerable=state["answerable"],
+        think=state["think"],
+        answer=state["answer"],
+        error=state["error"],
         ok=ok,
         elapsed_sec=elapsed,
-        http_connected_sec=http_connected_sec,
-        first_snapshot_sec=first_snapshot_sec,
-        ttft_sec=ttft_sec,
+        http_connected_sec=state["http_connected_sec"],
+        first_snapshot_sec=state["first_snapshot_sec"],
+        ttft_sec=state["ttft_sec"],
         started_at=started_dt.isoformat(timespec="seconds"),
         finished_at=finished_dt.isoformat(timespec="seconds"),
-        snapshot_count=snapshot_count,
+        snapshot_count=state["snapshot_count"],
+        cut_count=cut_count,
+        reconnect_count=reconnect_count,
     )
 
     if verbose:
         tag = "OK " if ok else "ERR"
-        ttft_disp = f"{ttft_sec:.2f}s" if ttft_sec is not None else "n/a"
+        ttft_disp = f"{result.ttft_sec:.2f}s" if result.ttft_sec is not None else "n/a"
+        rec_disp = f" rec={reconnect_count}/{cut_count}" if cut_count else ""
         safe_print(
-            f"[c={concurrency} req {req_idx:>4}] {tag} taskId={task_id[:8]}... "
-            f"http={http_status} status={final_status} "
-            f"ttft={ttft_disp} elapsed={elapsed:.2f}s "
-            f"think_len={len(think)} answer_len={len(answer)}"
-            + (f" err={error}" if error else "")
+            f"[c={concurrency} req {req_idx:>4}] {tag} taskId={result.task_id[:8]}... "
+            f"http={result.http_status} status={result.final_status} "
+            f"ttft={ttft_disp} elapsed={elapsed:.2f}s"
+            f"{rec_disp} "
+            f"think_len={len(result.think)} answer_len={len(result.answer)}"
+            + (f" err={result.error}" if result.error else "")
         )
 
     return result
@@ -273,15 +422,40 @@ def run_concurrency_level(
     concurrency: int,
     timeout: float,
     verbose: bool,
+    *,
+    questions: list[str] | None = None,
+    reconnect_on_cut: bool = True,
+    max_reconnects: int = 3,
+    reconnect_backoff_sec: float = 1.0,
 ) -> ConcurrencyRun:
+    if questions is not None and len(questions) != concurrency:
+        raise ValueError(
+            f"questions 长度 {len(questions)} 与并发数 {concurrency} 不一致"
+        )
+
     safe_print(f"\n>>> 并发档位 {concurrency}：同时发起 {concurrency} 个 stream 请求 ...")
+    if questions is not None:
+        safe_print(
+            f"    使用 {len(questions)} 条互不重复的题库问题（首条："
+            f"{questions[0][:30]}{'...' if len(questions[0]) > 30 else ''}）"
+        )
     started_at = time.perf_counter()
     results: list[StreamRequestResult] = []
 
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         futures = [
             pool.submit(
-                do_stream_request, url, base_payload, concurrency, i + 1, timeout, verbose,
+                do_stream_request,
+                url,
+                base_payload,
+                concurrency,
+                i + 1,
+                timeout,
+                verbose,
+                question_override=(questions[i] if questions is not None else None),
+                reconnect_on_cut=reconnect_on_cut,
+                max_reconnects=max_reconnects,
+                reconnect_backoff_sec=reconnect_backoff_sec,
             )
             for i in range(concurrency)
         ]
@@ -304,12 +478,18 @@ def _print_run_summary(run: ConcurrencyRun) -> None:
     n = len(run.results)
     succ = sum(1 for r in run.results if r.ok)
     elapses = [r.elapsed_sec for r in run.results]
+    cut_total = sum(r.cut_count for r in run.results)
+    reconnected = sum(1 for r in run.results if r.reconnect_count > 0)
     safe_print(
         f"    完成: 总数={n} 成功={succ} 失败={n - succ} "
         f"墙钟={run.wall_time:.2f}s QPS={n / run.wall_time:.3f}"
         if run.wall_time > 0
         else f"    完成: 总数={n} 成功={succ} 失败={n - succ}"
     )
+    if cut_total > 0 or reconnected > 0:
+        safe_print(
+            f"    断流统计: 被切总次数={cut_total} 触发重连的请求数={reconnected}"
+        )
     if elapses:
         safe_print(
             f"    总耗时: min={min(elapses):.2f}s avg={statistics.mean(elapses):.2f}s "
@@ -355,6 +535,8 @@ def _build_detail_rows(run: ConcurrencyRun) -> list[dict[str, Any]]:
                 "started_at": r.started_at,
                 "finished_at": r.finished_at,
                 "snapshot_count": r.snapshot_count,
+                "cut_count": r.cut_count,
+                "reconnect_count": r.reconnect_count,
                 "think_len": len(r.think),
                 "answer_len": len(r.answer),
                 "think": r.think,
@@ -404,6 +586,9 @@ def _build_summary_row(
         "ttft_p99": round(percentile(ttfts, 99), 4) if ttfts else None,
         "ttft_max": round(max(ttfts), 4) if ttfts else None,
         "success_ttft_avg": round(statistics.mean(succ_ttfts), 4) if succ_ttfts else None,
+        "cut_total": sum(r.cut_count for r in run.results),
+        "reconnected_requests": sum(1 for r in run.results if r.reconnect_count > 0),
+        "reconnect_total": sum(r.reconnect_count for r in run.results),
     }
 
 
@@ -454,7 +639,49 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="从 JSON 文件读取请求体（需含 policyId、question；taskId 由脚本自动生成）",
     )
     p.add_argument("--policy-id", help="覆盖默认 policyId")
-    p.add_argument("--question", help="覆盖默认 question")
+    p.add_argument(
+        "--question",
+        help="覆盖默认 question；显式传入后所有并发都使用同一条问题，"
+        "忽略 --questions-file",
+    )
+    p.add_argument(
+        "--questions-file",
+        default=os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            DEFAULT_QUESTIONS_FILE,
+        ),
+        help="问题集文件路径（CSV / xlsx，需含 '问题' 或 'question' 列）。"
+        "每档会随机抽取与并发数相同数量的不重复问题——更贴近真实场景。",
+    )
+    p.add_argument(
+        "--no-questions-file",
+        action="store_true",
+        help="禁用问题集，所有并发统一使用 --question / 默认 payload 里的固定问题",
+    )
+    p.add_argument(
+        "--questions-seed",
+        type=int,
+        default=None,
+        help="问题抽取的随机种子；不传则每次完全随机",
+    )
+    p.add_argument(
+        "--reconnect-on-cut",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="SSE 被网关 / 中间链路截断时，凭同一 taskId 自动重连续接（默认开启）",
+    )
+    p.add_argument(
+        "--max-reconnects",
+        type=int,
+        default=3,
+        help="单条请求最多重连多少次；--no-reconnect-on-cut 时本参数被忽略",
+    )
+    p.add_argument(
+        "--reconnect-backoff",
+        type=float,
+        default=1.0,
+        help="每次重连前等待秒数",
+    )
     return p.parse_args(argv)
 
 
@@ -489,25 +716,80 @@ def main(argv: list[str] | None = None) -> int:
         safe_print("错误：并发数必须为正整数")
         return 2
 
+    # 问题集加载策略：
+    #   - --no-questions-file / --question / --payload-file 任一显式给出固定问题，关闭题库；
+    #   - 否则尝试加载 --questions-file（默认 test/ncp_test_0423.csv）。
+    questions_pool: list[str] | None = None
+    use_pool = (
+        not args.no_questions_file
+        and not args.question
+        and not args.payload_file
+    )
+    if use_pool:
+        try:
+            questions_pool = load_questions(args.questions_file)
+        except (ValueError, OSError, FileNotFoundError) as e:
+            safe_print(f"加载问题集失败，回落到固定 question：{e}")
+            questions_pool = None
+
+    if questions_pool is not None:
+        max_level = max(levels)
+        if max_level > len(questions_pool):
+            safe_print(
+                f"错误：最高并发档位 {max_level} > 题库容量 {len(questions_pool)}，"
+                f"无法保证每条并发问题都不同。"
+                f"请缩小档位或扩充 {args.questions_file}。"
+            )
+            return 2
+
     ran_at = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_print("=" * 80)
     safe_print(f"压测目标: {args.url}")
     safe_print(f"并发档位: {levels}")
     safe_print(f"单请求超时: {args.timeout}s   档位间隔: {args.cooldown}s")
+    if questions_pool is not None:
+        seed_disp = args.questions_seed if args.questions_seed is not None else "随机"
+        safe_print(
+            f"问题集    : {args.questions_file} (共 {len(questions_pool)} 条不重复问题；"
+            f"种子={seed_disp})"
+        )
+    else:
+        safe_print("问题集    : 关闭（所有并发使用同一条 question）")
+    if args.reconnect_on_cut:
+        safe_print(
+            f"断流重连: 开启（最多 {args.max_reconnects} 次，"
+            f"退避 {args.reconnect_backoff}s）"
+        )
+    else:
+        safe_print("断流重连: 关闭")
     safe_print(f"输出目录: {out_dir}")
-    safe_print("基础请求体（taskId 由脚本为每个请求单独生成）:")
+    safe_print("基础请求体（taskId 由脚本生成；question 受题库控制时按档位覆盖）:")
     safe_print(json.dumps(base_payload, ensure_ascii=False, indent=2))
     safe_print("=" * 80)
+
+    rng = (
+        random.Random(args.questions_seed)
+        if args.questions_seed is not None
+        else random.Random()
+    )
 
     all_ok = True
     try:
         for i, level in enumerate(levels):
+            questions_for_level: list[str] | None = None
+            if questions_pool is not None:
+                questions_for_level = rng.sample(questions_pool, level)
+
             run = run_concurrency_level(
                 url=args.url,
                 base_payload=base_payload,
                 concurrency=level,
                 timeout=args.timeout,
                 verbose=args.verbose,
+                questions=questions_for_level,
+                reconnect_on_cut=args.reconnect_on_cut,
+                max_reconnects=args.max_reconnects,
+                reconnect_backoff_sec=args.reconnect_backoff,
             )
             out_path = os.path.join(
                 out_dir,
