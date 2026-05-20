@@ -46,6 +46,41 @@ DEFAULT_QUESTIONS_FILE = "ncp_test_0423.csv"
 更贴近线上 SSE 流量的多 policyId/多问题分布。
 """
 
+
+def _make_token_counter() -> tuple[Any, str]:
+    """构造 token 计数器。
+
+    优先使用 ``tiktoken`` 的 ``cl100k_base`` 编码——它是 ChatGPT / DeepSeek
+    / 多数 BPE 模型的同款基线，对中文/英文混合文本的估计与真实 LLM 计费 token
+    一般在 ±10% 内，足以做横向压测对比；未安装时回落到 ``len(text)`` 字符近似
+    （中文 1 char ≈ 0.8~1.5 token，可作为下界）。
+
+    Returns
+    -------
+    (counter_callable, backend_name)
+    """
+
+    try:
+        import tiktoken  # type: ignore  # 软依赖：未装则走 fallback
+
+        enc = tiktoken.get_encoding("cl100k_base")
+
+        def _count(text: str) -> int:
+            if not text:
+                return 0
+            return len(enc.encode(text, disallowed_special=()))
+
+        return _count, "tiktoken/cl100k_base"
+    except Exception:  # noqa: BLE001
+
+        def _count(text: str) -> int:
+            return len(text)
+
+        return _count, "char-count(len)"
+
+
+_count_tokens, _TOKENIZER_NAME = _make_token_counter()
+
 _print_lock = threading.Lock()
 
 
@@ -128,6 +163,24 @@ def load_questions(path: str) -> list[str]:
     return questions
 
 
+def _agg(values: list[float], op: str) -> float | None:
+    """summary 用的小工具：空列表统一返回 None，否则按 op 聚合并保留 4 位小数。"""
+
+    if not values:
+        return None
+    if op == "avg":
+        return round(statistics.mean(values), 4)
+    if op == "min":
+        return round(min(values), 4)
+    if op == "max":
+        return round(max(values), 4)
+    if op == "p50":
+        return round(percentile(values, 50), 4)
+    if op == "p95":
+        return round(percentile(values, 95), 4)
+    raise ValueError(f"unsupported op {op!r}")
+
+
 def percentile(values: list[float], pct: float) -> float:
     if not values:
         return 0.0
@@ -171,6 +224,14 @@ class StreamRequestResult:
     cut_count: int = 0
     # 实际触发的重连次数；恒等于 attempts - 1。
     reconnect_count: int = 0
+    # ----- token 吞吐相关 -----
+    # 注意：tps_overall 把首字延迟也算在分母里（端到端体感速率），
+    # tps_gen 仅计「首字之后」的稳态生成段（更接近 LLM 实际吐字速度）。
+    output_tokens: int = 0
+    think_tokens: int = 0
+    answer_tokens: int = 0
+    tps_overall: float | None = None
+    tps_gen: float | None = None
 
 
 @dataclass
@@ -373,6 +434,20 @@ def do_stream_request(
         and not state["error"]
     )
 
+    # 估算 token 数与 TPS。think + answer 是服务端在 SSE 里推下来的累积文本，
+    # 与最终落到 Redis 的快照一致；用同一个 tokenizer 给所有请求计数即可保证可比。
+    think_tokens = _count_tokens(state["think"]) if state["think"] else 0
+    answer_tokens = _count_tokens(state["answer"]) if state["answer"] else 0
+    output_tokens = think_tokens + answer_tokens
+    tps_overall: float | None = None
+    tps_gen: float | None = None
+    if output_tokens > 0 and elapsed > 0:
+        tps_overall = output_tokens / elapsed
+        if state["ttft_sec"] is not None:
+            gen_window = elapsed - state["ttft_sec"]
+            if gen_window > 0:
+                tps_gen = output_tokens / gen_window
+
     result = StreamRequestResult(
         concurrency=concurrency,
         req_idx=req_idx,
@@ -398,17 +473,28 @@ def do_stream_request(
         snapshot_count=state["snapshot_count"],
         cut_count=cut_count,
         reconnect_count=reconnect_count,
+        output_tokens=output_tokens,
+        think_tokens=think_tokens,
+        answer_tokens=answer_tokens,
+        tps_overall=tps_overall,
+        tps_gen=tps_gen,
     )
 
     if verbose:
         tag = "OK " if ok else "ERR"
         ttft_disp = f"{result.ttft_sec:.2f}s" if result.ttft_sec is not None else "n/a"
         rec_disp = f" rec={reconnect_count}/{cut_count}" if cut_count else ""
+        tps_disp = (
+            f" tps={result.tps_gen:.1f}(gen)/{result.tps_overall:.1f}(all)"
+            if result.tps_overall is not None
+            else ""
+        )
         safe_print(
             f"[c={concurrency} req {req_idx:>4}] {tag} taskId={result.task_id[:8]}... "
             f"http={result.http_status} status={result.final_status} "
             f"ttft={ttft_disp} elapsed={elapsed:.2f}s"
-            f"{rec_disp} "
+            f"{rec_disp}{tps_disp} "
+            f"tokens={output_tokens}({think_tokens}+{answer_tokens}) "
             f"think_len={len(result.think)} answer_len={len(result.answer)}"
             + (f" err={result.error}" if result.error else "")
         )
@@ -503,6 +589,28 @@ def _print_run_summary(run: ConcurrencyRun) -> None:
             f"p50={percentile(ttfts, 50):.2f}s p95={percentile(ttfts, 95):.2f}s "
             f"max={max(ttfts):.2f}s"
         )
+    tps_gens = [r.tps_gen for r in run.results if r.tps_gen is not None]
+    tps_overalls = [r.tps_overall for r in run.results if r.tps_overall is not None]
+    output_tokens_list = [r.output_tokens for r in run.results if r.output_tokens > 0]
+    if output_tokens_list:
+        total_tokens = sum(output_tokens_list)
+        agg_tps = total_tokens / run.wall_time if run.wall_time > 0 else 0.0
+        safe_print(
+            f"    Tokens : 总={total_tokens} avg/路={statistics.mean(output_tokens_list):.0f} "
+            f"max/路={max(output_tokens_list)} 聚合TPS={agg_tps:.1f} tok/s"
+        )
+    if tps_gens:
+        safe_print(
+            f"    单路TPS(gen)  : min={min(tps_gens):.2f} avg={statistics.mean(tps_gens):.2f} "
+            f"p50={percentile(tps_gens, 50):.2f} p95={percentile(tps_gens, 95):.2f} "
+            f"max={max(tps_gens):.2f}  (首字之后稳态)"
+        )
+    if tps_overalls:
+        safe_print(
+            f"    单路TPS(all)  : min={min(tps_overalls):.2f} avg={statistics.mean(tps_overalls):.2f} "
+            f"p50={percentile(tps_overalls, 50):.2f} p95={percentile(tps_overalls, 95):.2f} "
+            f"max={max(tps_overalls):.2f}  (端到端含 TTFT)"
+        )
 
 
 def _build_detail_rows(run: ConcurrencyRun) -> list[dict[str, Any]]:
@@ -537,6 +645,11 @@ def _build_detail_rows(run: ConcurrencyRun) -> list[dict[str, Any]]:
                 "snapshot_count": r.snapshot_count,
                 "cut_count": r.cut_count,
                 "reconnect_count": r.reconnect_count,
+                "output_tokens": r.output_tokens,
+                "think_tokens": r.think_tokens,
+                "answer_tokens": r.answer_tokens,
+                "tps_overall": round(r.tps_overall, 4) if r.tps_overall is not None else None,
+                "tps_gen": round(r.tps_gen, 4) if r.tps_gen is not None else None,
                 "think_len": len(r.think),
                 "answer_len": len(r.answer),
                 "think": r.think,
@@ -589,6 +702,55 @@ def _build_summary_row(
         "cut_total": sum(r.cut_count for r in run.results),
         "reconnected_requests": sum(1 for r in run.results if r.reconnect_count > 0),
         "reconnect_total": sum(r.reconnect_count for r in run.results),
+        # ----- token & TPS 聚合 -----
+        "tokenizer": _TOKENIZER_NAME,
+        "tokens_total": sum(r.output_tokens for r in run.results),
+        "tokens_avg_per_req": (
+            round(statistics.mean([r.output_tokens for r in run.results]), 2)
+            if run.results
+            else None
+        ),
+        "tokens_max_per_req": (
+            max((r.output_tokens for r in run.results), default=0)
+        ),
+        # 聚合吞吐：所有路总 token / 该档位墙钟（衡量整服务的产能上限）。
+        "aggregate_tps": (
+            round(sum(r.output_tokens for r in run.results) / run.wall_time, 4)
+            if run.wall_time > 0
+            else None
+        ),
+        # 单路 TPS（首字之后稳态生成速率）分位数
+        "tps_gen_avg": _agg(
+            [r.tps_gen for r in run.results if r.tps_gen is not None], "avg"
+        ),
+        "tps_gen_p50": _agg(
+            [r.tps_gen for r in run.results if r.tps_gen is not None], "p50"
+        ),
+        "tps_gen_p95": _agg(
+            [r.tps_gen for r in run.results if r.tps_gen is not None], "p95"
+        ),
+        "tps_gen_min": _agg(
+            [r.tps_gen for r in run.results if r.tps_gen is not None], "min"
+        ),
+        "tps_gen_max": _agg(
+            [r.tps_gen for r in run.results if r.tps_gen is not None], "max"
+        ),
+        # 单路 TPS（端到端，分母含 TTFT）分位数
+        "tps_overall_avg": _agg(
+            [r.tps_overall for r in run.results if r.tps_overall is not None], "avg"
+        ),
+        "tps_overall_p50": _agg(
+            [r.tps_overall for r in run.results if r.tps_overall is not None], "p50"
+        ),
+        "tps_overall_p95": _agg(
+            [r.tps_overall for r in run.results if r.tps_overall is not None], "p95"
+        ),
+        "tps_overall_min": _agg(
+            [r.tps_overall for r in run.results if r.tps_overall is not None], "min"
+        ),
+        "tps_overall_max": _agg(
+            [r.tps_overall for r in run.results if r.tps_overall is not None], "max"
+        ),
     }
 
 
@@ -746,6 +908,7 @@ def main(argv: list[str] | None = None) -> int:
     safe_print("=" * 80)
     safe_print(f"压测目标: {args.url}")
     safe_print(f"并发档位: {levels}")
+    safe_print(f"Tokenizer: {_TOKENIZER_NAME}")
     safe_print(f"单请求超时: {args.timeout}s   档位间隔: {args.cooldown}s")
     if questions_pool is not None:
         seed_disp = args.questions_seed if args.questions_seed is not None else "随机"
