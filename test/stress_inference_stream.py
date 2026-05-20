@@ -37,7 +37,7 @@ DEFAULT_PAYLOAD: dict[str, Any] = {
     "policyId": "KH1493204307733168128_20260519101916",
     "question": "咸鸭蛋、松花蛋在开具发票时是否可以享受免税政策？",
 }
-DEFAULT_CONCURRENCY = (16, 32, 64, 128)
+DEFAULT_CONCURRENCY = (16, 32, 48, 64)
 
 _print_lock = threading.Lock()
 

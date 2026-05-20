@@ -99,7 +99,13 @@ def _build_request(
             "stream": True,
         }
         if enable_thinking:
-            payload["chat_template_kwargs"] = {"enable_thinking": True}
+            # servyou 承载 deepseek-v3.2 私有部署，thinking 模式开关走顶层
+            # ``enable_thinking`` 字段（与 qwen 系列的 ``chat_template_kwargs.enable_thinking``
+            # 协议不同）；其他走 mudgate 的 vendor 仍沿用 chat_template_kwargs 旧写法。
+            if vendor == "servyou":
+                payload["enable_thinking"] = True
+            else:
+                payload["chat_template_kwargs"] = {"enable_thinking": True}
 
     return url, headers, payload
 
