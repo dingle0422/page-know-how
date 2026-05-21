@@ -59,6 +59,35 @@ RRF_K: int = 60
 PREVIEW_TPS: int = 5
 """preview 阶段写 redis 的目标速率（每秒最多写多少次/字符）。"""
 
+# --- react 节流 -----------------------------------------------------------
+
+REACT_TPS: int = max(1, int(os.getenv("INFERENCE_REACT_TPS", "10")))
+"""react 单轮流式写 redis 的目标速率（每秒最多 flush 多少次）。
+
+与 :data:`PREVIEW_TPS` 同义：把"每 LLM SSE delta 一次 ``RedisStream.update``"
+折叠为"每 ``1/REACT_TPS`` 秒批量一次 ``update``"，避免单 token 速度被远程
+``redis_server`` HTTP 的 RTT × per-task ``asyncio.Lock`` 串行 卡到上界
+``1/(2×RTT)``：
+
+- 单次 ``update`` 在 lock 内必须等一次 ``GET`` + 一次 ``SET`` 远程 HTTP RTT；
+- 原"每 delta 一次"模式下，单路 token TPS 上限 ≈ ``1/(2×RTT)``（RTT=15ms
+  时只能到 ~33 tokens/s，低于上游 LLM 能提供的速度），多余 token 会反压到
+  ``chat_stream`` 的 TCP 接收 buffer，进而让上游"看起来"也变慢——
+  在 verbose log 中表现为 react 单轮 ``elapsed_ms`` 变长 + 前端逐字变慢；
+- 改成"每 ``1/REACT_TPS`` 秒批量 flush 一次"后，单路 Redis 写频率从
+  数十–百 RPS 降到 ~``2*REACT_TPS`` RPS（think/answer 各一次），
+  瓶颈被搬离 redis_server 网关的 RTT。
+
+取值参考：
+
+- 应不大于 ``SSE_TICK_MS`` 决定的上界（默认 100ms → 10 Hz）：SSE relay 每
+  100ms 才读一次快照，flush 更快也不会更早被前端看到；
+- 一般 5–20 之间；过小（如 1）前端逐字吐字会像批量；过大（如 50）会让
+  update 频率回到与原方案接近，远程 RTT 压不下来；
+- 默认 10 与 ``SSE_TICK_MS=100`` 对齐，可通过环境变量
+  ``INFERENCE_REACT_TPS`` 运行时覆盖。
+"""
+
 # --- SSE 转发 -------------------------------------------------------------
 
 SSE_TICK_MS: int = 100

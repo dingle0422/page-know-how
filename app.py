@@ -2162,15 +2162,17 @@ from inference.redis_stream import RedisStream as _InferenceRedisStream  # noqa:
 class InferenceRequest(BaseModel):
     # policyId 可为空：未传/空字符串时触发【专题Know How定位】流程，自动用问题去
     # 外部 SSE 接口（http://mlp.paas.dc.servyou-it.com/kh_classify/ywzt_classify_stream）
-    # 拿到 ywzt + policyId 唯一命中后再继续走原 inference 流程；非唯一命中时直接拒答。
+    # 拿到 ywzt + policyId 后再继续走原 inference 流程；命中 0 个专题或接口数据异常
+    # 时直接拒答，命中多个专题时降级取首个 policyId 继续作答。
     # 历史调用方一直传字符串的兼容性不变。
     policyId: str | None = Field(
         default=None,
         description=(
             "知识库的 policyId。未传或空字符串时会先调用【专题Know How定位】"
             "外部 SSE 接口自动定位（接口流式输出会同步转发到 think 字段），"
-            "命中唯一业务专题后用解析出的 policyId 走后续 preview→skills→react 流程；"
-            "命中 0 个或多个专题时直接在 answer 字段拒答。"
+            "命中唯一业务专题时用解析出的 policyId 走后续 preview→skills→react 流程；"
+            "命中多个业务专题时默认按首个 policyId 继续作答；"
+            "命中 0 个专题或接口数据异常时直接在 answer 字段拒答。"
         ),
     )
     question: str

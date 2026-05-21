@@ -24,11 +24,17 @@
    覆盖式写到 redis 快照（仅用于诊断 / 外部观测；当前
    ``recompute_aggregates`` **不**会把它输出到接口 ``think`` 字段，避免把中间
    推理过程暴露给前端）;
-2. ``status=finish`` 时按 ``len(ywzt)==1 and len(policyId)==1`` 判定:
-   - 唯一命中：调 ``set_topic_locate_done`` 触发 ``###【专题Know How定位】\\n\\t{ywzt}``
-     收口段渲染，并把 ``(policyId, ywzt, None)`` 返回给调用方继续走 inference;
-   - 0 个或多个候选：返回 ``(None, None, refusal_text)``，由调用方写
-     ``topicLocate.refusal`` + ``status=done`` 直接拒答。
+2. ``status=finish`` 时按 ``ywzt`` / ``policyId`` 候选数判定:
+   - 唯一命中（``len==1``）：取唯一项；
+   - 多候选（``len>1``）：默认取**第一个** ywzt + 第一个 policyId（业务降级策略，
+     模型在多业务专题之间无法收敛时优先按首选项作答，而不是直接拒答）;
+   - 上述两种情况都会调 ``set_topic_locate_done`` 触发
+     ``###【专题Know How定位】\\n\\t{ywzt}`` 收口段渲染，并把
+     ``(policyId, ywzt, None)`` 返回给调用方继续走 inference;
+   - 0 候选：返回 ``(None, None, REFUSAL_NO_HIT)``，由调用方写
+     ``topicLocate.refusal`` + ``status=done`` 直接拒答;
+   - 其他异常情形（ywzt / policyId 长度不一致、取值为空串等接口数据异常）：返回
+     ``(None, None, REFUSAL_SERVICE_ERROR)`` 拒答。
 
 任何阶段的网络/解析异常都向上抛，由调用方走拒答兜底。
 """
@@ -91,9 +97,9 @@ def _parse_sse_line(line: str) -> Optional[dict]:
 # ---------------------------------------------------------------- 拒答文案
 #
 # 按语义只分两种 refusal 文案：
-# - REFUSAL_NO_HIT：finish 帧返回 0/多 候选，模型对该问题无法对齐到唯一业务专题。
-#   暂行策略下直接拒答（后续若改为"多候选并行/0 候选回落通用 policyId"，需同步调整
-#   :func:`run_topic_locator` 内的命中判定与 :mod:`app` 中对 refusal 的处理）。
+# - REFUSAL_NO_HIT：finish 帧返回 0 候选，模型对该问题无法对齐到任何业务专题。
+#   注意：多候选（>=2）不再走这条拒答分支，而是降级取第一个候选项继续作答，
+#   详见 :func:`run_topic_locator` 内的命中判定。
 # - REFUSAL_SERVICE_ERROR：外部专题定位服务侧异常（HTTP/网络/接口数据异常/流被切断
 #   等），属于可重试场景；由 :mod:`app._run_inference_with_topic_locator` 在 catch
 #   ``run_topic_locator`` 异常时也复用。
@@ -117,11 +123,14 @@ async def run_topic_locator(
 
     返回 ``(policy_id, ywzt, refusal_message)``：
 
-    - 唯一命中：``(policyId[0], ywzt[0], None)``，并已经把 done=True/ywzt 写到快照,
-      调用方应继续用该 ``policyId`` 跑 inference pipeline；
-    - 0/多个候选：``(None, None, REFUSAL_NO_HIT)``，调用方应写 ``topicLocate.refusal``
+    - 唯一命中（``len==1``）：``(policyId[0], ywzt[0], None)``，并已经把 done=True/ywzt
+      写到快照，调用方应继续用该 ``policyId`` 跑 inference pipeline;
+    - 多候选（``len>1``）：默认取首项，``(policyId[0], ywzt[0], None)``，同样会写
+      done=True/ywzt 到快照，并在 logger 留痕"多候选降级"，便于后续复盘；
+    - 0 候选：``(None, None, REFUSAL_NO_HIT)``，调用方应写 ``topicLocate.refusal``
       并把任务置为 ``status=done`` 直接拒答；
-    - 流被切断 / 接口数据异常：``(None, None, REFUSAL_SERVICE_ERROR)``；
+    - 流被切断 / 接口数据异常（如 ywzt / policyId 长度不一致、取值为空串）：
+      ``(None, None, REFUSAL_SERVICE_ERROR)``；
     - 网络/HTTP/解析异常：直接向上抛 ``Exception`` 由调用方兜底（调用方应同样使用
       ``REFUSAL_SERVICE_ERROR`` 文案，保持端到端一致）。
 
@@ -188,7 +197,15 @@ async def run_topic_locator(
                         ywzt_list = []
                     if not isinstance(pid_list, list):
                         pid_list = []
-                    if len(ywzt_list) == 1 and len(pid_list) == 1:
+                    # 三种正常分支：
+                    # - len==0：0 候选，按"无业务专题"拒答；
+                    # - len==1：唯一命中，原逻辑；
+                    # - len>=2：多候选，降级取首项（业务策略，避免直接拒答；ywzt 与
+                    #   policyId 一一对应，所以同步取下标 0）。
+                    # 其余情况（两边长度不一致 / 取值为空串）走 SERVICE_ERROR 拒答。
+                    if len(ywzt_list) == 0 and len(pid_list) == 0:
+                        refusal = REFUSAL_NO_HIT
+                    elif len(ywzt_list) == len(pid_list) and len(ywzt_list) >= 1:
                         final_ywzt = (str(ywzt_list[0]) or "").strip()
                         final_policy_id = (str(pid_list[0]) or "").strip()
                         if not final_ywzt or not final_policy_id:
@@ -196,9 +213,18 @@ async def run_topic_locator(
                             refusal = REFUSAL_SERVICE_ERROR
                             final_ywzt = None
                             final_policy_id = None
+                        elif len(ywzt_list) > 1:
+                            # 多候选降级取首项，留一条 info 日志便于线下复盘
+                            # （ywzt_list 整体也带上，方便定位"为什么没走 B 专题"）。
+                            logger.info(
+                                "[TopicLocator] task=%s 多候选降级取首项: "
+                                "ywzt=%s policyId=%s 候选数=%d ywzt_all=%s pid_all=%s",
+                                task_id, final_ywzt, final_policy_id,
+                                len(ywzt_list), ywzt_list, pid_list,
+                            )
                     else:
-                        # 0/多 候选：模型本轮无法定位到唯一业务专题。
-                        refusal = REFUSAL_NO_HIT
+                        # 长度不一致等接口异常情形。
+                        refusal = REFUSAL_SERVICE_ERROR
                     # finish 帧已经携带终态，可以提前 break；服务端也会在下一刻关流。
                     break
     finally:

@@ -48,6 +48,45 @@ logger = logging.getLogger(__name__)
 _CHUNK_SEPARATOR = "\n\n---\n\n"
 
 
+class _ReactChannelBuffer:
+    """单轮 react 流式的 think / answer 累积缓冲。
+
+    与 :class:`inference.preview._ChannelBuffer` 等价，专门给
+    :func:`_stream_react_round` 内的批量 flush writer 使用：
+
+    - LLM SSE 每个 delta 不再直接触发一次 ``RedisStream.update``
+      （那条路径每次都要等一次远程 redis_server 的 ``GET+SET`` RTT）；
+    - 改为按 :data:`config.REACT_TPS` 周期把缓冲里累积的整段 think/answer
+      一次性 ``append_react_chunk_delta``。
+
+    详见 :data:`config.REACT_TPS` 的 docstring（解释了为什么改、阈值怎么取）。
+    """
+
+    __slots__ = ("think", "answer")
+
+    def __init__(self) -> None:
+        self.think: list[str] = []
+        self.answer: list[str] = []
+
+    def push_think(self, delta: str) -> None:
+        if delta:
+            self.think.append(delta)
+
+    def push_answer(self, delta: str) -> None:
+        if delta:
+            self.answer.append(delta)
+
+    def take(self) -> tuple[str, str]:
+        t = "".join(self.think)
+        a = "".join(self.answer)
+        self.think.clear()
+        self.answer.clear()
+        return t, a
+
+    def empty(self) -> bool:
+        return not self.think and not self.answer
+
+
 def pack_chunks_by_size(
     chunks: list[KnowledgeChunk],
     *,
@@ -164,6 +203,7 @@ async def _stream_react_round(
     enable_thinking: bool,
     store_think_to_chunk: bool,
     answer_as_verdict: bool,
+    flush_tps: int = config.REACT_TPS,
 ) -> tuple[str, str, str]:
     """跑一轮，返回 ``(verdict, full_think, full_answer)``。
 
@@ -176,26 +216,77 @@ async def _stream_react_round(
       ``complete`` / ``incomplete`` 的裁决字符串，仅作 verdict 使用，**不** 写到
       ``chunk.answer``（否则会被 SSE 聚合误当成真实答案显示）；``verdict`` 直接取自
       ``full_answer.strip().lower()``。
+
+    写 Redis 走"批量 flush"模式：LLM 每个 SSE delta 仅 ``push`` 到内存 buffer，
+    后台 ``writer_loop`` 按 ``1/flush_tps`` 秒周期把累积的 think/answer 各 ``append``
+    一次到 ``react.chunks[round_idx]``。这样把单 token 速度从"必须等一次
+    远程 redis_server 的 GET+SET RTT"放宽到"每窗口一次 GET+SET"，避免远程
+    HTTP RTT 反压到 LLM SSE 接收链路（详见 :data:`config.REACT_TPS` docstring）。
+    ``store_think_to_chunk`` / ``answer_as_verdict`` 的语义完全保持原样：
+    仅控制对应通道是否 ``push`` 进 buffer，flush 路径不变。
     """
 
-    write_queue: asyncio.Queue[Optional[tuple[str, str]]] = asyncio.Queue()
+    interval = 1.0 / max(int(flush_tps), 1)
+    buffer = _ReactChannelBuffer()
+    stop = asyncio.Event()
 
-    async def writer_loop() -> None:
-        while True:
-            item = await write_queue.get()
-            if item is None:
-                return
-            channel, delta = item
+    async def _flush_once() -> None:
+        """把 buffer 里累积的 think/answer 各 append 一次到 redis 快照。
+
+        think / answer 分两次 ``append_react_chunk_delta`` 调用：每次走一遍
+        ``RedisStream.update`` 的 ``GET → mutate → SET`` 路径。两次合并到一次
+        会减半 RTT，但需要新增 redis 接口；暂时保留两次调用以避免侵入
+        ``RedisStream`` 公共面。flush 频率本身已经被 ``flush_tps`` 钉死，
+        总 RPS 影响有限。
+        """
+
+        think_delta, answer_delta = buffer.take()
+        if think_delta:
             try:
                 await redis_stream.append_react_chunk_delta(
-                    task_id, round_idx, channel, delta, is_last_chunk=is_last_chunk
+                    task_id, round_idx, "think", think_delta,
+                    is_last_chunk=is_last_chunk,
                 )
             except Exception as e:
                 # 一笔失败不影响后续：下游会从 redis 丢失对应增量，但不会卡死流。
                 logger.warning(
-                    "[InferenceReact] task=%s round=%d 写 redis 失败 ch=%s: %s",
-                    task_id, round_idx, channel, e,
+                    "[InferenceReact] task=%s round=%d flush think 失败: %s",
+                    task_id, round_idx, e,
                 )
+        if answer_delta:
+            try:
+                await redis_stream.append_react_chunk_delta(
+                    task_id, round_idx, "answer", answer_delta,
+                    is_last_chunk=is_last_chunk,
+                )
+            except Exception as e:
+                logger.warning(
+                    "[InferenceReact] task=%s round=%d flush answer 失败: %s",
+                    task_id, round_idx, e,
+                )
+
+    async def writer_loop() -> None:
+        """周期性把 buffer 里累积的 think/answer flush 到 redis。
+
+        - 用 ``asyncio.Event`` + ``asyncio.wait_for(stop.wait(), timeout=interval)``
+          实现"要么等到 ``interval`` 自然超时（窗口到了）、要么被 ``stop`` 立刻唤醒
+          （chat_stream 结束）"。``CancelledError`` 走 finally 兜底再 flush 一次。
+        - 兜底 flush 必跑：即便 chat_stream 异常退出，最后窗口里累积但未 flush 的
+          delta 仍会落盘，避免出现"模型已经吐了但 redis 看不到"的截断。
+        """
+
+        try:
+            while not stop.is_set():
+                try:
+                    await asyncio.wait_for(stop.wait(), timeout=interval)
+                except asyncio.TimeoutError:
+                    pass
+                await _flush_once()
+        except asyncio.CancelledError:
+            pass
+        finally:
+            # 退出前再 flush 一次剩余增量，保证最后窗口的 delta 不丢。
+            await _flush_once()
 
     writer_task = asyncio.create_task(
         writer_loop(), name=f"react-writer:{task_id}:{round_idx}"
@@ -210,7 +301,7 @@ async def _stream_react_round(
             return
         full_think_parts.append(s)
         if store_think_to_chunk:
-            write_queue.put_nowait(("think", s))
+            buffer.push_think(s)
 
     def _emit_answer(s: str) -> None:
         if not s:
@@ -219,7 +310,7 @@ async def _stream_react_round(
         # 中间轮 <answer> 内容只是 complete/incomplete 的 verdict 字符串，
         # 不能写到 chunk.answer——否则 SSE 聚合会把它当成最终答案吐给前端。
         if not answer_as_verdict:
-            write_queue.put_nowait(("answer", s))
+            buffer.push_answer(s)
 
     verbose_on = is_session_active()
     t0 = time.time() if verbose_on else None
@@ -243,7 +334,7 @@ async def _stream_react_round(
         stream_error = e
         raise
     finally:
-        await write_queue.put(None)
+        stop.set()
         try:
             await writer_task
         except Exception as e:
