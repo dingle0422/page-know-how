@@ -15,9 +15,19 @@
   user prompt 走 ``CORPUS_USER_PROMPT`` 模板，把 preview / 历史轮次思考 /
   本轮新增检索证据都按 markdown 三级标题拼到 ``evidence`` 变量内。
   最终轮 ``<answer>`` 内容才是真正面向用户的答案。
+- **最终轮虚拟 skill "当前真实日期"**：每次组装最终轮 user prompt 时,
+  :func:`format_react_final_user_prompt` 会调用 :func:`_make_current_date_skill_record`
+  在 skills 列表尾部追加一条系统时间记录。该记录结构与 ``inference.skills_runner._serialize_registry``
+  输出完全一致（``name/command/success/stdout/stderr/exitCode`` 六个字段），
+  让它能复用同一个 :func:`format_skill_block`，最终在 prompt 内的呈现与其他真实 skill
+  ``【依据N】`` 段无差别。该记录**不写回 redis 快照**：避免污染
+  ``_v4_skills_result_from_snapshot`` 给客户端返回的 ``skillsResult``、也不会被中间轮
+  prompt 重复看到（中间轮仍只看真实 skill 列表）。
 """
 
 from __future__ import annotations
+
+import datetime as _dt
 
 from reasoner.v3.prompts import (
     CORPUS_SYSTEM_PROMPT,
@@ -204,6 +214,38 @@ REACT_FINAL_SYSTEM_PROMPT = CORPUS_SYSTEM_PROMPT
 # -------------------------------------------------------------- helpers
 
 
+_WEEKDAY_CN = ("一", "二", "三", "四", "五", "六", "日")
+
+
+def _make_current_date_skill_record() -> dict:
+    """构造一条"当前真实日期"虚拟 skill 记录，结构对齐 ``inference.skills_runner._serialize_registry``。
+
+    每次调用都重新读取系统本地时间（``datetime.now()``），保证最终轮 prompt 拿到的是
+    本次请求处理时的当下日期，而不是进程启动时的快照。返回 dict 字段集合与真实 skill
+    完全一致（``name/command/success/stdout/stderr/exitCode``），这样后续 :func:`format_skill_block`
+    把它当成普通 skill 渲染时，呈现到 prompt 内的格式与其他 ``【依据N】`` 段无差别。
+
+    刻意把日期写在 stdout 内部的自然语言里（而非仅靠 ``name`` 字段），是因为
+    ``format_skill_block`` 不会输出 skill 的 ``name``——只输出 ``【依据N】`` + ``stdout``,
+    所以语义信息必须自带在 stdout 文本里，模型才能识别这是日期。
+    """
+
+    now = _dt.datetime.now()
+    weekday_cn = _WEEKDAY_CN[now.weekday()]
+    stdout = (
+        f"当前真实日期为 {now.year}年{now.month}月{now.day}日（星期{weekday_cn}）。"
+        "请基于该日期判断与时间相关的政策时效、申报周期或纳税期限。"
+    )
+    return {
+        "name": "当前真实日期",
+        "command": "",
+        "success": True,
+        "stdout": stdout,
+        "stderr": "",
+        "exitCode": 0,
+    }
+
+
 def format_skill_block(skills: list[dict] | None) -> str:
     """把 redis 快照里的 skills 列表格式化为 prompt 用的参考依据块。
 
@@ -333,9 +375,19 @@ def format_react_final_user_prompt(
 
     skills 渲染口径与 ``reasoner/v3/agent_graph._build_skill_context_for_summary``
     保持一致：``## 参考依据\\n<body>\\n\\n``，空依据时整段省略。
+
+    最终轮 prompt 一律在 skills 尾部追加一条"当前真实日期"虚拟记录（结构与真实 skill
+    完全一致，详见 :func:`_make_current_date_skill_record`），让模型在写最终答案时
+    始终能感知请求处理当下的真实日期。该记录只在本函数局部追加、**不**回写 redis 快照,
+    因此不会影响 ``skillsResult`` 字段、也不会被中间轮 prompt 看到。注入后 skills 列表
+    永远非空，原本"空依据时整段省略"的分支实际不会再触达，但保留分支结构以兼容
+    ``format_skill_block`` 返回占位串的极端路径。
     """
 
-    skill_text = format_skill_block(skills)
+    skills_with_date = list(skills or [])
+    skills_with_date.append(_make_current_date_skill_record())
+
+    skill_text = format_skill_block(skills_with_date)
     if skill_text and skill_text != "（暂无参考依据）":
         skill_block = "## 【参考依据】\n" + skill_text + "\n\n"
     else:
