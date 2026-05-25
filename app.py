@@ -2243,7 +2243,52 @@ async def _run_inference_pipeline_inner(
     本函数不开/不关 verbose session，但仍会写 ``inference_pipeline_start`` /
     ``inference_pipeline_finished`` 事件。当 session 未开启时 ``_log_verbose_event``
     自身是 no-op，所以无论 verbose 与否调用都是安全的。
+
+    自动注入【专题通用知识】：进 pipeline 前以 ``answerSystemPrompt`` 优先策略
+    解析 ``options.topic_general_knowledge``——
+
+    - 外层显式传入了 ``answerSystemPrompt``（``options.topic_general_knowledge``
+      strip 后非空）：**直接尊重用户值**，跳过 KH info 接口调用（省一次 HTTP）；
+    - 外层未传 / 为空白：按 ``policy_id`` 调
+      :func:`inference.kh_info_client.fetch_topic_general_knowledge` 拉取该专题在
+      KH 库里登记的 ``prompt`` 文本，命中非空则填入
+      ``options.topic_general_knowledge``，让 preview 走 ``PREVIEW_*_WITH_TGK``；
+      接口失败 / 返回空时保持 ``None``，preview 退回原版 ``PREVIEW_*``，
+      与改造前完全等价。
+
+    这一步对两条路径（已传 policyId / 自动专题定位）通用，因为两者最终都过本函数；
+    放这里也保证 KH info 调用一定落在已开启的 verbose session 内，便于线下复盘。
     """
+
+    from dataclasses import replace
+    from inference.kh_info_client import (
+        fetch_topic_general_knowledge as _fetch_kh_tgk,
+    )
+
+    # answerSystemPrompt 优先：外层已经在 _build_inference_options 里把
+    # req.answerSystemPrompt 写进 options.topic_general_knowledge；只要它 strip 后
+    # 非空，就直接用，不再发 KH info 请求。
+    existing_tgk = (options.topic_general_knowledge or "").strip()
+    kh_tgk: str | None = None
+    if existing_tgk:
+        _log_verbose_event(
+            "kh_info_fetch",
+            taskId=task_id,
+            policyId=policy_id,
+            skipped=True,
+            reason="answerSystemPrompt_provided",
+        )
+    else:
+        kh_tgk = await _fetch_kh_tgk(policy_id)
+        _log_verbose_event(
+            "kh_info_fetch",
+            taskId=task_id,
+            policyId=policy_id,
+            hit=bool(kh_tgk),
+            promptLength=(len(kh_tgk) if kh_tgk else 0),
+        )
+        if kh_tgk:
+            options = replace(options, topic_general_knowledge=kh_tgk)
 
     _log_verbose_event(
         "inference_pipeline_start",
@@ -2255,6 +2300,14 @@ async def _run_inference_pipeline_inner(
         model=options.model,
         previewEnabled=options.preview_enabled,
         skillsEnabled=options.skills_enabled,
+        # 标识 preview 阶段 topic_general_knowledge 的来源：
+        # - "answerSystemPrompt"：外层显式传入；
+        # - "khInfo"：本函数从 KH info 接口自动拉取；
+        # - "none"：两者都没有，preview 走老版 PREVIEW_*。
+        topicGeneralKnowledgeSource=(
+            "answerSystemPrompt" if existing_tgk
+            else ("khInfo" if kh_tgk else "none")
+        ),
     )
     await _inference_run(task_id, question, index_policy_id, rs, options=options)
     _log_verbose_event("inference_pipeline_finished")
