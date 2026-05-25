@@ -134,7 +134,7 @@ async def lifespan(_app: FastAPI):
         raise
 
     # 启动时自动清理僵尸 running 任务的逻辑已临时关闭：
-    # 改为依赖手动接口 /api/reason/cleanupStaleRunning 与 /api/cleanRunningTask，
+    # 改为依赖手动接口 /api/reason/cleanupStaleRunning 与 /capi/cleanRunningTask，
     # 或等待 TTL 到期。需要恢复时取消下方注释即可。
     #
     # 原逻辑说明：启动前扫一遍 task:*，把上一代进程崩掉留下的 running 僵尸全部改写成 failed,
@@ -2176,6 +2176,15 @@ class InferenceRequest(BaseModel):
         ),
     )
     question: str
+    history: list[dict[str, str]] = Field(
+        default_factory=list,
+        description=(
+            "历史对话（模型 messages 格式），例如："
+            "[{\"role\":\"user\",\"content\":\"你好\"},"
+            " {\"role\":\"assistant\",\"content\":\"你好，请问有什么可以帮您\"}]。"
+            "当前版本仅接收该字段，暂不参与推理流程。"
+        ),
+    )
     taskId: str | None = None
     vendor: str = "servyou"
     model: str = "deepseek-v3.2-1163259bcc6c"

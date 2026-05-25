@@ -7,3 +7,4 @@ fastapi
 uvicorn
 httpx
 jieba
+json5

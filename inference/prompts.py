@@ -105,11 +105,11 @@ PREVIEW_SYSTEM_PROMPT_WITH_TGK = """\
 - 专题通用知识是绝对真理，可以放心输出
 """
 
-PREVIEW_USER_PROMPT_WITH_TGK = """## 【用户问题】
-{question}
-
-## 【专题通用知识】
+PREVIEW_USER_PROMPT_WITH_TGK = """## 【专题通用知识】
 {topic_general_knowledge}
+
+## 【用户问题】
+{question}
 """
 
 
