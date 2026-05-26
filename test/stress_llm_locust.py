@@ -22,13 +22,49 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from locust import HttpUser, constant, events, task
+if __name__ != "__main__":
+    from locust import HttpUser, constant, events, task
+else:
+    # Avoid importing gevent/locust in runner mode to prevent shutdown noise.
+    class HttpUser:  # pragma: no cover
+        pass
+
+    def constant(_seconds: float):  # pragma: no cover
+        return lambda: 0
+
+    def task(fn):  # pragma: no cover
+        return fn
+
+    class _DummyTestStop:  # pragma: no cover
+        @staticmethod
+        def add_listener(fn):
+            return fn
+
+    class _DummyEvents:  # pragma: no cover
+        test_stop = _DummyTestStop()
+
+    events = _DummyEvents()
 
 DEFAULT_URL = "http://mlp.paas.dc.servyou-it.com"
 DEFAULT_ENDPOINT = "/mudgate/api/llm/servyou/v1/chat/completions"
 DEFAULT_MODEL = "deepseek-v3.2-1163259bcc6c"
-DEFAULT_CONCURRENCY = (16, 32, 45, 64)
+DEFAULT_CONCURRENCY = (64, 72, 80, 88, 96)
 DEFAULT_PROMPT = "请简要介绍增值税发票开具注意事项。"
+API_KEY = "sk-a57093c05ed94f37a7c845ff3fd688e2"
+
+
+def _resolve_api_key(cli_value: str = "", env_name: str = "SERVYOU_APP_ID") -> str:
+    return (cli_value or os.environ.get("LLM_API_KEY") or os.environ.get(env_name) or API_KEY).strip()
+
+
+def _resolve_app_id(
+    cli_value: str = "",
+    *,
+    env_name: str = "SERVYOU_APP_ID",
+    api_key: str = "",
+) -> str:
+    key = (cli_value or os.environ.get("LLM_APP_ID") or os.environ.get(env_name) or api_key or API_KEY).strip()
+    return key
 
 
 def safe_print(*args: Any, **kwargs: Any) -> None:
@@ -143,7 +179,7 @@ def _build_headers() -> dict[str, str]:
         except json.JSONDecodeError:
             pass
 
-    api_key = os.environ.get("LLM_API_KEY", "")
+    api_key = _resolve_api_key()
     auth_mode = os.environ.get("LLM_AUTH_MODE", "raw")
     if api_key and auth_mode != "none":
         if auth_mode == "bearer":
@@ -161,7 +197,8 @@ def _build_payload(prompt: str) -> dict[str, Any]:
         "messages": [{"role": "user", "content": prompt}],
         "stream": True,
     }
-    app_id = os.environ.get("LLM_APP_ID", "")
+    api_key = _resolve_api_key()
+    app_id = _resolve_app_id(api_key=api_key)
     if app_id:
         payload["appId"] = app_id
     if _env_bool("LLM_ENABLE_THINKING", False):
@@ -188,6 +225,30 @@ def _build_payload(prompt: str) -> dict[str, Any]:
         except ValueError:
             pass
     return payload
+
+
+def _truncate_text(text: str, max_len: int = 180) -> str:
+    normalized = " ".join(text.split())
+    if len(normalized) <= max_len:
+        return normalized
+    return normalized[:max_len] + "..."
+
+
+def _response_error_detail(resp: Any) -> str:
+    status_code = int(getattr(resp, "status_code", 0) or 0)
+    err_obj = getattr(resp, "error", None)
+    if err_obj:
+        return _truncate_text(str(err_obj))
+
+    body = ""
+    try:
+        body = str(getattr(resp, "text", "") or "")
+    except Exception:  # noqa: BLE001
+        body = ""
+    body = body.strip()
+    if body:
+        return _truncate_text(body)
+    return f"http_{status_code}"
 
 
 def _parse_sse_stream(resp) -> tuple[bool, float | None, int, str | None]:
@@ -262,8 +323,13 @@ class LlmStreamUser(HttpUser):
             name=request_name,
         ) as resp:
             try:
-                if resp.status_code != 200:
-                    err = f"http_{resp.status_code}"
+                status_code = int(getattr(resp, "status_code", 0) or 0)
+                if status_code != 200:
+                    detail = _response_error_detail(resp)
+                    if detail.startswith(f"http_{status_code}"):
+                        err = detail
+                    else:
+                        err = f"http_{status_code}: {detail}"
                     resp.failure(err)
                 else:
                     done, ttft_ms, out_chars, stream_err = _parse_sse_stream(resp)
@@ -420,12 +486,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--prompt-file", default="", help="txt/md/csv prompt file")
     p.add_argument("--prompt", default=DEFAULT_PROMPT, help="single prompt fallback")
 
-    p.add_argument("--api-key", default="", help="auth secret")
+    p.add_argument("--api-key", default=API_KEY, help="auth secret (default: API_KEY in script)")
     p.add_argument("--api-key-env", default="SERVYOU_APP_ID")
     p.add_argument("--auth-mode", choices=("raw", "bearer", "none"), default="raw")
     p.add_argument("--add-accept-sse", action=argparse.BooleanOptionalAction, default=True)
 
     p.add_argument("--app-id", default="", help="add appId to payload")
+    p.add_argument(
+        "--app-id-env",
+        default="SERVYOU_APP_ID",
+        help="fallback env var for appId payload",
+    )
     p.add_argument("--enable-thinking", action=argparse.BooleanOptionalAction, default=False)
     p.add_argument(
         "--chat-template-enable-thinking",
@@ -464,7 +535,8 @@ def run_one_level(
     stdout_log = os.path.join(run_dir, "stdout.log")
     stderr_log = os.path.join(run_dir, "stderr.log")
 
-    api_key = args.api_key or os.environ.get(args.api_key_env, "")
+    api_key = _resolve_api_key(args.api_key, args.api_key_env)
+    app_id = _resolve_app_id(args.app_id, env_name=args.app_id_env, api_key=api_key)
     spawn_rate = args.spawn_rate if args.spawn_rate > 0 else float(concurrency)
     if spawn_rate <= 0:
         spawn_rate = 1.0
@@ -479,7 +551,7 @@ def run_one_level(
     env["LLM_TIMEOUT_SECONDS"] = str(args.timeout_seconds)
     env["LLM_REQUEST_NAME"] = args.request_name
     env["LLM_ADD_ACCEPT_SSE"] = "true" if args.add_accept_sse else "false"
-    env["LLM_APP_ID"] = args.app_id
+    env["LLM_APP_ID"] = app_id
     env["LLM_ENABLE_THINKING"] = "true" if args.enable_thinking else "false"
     env["LLM_CHAT_TEMPLATE_ENABLE_THINKING"] = (
         "true" if args.chat_template_enable_thinking else "false"
@@ -577,6 +649,11 @@ def main(argv: list[str] | None = None) -> int:
     levels = sorted(set(args.concurrency))
     if any(x <= 0 for x in levels):
         safe_print("error: concurrency must be positive integers")
+        return 2
+    api_key = _resolve_api_key(args.api_key, args.api_key_env)
+    app_id = _resolve_app_id(args.app_id, env_name=args.app_id_env, api_key=api_key)
+    if "/mudgate/api/llm/" in args.endpoint and args.auth_mode != "none" and not api_key:
+        safe_print("error: missing api key for mudgate endpoint (set API_KEY in script)")
         return 2
 
     script_path = os.path.abspath(__file__)
