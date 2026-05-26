@@ -7,7 +7,7 @@
 
 外部接口：
 
-- URL: ``http://10.199.0.40:8080/api/kh/getKhInfoByPolicyId`` (POST)
+- URL: ``http://10.199.0.40:8080/kg-platform/api/kh/getKhInfoByPolicyId`` (POST)
 - 入参 body: ``{"policyId": "<policyId，格式：code_version>"}``
 - 响应：标准 JSON，``data.prompt`` 即为本模块所需的通用知识文本（其余字段当前不使用）。
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # 接口固定不变；如果后续要做环境覆盖再考虑放到 inference.config。
-_KH_INFO_URL = "http://10.199.0.40:8080/api/kh/getKhInfoByPolicyId"
+_KH_INFO_URL = "http://10.199.0.40:8080/kg-platform/api/kh/getKhInfoByPolicyId"
 
 # 这是一个相对轻量的查询接口，留出 10s 已经很宽松；超时即视作失败回落。
 _DEFAULT_TIMEOUT_SECONDS: float = 10.0
