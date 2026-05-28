@@ -41,11 +41,16 @@ __all__ = [
     "PREVIEW_USER_PROMPT",
     "PREVIEW_SYSTEM_PROMPT_WITH_TGK",
     "PREVIEW_USER_PROMPT_WITH_TGK",
+    "PREVIEW_SYSTEM_PROMPT_WITH_CASES",
+    "PREVIEW_USER_PROMPT_WITH_CASES",
+    "PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES",
+    "PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES",
     "REACT_INTERMEDIATE_SYSTEM_PROMPT",
     "REACT_INTERMEDIATE_USER_PROMPT",
     "REACT_FINAL_SYSTEM_PROMPT",
     "select_preview_prompt",
     "format_preview_user_prompt",
+    "format_related_cases_block",
     "format_react_intermediate_user_prompt",
     "format_react_final_user_prompt",
     "select_react_prompt",
@@ -57,17 +62,27 @@ __all__ = [
 
 # -------------------------------------------------------------- preview prompt
 #
-# 双套 prompt 并存，按 ``topic_general_knowledge`` 是否提供路由（见
-# :func:`select_preview_prompt`）：
+# 四套 prompt 并存，按 ``(topic_general_knowledge, related_cases)`` 两维路由
+# （见 :func:`select_preview_prompt`）：
 #
-# - 老（``PREVIEW_SYSTEM_PROMPT`` / ``PREVIEW_USER_PROMPT``）：
+# - 原 ``PREVIEW_SYSTEM_PROMPT`` / ``PREVIEW_USER_PROMPT``：
 #   仅基于模型自身常识做轻量分析，user prompt 只有【用户问题】一段。
-#   入参缺少 ``topic_general_knowledge`` 时使用，向后兼容原有调用。
-# - 新（``PREVIEW_SYSTEM_PROMPT_WITH_TGK`` / ``PREVIEW_USER_PROMPT_WITH_TGK``）：
+#   ``topic_general_knowledge`` 与 ``related_cases`` 都为空时使用，与改造前完全等价。
+# - ``PREVIEW_SYSTEM_PROMPT_WITH_TGK`` / ``PREVIEW_USER_PROMPT_WITH_TGK``：
 #   要求模型"遵循专题通用知识 + 自身常识"，user prompt 多一段【专题通用知识】。
 #   对接外层 ``ReasonRequest.answerSystemPrompt``，让客户传入的专题背景知识
-#   参与 preview 预答。两个常量必须成对启用，避免出现 system 让模型遵循
-#   一段不存在的小节这种矛盾。
+#   参与 preview 预答。
+# - ``PREVIEW_SYSTEM_PROMPT_WITH_CASES`` / ``PREVIEW_USER_PROMPT_WITH_CASES``：
+#   要求模型"参考相关案例经验 + 自身常识"，user prompt 多一段【相关案例经验】。
+#   案例来源见 :mod:`inference.retrieval.case_search`（LanceDB case 库纯向量检索,
+#   按 cosine_similarity 阈值过滤后取 top-k）。
+# - ``PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES`` / ``PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES``：
+#   两者并存：system 要求"遵循专题通用知识 + 参考相关案例经验 + 自身常识"，
+#   user prompt 同时包含【专题通用知识】与【相关案例经验】两个小节。
+#
+# 关键语义：``related_cases`` 为空（含"topC=0 关闭检索"和"召回 0 条达阈值"两种情况）时,
+# 一律回退到不带【相关案例经验】段的版本，**绝不**渲染"暂无相关案例"占位串，
+# 避免空段落给模型带来无意义干扰。
 
 PREVIEW_SYSTEM_PROMPT = """\
 你是一个资深财税实务咨询专家。
@@ -113,23 +128,154 @@ PREVIEW_USER_PROMPT_WITH_TGK = """## 【专题通用知识】
 """
 
 
+PREVIEW_SYSTEM_PROMPT_WITH_CASES = """\
+你是一个资深财税实务咨询专家。
+
+请参考**相关案例经验**，并基于自身常识，对**用户问题**做一次轻量分析
+- <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
+- <answer> 标签内容：给出还需要进一步验证的关键点（100字以内）
+
+【绝对约束】
+- 仅输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他文字。
+- 不确定的思路和常识，允许标注"待结合检索后修正"
+- 不用考虑可能的风险点
+- 严禁输出具体政策名称、内容及其相关要求（你的信息是过时的）
+- 严禁给出问题的答案，只要输出解答思路
+- 相关案例经验可作为推理参考，但不可直接抄录其结论；若案例情境与本问题存在差异，需在思路中指出
+"""
+
+PREVIEW_USER_PROMPT_WITH_CASES = """## 【用户问题】
+{question}
+
+## 【相关案例经验】
+{related_cases_block}
+"""
+
+
+PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES = """\
+你是一个资深财税实务咨询专家。
+
+请遵循**专题通用知识**，参考**相关案例经验**，并基于自身常识，对**用户问题**做一次轻量分析
+- <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
+- <answer> 标签内容：列出与问题相关的专题通用知识、以及还需要进一步验证的关键点。（200字以内）
+
+【绝对约束】
+- 仅输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他文字。
+- 不确定的思路和常识，允许标注"待结合检索后修正"
+- 不用考虑可能的风险点
+- 严禁输出具体政策名称、内容及其相关要求（你的自身常识是过时的）
+- 严禁给出问题的答案，只要输出解答思路
+- 专题通用知识是绝对真理，可以放心输出
+- 相关案例经验可作为推理参考，但不可直接抄录其结论；若案例情境与本问题存在差异，需在思路中指出
+"""
+
+PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES = """## 【专题通用知识】
+{topic_general_knowledge}
+
+## 【用户问题】
+{question}
+
+## 【相关案例经验】
+{related_cases_block}
+"""
+
+
+_CASE_POLARITY_LABEL = {
+    "positive": "正向案例",
+    "negative": "反向案例",
+}
+
+
+def format_related_cases_block(related_cases: list | None) -> str:
+    """把 ``list[CaseHit]`` 渲染为 preview user prompt 的【相关案例经验】段正文。
+
+    入参为 :class:`inference.retrieval.case_search.CaseHit` 列表（也兼容 dict
+    形态，方便单测 / 离线脚本直接喂构造好的 dict）。返回 markdown 文本块,
+    用三级标题 ``### 案例N`` 列出每条，附 cosine 相似度与极性标注。
+
+    入参为空（None / 空 list）时返回空串——**select_preview_prompt 据此回退
+    到不带【相关案例经验】段的 prompt**，不会在 prompt 里渲染空段。
+    """
+
+    cases = list(related_cases or [])
+    if not cases:
+        return ""
+
+    lines: list[str] = []
+    for i, case in enumerate(cases, 1):
+        if isinstance(case, dict):
+            sim = case.get("cosine_similarity")
+            question = (case.get("question") or "").strip()
+            knowledge = (case.get("knowledge") or "").strip()
+            polarity = (case.get("polarity") or "").strip().lower()
+        else:
+            sim = getattr(case, "cosine_similarity", None)
+            question = (getattr(case, "question", "") or "").strip()
+            knowledge = (getattr(case, "knowledge", "") or "").strip()
+            polarity = (getattr(case, "polarity", "") or "").strip().lower()
+
+        try:
+            sim_text = f"{float(sim):.2f}" if sim is not None else "?"
+        except (TypeError, ValueError):
+            sim_text = "?"
+        polarity_label = _CASE_POLARITY_LABEL.get(polarity, "")
+        header_suffix = f"，{polarity_label}" if polarity_label else ""
+        lines.append(f"### 案例{i}（相似度 {sim_text}{header_suffix}）")
+        if question:
+            lines.append(f"**原问题**：{question}")
+        if knowledge:
+            lines.append(f"**案例知识**：{knowledge}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
 def select_preview_prompt(
     *,
     question: str,
     topic_general_knowledge: str | None = None,
+    related_cases: list | None = None,
 ) -> tuple[str, str]:
-    """根据 ``topic_general_knowledge`` 是否提供，路由到老/新两套 preview prompt。
+    """按 ``(topic_general_knowledge, related_cases)`` 两维路由到 4 套 preview prompt 之一。
 
-    - ``topic_general_knowledge`` 非空（``str.strip()`` 后仍有内容）：
-      返回 ``(PREVIEW_SYSTEM_PROMPT_WITH_TGK, 渲染后的 PREVIEW_USER_PROMPT_WITH_TGK)``,
-      user prompt 注入【专题通用知识】小节，system 同步切到要求"遵循专题通用知识"的版本。
-    - 否则：返回 ``(PREVIEW_SYSTEM_PROMPT, 渲染后的 PREVIEW_USER_PROMPT)``,
-      与改造前的老版 preview 完全一致（只有【用户问题】、system 要求"基于自身常识"）。
+    路由表：
+
+    +----------+----------+--------------------------------------+
+    | tgk 非空 | cases 非空 | 路由到                              |
+    +==========+==========+======================================+
+    | 否       | 否       | ``PREVIEW_*``                        |
+    | 是       | 否       | ``PREVIEW_*_WITH_TGK``               |
+    | 否       | 是       | ``PREVIEW_*_WITH_CASES``             |
+    | 是       | 是       | ``PREVIEW_*_WITH_TGK_AND_CASES``     |
+    +----------+----------+--------------------------------------+
+
+    ``related_cases`` 为空（含 ``topC=0`` 关闭检索 / 召回 0 条达阈值两种情况）时
+    一律回退到不带【相关案例经验】段的版本——这保证了"关闭 case 模式"和
+    "开启但无命中"对模型的可见 prompt 完全一致，避免空段落干扰预答质量。
 
     返回 ``(system_prompt, user_prompt)`` tuple，结构对齐 :func:`select_react_prompt`。
     """
 
     tgk = (topic_general_knowledge or "").strip()
+    cases_block = format_related_cases_block(related_cases)
+    has_cases = bool(cases_block)
+
+    if tgk and has_cases:
+        return (
+            PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES,
+            PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES.format(
+                question=question,
+                topic_general_knowledge=tgk,
+                related_cases_block=cases_block,
+            ),
+        )
+    if has_cases:
+        return (
+            PREVIEW_SYSTEM_PROMPT_WITH_CASES,
+            PREVIEW_USER_PROMPT_WITH_CASES.format(
+                question=question,
+                related_cases_block=cases_block,
+            ),
+        )
     if tgk:
         return (
             PREVIEW_SYSTEM_PROMPT_WITH_TGK,
@@ -148,6 +294,7 @@ def format_preview_user_prompt(
     *,
     question: str,
     topic_general_knowledge: str | None = None,
+    related_cases: list | None = None,
 ) -> str:
     """组装 preview 阶段 user prompt（仅返回 user 段；如需 system 请用 :func:`select_preview_prompt`）。
 
@@ -157,6 +304,7 @@ def format_preview_user_prompt(
     _, user_prompt = select_preview_prompt(
         question=question,
         topic_general_knowledge=topic_general_knowledge,
+        related_cases=related_cases,
     )
     return user_prompt
 

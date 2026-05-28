@@ -105,6 +105,8 @@
 {
   "document_id": 101,
   "score": 0.016129,
+  "cosine_similarity": 0.982341,
+  "bm25_score": 2.147325,
   "content": "hybrid retrieval with rrf",
   "metadata": {
     "heading_paths": [],
@@ -119,6 +121,12 @@
   }
 }
 ```
+
+分数字段说明：
+
+- `score`：最终排序分（RRF 融合分）
+- `cosine_similarity`：向量召回线的余弦相似度；未命中向量线时为 `null`
+- `bm25_score`：BM25/FTS 召回线的原始分；未命中 BM25 线时为 `null`
 
 说明：上面的 `metadata` 字段仅为示例，不代表固定字段集合；调用方可以按业务需要扩展任意字段与嵌套结构。
 
@@ -230,6 +238,8 @@ Query 参数：
     {
       "document_id": 101,
       "score": 0.0,
+      "cosine_similarity": null,
+      "bm25_score": null,
       "content": "vector database general platform",
       "metadata": {
         "heading_paths": [],
@@ -375,6 +385,29 @@ Query 参数：
 - `include_derived=false`：会在 where 上附加 `kind='original'`
 - 需要按 metadata 过滤时，建议先调用 `GET /v2/collections/{collection_id}/meta` 获取最新 `filterable_fields` 中的 `md_*` 列名
 - `strategy`：当前仅支持 `legacy_hybrid`
+- 返回 `hits[*]` 中的 `score` 为最终 RRF 融合分；`cosine_similarity` / `bm25_score` 分别是向量线与 BM25 线的原始分（某条线未命中时为 `null`）
+
+纯向量检索（vector-only）调用方法：
+
+- `query_vector`：传非空向量（维度需与集合 `dim` 一致）
+- `query_tokenized`：传空串 `""`（避免走 BM25 召回）
+- `top_n`：传正整数（例如 `5`）
+- `top_m`：传 `0`（显式关闭 BM25 召回）
+- `strategy`：固定 `legacy_hybrid`
+
+纯向量检索请求示例：
+
+```json
+{
+  "query_tokenized": "",
+  "query_vector": [0.0, 1.0, 0.0, 0.0],
+  "top_n": 5,
+  "top_m": 0,
+  "include_content": true,
+  "include_derived": true,
+  "strategy": "legacy_hybrid"
+}
+```
 
 别名接口：
 
@@ -389,6 +422,8 @@ Query 参数：
     {
       "document_id": 102,
       "score": 0.016129,
+      "cosine_similarity": 1.0,
+      "bm25_score": 1.386294,
       "content": "hybrid retrieval with rrf",
       "metadata": {
         "heading_paths": [],
@@ -400,6 +435,27 @@ Query 参数：
         "hop_depth": 1,
         "source": "",
         "clause_id": ""
+      }
+    }
+  ]
+}
+```
+
+纯向量检索成功响应示例：
+
+```json
+{
+  "hits": [
+    {
+      "document_id": 102,
+      "score": 0.016393,
+      "cosine_similarity": 1.0,
+      "bm25_score": null,
+      "content": "hybrid retrieval with rrf",
+      "metadata": {
+        "kind": "derived",
+        "parent_chunk_index": 101,
+        "hop_depth": 1
       }
     }
   ]
@@ -490,6 +546,19 @@ curl -sS "${BASE_URL}/v2/collections/${CID}/search" \
     "query_vector":[0.1,0.2,0.3,0.4],
     "top_n":5,
     "top_m":5,
+    "include_content":true,
+    "strategy":"legacy_hybrid"
+  }' | jq .
+
+# 纯向量检索（vector-only）
+curl -sS "${BASE_URL}/v2/collections/${CID}/search" \
+  -H "X-API-Key: ${API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query_tokenized":"",
+    "query_vector":[0.1,0.2,0.3,0.4],
+    "top_n":5,
+    "top_m":0,
     "include_content":true,
     "strategy":"legacy_hybrid"
   }' | jq .

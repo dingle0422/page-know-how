@@ -2217,6 +2217,26 @@ class InferenceRequest(BaseModel):
                     "字段名与 /api/reason 的 ReasonRequest.answerSystemPrompt 对齐，"
                     "在 v4 路径下两者语义一致。",
     )
+    topC: int = Field(
+        default=_inference_config.CASE_SEARCH_TOP_K_DEFAULT,
+        ge=0,
+        le=20,
+        description="preview 阶段 case 库召回数量。\n"
+                    "- 0：关闭 case 检索，preview 使用原 2 套 prompt（PREVIEW_* / "
+                    "  PREVIEW_*_WITH_TGK），不带【相关案例经验】段；\n"
+                    "- >0：按 ``caseSimThreshold`` 过滤 cosine_similarity 后取前 N 条，"
+                    "  preview 走带【相关案例经验】的新 prompt。\n"
+                    "案例库为 LanceDB v2 集合 ``case_{khCode}``（khCode = "
+                    "policyId.split('_')[0]）；集合不存在 / embedding 服务异常 / "
+                    "无命中达阈值时自动回退到原 prompt，不阻塞 preview。",
+    )
+    caseSimThreshold: float = Field(
+        default=_inference_config.CASE_SEARCH_THRESHOLD_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description="case 库召回的 cosine_similarity 过滤阈值（默认 0.85）。"
+                    "仅在 ``topC>0`` 时生效；``topC=0`` 时该字段被忽略。",
+    )
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
         description="启用 verbose 模式：以 taskId 为文件名落 jsonl 推理日志，"
@@ -2308,6 +2328,8 @@ async def _run_inference_pipeline_inner(
             "answerSystemPrompt" if existing_tgk
             else ("khInfo" if kh_tgk else "none")
         ),
+        caseTopK=int(options.case_top_k),
+        caseSimThreshold=float(options.case_sim_threshold),
     )
     await _inference_run(task_id, question, index_policy_id, rs, options=options)
     _log_verbose_event("inference_pipeline_finished")
@@ -2467,6 +2489,10 @@ def _build_inference_options(req: InferenceRequest) -> _InferenceOptions:
         # answerSystemPrompt → preview 阶段【专题通用知识】路由（见 prompts.select_preview_prompt）。
         # 非空走 PREVIEW_*_WITH_TGK，注入用户传入的专题背景；空/None 回落到原版 PREVIEW_*。
         topic_general_knowledge=req.answerSystemPrompt,
+        # topC=0 关闭 case 检索（preview 走原 prompt）；>0 时按 caseSimThreshold
+        # 过滤 cosine_similarity 后取 top-N，走带【相关案例经验】的新 prompt。
+        case_top_k=int(req.topC),
+        case_sim_threshold=float(req.caseSimThreshold),
     )
 
 
@@ -2496,6 +2522,8 @@ def _build_inference_session_meta(
         "topN": int(req.topN),
         "topM": int(req.topM),
         "intermediateThinkEnabled": req.intermediateThinkEnabled,
+        "topC": int(req.topC),
+        "caseSimThreshold": float(req.caseSimThreshold),
         "topicLocated": bool(topic_located),
     }
 

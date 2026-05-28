@@ -41,6 +41,12 @@ class InferenceOptions:
     # 透传到 preview 的【专题通用知识】槽位（对应 ReasonRequest.answerSystemPrompt）；
     # None / 空字符串时 preview 走兜底占位，不影响原有行为。
     topic_general_knowledge: Optional[str] = None
+    # preview 阶段 case 库召回参数；case_top_k=0 表示关闭 case 检索，preview 走
+    # 原 2 套 PREVIEW_* / PREVIEW_*_WITH_TGK；>0 时按 case_sim_threshold 过滤
+    # cosine_similarity 后取 top-k，走带【相关案例经验】的新 prompt（详见
+    # :func:`inference.prompts.select_preview_prompt`）。
+    case_top_k: int = 3
+    case_sim_threshold: float = 0.85
 
 
 async def _await_or_log(coro, *, label: str) -> None:
@@ -80,6 +86,9 @@ async def run(
                         task_id, question, redis_stream,
                         vendor=opts.vendor, model=opts.model,
                         topic_general_knowledge=opts.topic_general_knowledge,
+                        policy_id=policy_id,
+                        case_top_k=opts.case_top_k,
+                        case_sim_threshold=opts.case_sim_threshold,
                     ),
                     label=f"preview task={task_id}",
                 ),

@@ -59,6 +59,25 @@ RRF_K: int = 60
 PREVIEW_TPS: int = 5
 """preview 阶段写 redis 的目标速率（每秒最多写多少次/字符）。"""
 
+# --- preview case 检索（相关案例经验） --------------------------------------
+
+CASE_SEARCH_TOP_K_DEFAULT: int = max(
+    0, int(os.getenv("INFERENCE_CASE_SEARCH_TOP_K_DEFAULT", "3"))
+)
+"""``InferenceRequest.topC`` 未传时的默认值（>0 表示开启 case 检索）。
+
+仅作 Pydantic ``Field.default`` 的取值源，不充当全局启停开关——
+运行时是否开 case 检索完全以请求体 ``topC`` 为准（0=关闭）。
+"""
+
+CASE_SEARCH_THRESHOLD_DEFAULT: float = float(
+    os.getenv("INFERENCE_CASE_SEARCH_THRESHOLD_DEFAULT", "0.85")
+)
+"""``InferenceRequest.caseSimThreshold`` 未传时的默认 cosine_similarity 阈值。
+
+仅在 ``topC>0`` 时生效；``topC=0`` 时该值被忽略。
+"""
+
 # --- react 节流 -----------------------------------------------------------
 
 REACT_TPS: int = max(1, int(os.getenv("INFERENCE_REACT_TPS", "10")))

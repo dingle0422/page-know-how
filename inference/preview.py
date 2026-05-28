@@ -98,6 +98,9 @@ async def run(
     system_prompt: Optional[str] = None,
     user_prompt: Optional[str] = None,
     topic_general_knowledge: Optional[str] = None,
+    policy_id: Optional[str] = None,
+    case_top_k: int = 0,
+    case_sim_threshold: float = 0.85,
     tps: int = config.PREVIEW_TPS,
 ) -> None:
     """运行 preview 阶段。
@@ -106,7 +109,17 @@ async def run(
     的路由——非空时走 ``PREVIEW_*_WITH_TGK`` 双件套（system 要求"遵循专题通用知识"，
     user prompt 注入【专题通用知识】小节）；为空/None 时回落到老 ``PREVIEW_*``
     （只有【用户问题】、system 仅要求"基于自身常识"），与改造前完全等价。
-    显式传 ``system_prompt`` / ``user_prompt`` 时优先使用对应入参，路由结果被覆盖。
+
+    ``case_top_k`` / ``case_sim_threshold`` / ``policy_id``：preview 阶段 case 库
+    召回参数。``case_top_k=0`` 或 ``policy_id`` 为空时**完全跳过 case 检索**,
+    走原 2 套 PREVIEW_* prompt；``case_top_k>0`` 时调
+    :func:`inference.retrieval.case_search.search_cases`，按 cosine_similarity
+    阈值过滤后取 top-k，命中非空则走带【相关案例经验】的新 prompt。case 检索
+    全链路异常被吃掉返回 ``[]``，preview 不会因此卡死。
+
+    显式传 ``system_prompt`` / ``user_prompt`` 时优先使用对应入参，路由结果被覆盖
+    （此时 case 检索仍会触发，但其结果不会影响 prompt——保留触发是为了让上层
+    需要日志/统计时仍能复用本入口；如需彻底跳过，传 ``case_top_k=0``）。
 
     异常会被捕获并写入 ``preview.done=True`` + 日志，不向上抛，确保 pipeline
     的 react 主路径不会被 preview 拖死。
@@ -114,9 +127,28 @@ async def run(
 
     from .prompts import select_preview_prompt
 
+    related_cases: list = []
+    if case_top_k > 0 and policy_id:
+        try:
+            from .retrieval.case_search import search_cases
+
+            related_cases = await search_cases(
+                question, policy_id,
+                threshold=case_sim_threshold,
+                top_k=case_top_k,
+            )
+        except Exception as e:
+            # search_cases 内部已经全兜底；这里双保险，确保任何意外都不阻塞 preview。
+            logger.warning(
+                "[InferencePreview] task=%s case_search 失败（忽略）: %s",
+                task_id, e,
+            )
+            related_cases = []
+
     default_sys_p, default_usr_p = select_preview_prompt(
         question=question,
         topic_general_knowledge=topic_general_knowledge,
+        related_cases=related_cases,
     )
     sys_p = system_prompt or default_sys_p
     usr_p = user_prompt or default_usr_p

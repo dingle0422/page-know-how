@@ -330,6 +330,65 @@ class RetrievalServiceClient:
         hits = data.get("hits") or []
         return [_hit_to_knowledge_chunk(h) for h in hits]
 
+    async def vector_search_v2(
+        self,
+        collection_id: str,
+        *,
+        query_vector: list[float],
+        top_n: int,
+        include_content: bool = True,
+        include_derived: bool = True,
+    ) -> list[dict]:
+        """v2 纯向量检索：``POST /v2/collections/{collection_id}/search``。
+
+        与 v1 ``/v1/policies/{}/search`` 的差异：
+
+        - **走 v2 端点**：collection 命名空间独立（如 case_refinery 写入的
+          ``case_{khCode}``），不与 inference 的 policy 索引混用；
+        - **纯向量**：``query_tokenized=""``，``top_m=0``，仅走向量召回；
+        - **暴露 cosine_similarity**：响应 ``hits[*]`` 内带原始 cosine 分，
+          调用方可直接按阈值过滤（详见 :mod:`inference.retrieval.case_search`）。
+
+        返回 raw ``hits`` list（每项含 ``document_id`` / ``score`` /
+        ``cosine_similarity`` / ``content`` / ``metadata``），由调用方解析。
+
+        失败降级：
+
+        - 服务不可达 → ``[]`` （case 检索是 preview 的"锦上添花"，不应阻塞主流程）；
+        - 4xx 含 ``404``（集合不存在）→ ``[]``（case_refinery 未上线是预期）；
+        - 其他 4xx 仍抛 ``RetrievalServiceError`` 暴露调用方参数错误。
+        """
+
+        body: dict[str, Any] = {
+            "query_tokenized": "",
+            "query_vector": list(query_vector or []),
+            "top_n": int(top_n),
+            "top_m": 0,
+            "include_content": bool(include_content),
+            "include_derived": bool(include_derived),
+            "strategy": "legacy_hybrid",
+        }
+        try:
+            data = await self._request(
+                "POST", f"/v2/collections/{_quote(collection_id)}/search", json=body,
+            )
+        except RetrievalServiceUnavailable as e:
+            logger.warning(
+                "[RetrievalClient] vector_search_v2 服务不可达 collection=%s: %s",
+                collection_id, e,
+            )
+            return []
+        except RetrievalServiceError as e:
+            msg = str(e)
+            if "404" in msg or "not found" in msg.lower() or "not indexed" in msg.lower():
+                logger.info(
+                    "[RetrievalClient] vector_search_v2 collection=%s 不存在/未建索引: %s",
+                    collection_id, e,
+                )
+                return []
+            raise
+        return list(data.get("hits") or [])
+
     async def expand_relations(
         self,
         policy_id: str,
