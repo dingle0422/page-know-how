@@ -13,6 +13,20 @@
 
 > 当服务端 `API_KEY` 为空时，鉴权关闭（本地开发场景，当前服务端也没有设置API_KEY）。
 
+### 1.1 服务端 embedding 兜底配置
+
+默认开启服务端 embedding 兜底（用于 `documents:upsert` 缺 `vector`、`search` 缺 `query_vector`）。
+
+相关环境变量：
+
+- `ENABLE_SERVER_EMBEDDING_FALLBACK`：是否启用兜底，默认 `true`
+- `EMBEDDING_BASE_URL`：embedding 服务地址，默认 `http://mlp.paas.dc.servyou-it.com/qwen3-embedding/v1`
+- `EMBEDDING_MODEL`：embedding 模型名，默认 `qwen3-embedding`
+- `EMBEDDING_API_KEY`：可选，默认空
+- `EMBEDDING_TIMEOUT_SEC`：请求超时秒数，默认 `10`
+
+关闭兜底后，API 将回到“必须由调用方显式提供向量”的模式。
+
 ## 2. 能力协商（建议每个调用方启动时先探测）
 
 ### `GET /v2/capabilities`
@@ -81,6 +95,7 @@
 - `documents` 在 upsert 请求中最少 1 条（空数组会被 422 拒绝）
 - `content_tokenized` 允许空；为空时服务端会回退为简单分词
 - `vector` 可为空（纯 BM25）；有值时应保证同一集合维度一致
+- 未传 `vector` 时，服务端会按文档 `content` 自动调用 embedding 服务补齐；若 embedding 失败或维度不匹配，会降级到原有行为（已有 `dim` 时补零向量）
 - `metadata` 支持任意 JSON 结构（对象/数组/基础类型），写入后在读取与检索结果中原样返回
 - `metadata` 中可扁平化为标量的叶子字段会自动落成独立列（列名前缀 `md_`），并自动尝试构建标量索引，用于 `where` 过滤
 
@@ -353,6 +368,7 @@ Query 参数：
 
 - `query_tokenized`：BM25 查询词（空串表示不走 FTS 召回）
 - `query_vector`：向量查询（空数组表示不走向量召回）
+- 未传 `query_vector` 时，服务端会基于 `query_tokenized` 自动调用 embedding 服务；若 embedding 失败或维度不匹配，会降级为 BM25/FTS-only
 - `top_n`：向量召回上限
 - `top_m`：BM25 召回上限
 - `rrf_k`：RRF 常数；不传时使用服务端配置值
@@ -434,7 +450,7 @@ FastAPI 默认格式：
 ## 7. 推荐接入流程（服务对服务）
 
 1. 启动时调用 `/v2/capabilities` 做能力协商（确认 `generic_api=true`）。
-2. 首次写入某集合时显式传 `expected_dim`，固定向量维度。
+2. 首次写入某集合时显式传 `expected_dim`，固定向量维度；若依赖自动兜底，确保 embedding 配置可用。
 3. 写入后调用 `/v2/collections/{id}/meta` 校验 `dim`、索引状态与文档量。
 4. 在线检索优先走 `/v2/collections/{id}/search`，按需调 `top_n/top_m`。
 5. 对 `400/401/404/422/500` 分层处理并打点监控。
