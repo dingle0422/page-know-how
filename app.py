@@ -3053,6 +3053,20 @@ async def _run_inference_v4_executor(
                 task_id, e,
             )
 
+    # preview 阶段 case 库召回参数：与 /api/inference/stream 的 InferenceRequest
+    # 对齐，request_payload 可显式传 topC / caseSimThreshold 覆盖；未传则用 config
+    # 默认值。topC=0 是合法值（关闭 case 检索），所以不能用 `or` 兜底（0 会被误判）。
+    _topc_raw = request_payload.get("topC")
+    case_top_k = (
+        int(_topc_raw) if _topc_raw is not None
+        else int(_inf_config.CASE_SEARCH_TOP_K_DEFAULT)
+    )
+    _case_thr_raw = request_payload.get("caseSimThreshold")
+    case_sim_threshold = (
+        float(_case_thr_raw) if _case_thr_raw is not None
+        else float(_inf_config.CASE_SEARCH_THRESHOLD_DEFAULT)
+    )
+
     opts = _Opts(
         vendor=request_payload.get("vendor", "servyou"),
         model=request_payload.get("model", "deepseek-v3.2-1163259bcc6c"),
@@ -3063,6 +3077,8 @@ async def _run_inference_v4_executor(
         intermediate_think_enabled=intermediate_think_enabled,
         # v4：answerSystemPrompt 作为【专题通用知识】注入 preview，提升预答基础能力。
         topic_general_knowledge=request_payload.get("answerSystemPrompt"),
+        case_top_k=case_top_k,
+        case_sim_threshold=case_sim_threshold,
     )
 
     react_max_rounds_raw = request_payload.get("maxRounds")
@@ -3085,6 +3101,12 @@ async def _run_inference_v4_executor(
                         task_id, question, rs,
                         vendor=opts.vendor, model=opts.model,
                         topic_general_knowledge=opts.topic_general_knowledge,
+                        # case 召回与 /api/inference/stream 一致：透传 index_policy_id
+                        # （case_search 内部剥 __cs 后缀取 khCode）+ topC / 阈值；
+                        # case_top_k=0 时 preview 跳过 case 检索，走原 prompt。
+                        policy_id=index_policy_id,
+                        case_top_k=opts.case_top_k,
+                        case_sim_threshold=opts.case_sim_threshold,
                     ),
                     label=f"preview task={task_id}",
                 ),

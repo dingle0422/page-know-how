@@ -40,7 +40,8 @@ isProject: false
 - **inference/config.py**：只放默认常量供 `InferenceRequest` 的 Pydantic default 引用，**不放全局 enabled 开关**（启停由 `topC` 控制）
 
 向后兼容：
-- 老请求方未传 `topC` → 默认 3，走 case 检索；如希望保留旧行为可显式传 `topC=0`
+
+- 老请求方未传 `topC` → 默认 1，走 case 检索；如希望保留旧行为可显式传 `topC=0`
 - preview / pipeline 新增参数都有默认值，单测可不传
 
 ## 2. 数据流
@@ -62,6 +63,8 @@ flowchart LR
     W4 --> LLM[preview LLM stream]
     W2 --> LLM
 ```
+
+
 
 ## 3. 关键细节
 
@@ -255,12 +258,14 @@ PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES = """## 【专题通用知识】
 
 **select_preview_prompt(question, topic_general_knowledge, related_cases=None)** 路由表：
 
-| tgk 非空 | cases 非空 | 路由到 |
-| --- | --- | --- |
-| 否 | 否 | PREVIEW_* （现有，不变） |
-| 是 | 否 | PREVIEW_*_WITH_TGK （现有，不变） |
-| 否 | 是 | PREVIEW_*_WITH_CASES （新增） |
-| 是 | 是 | PREVIEW_*_WITH_TGK_AND_CASES （新增） |
+
+| tgk 非空 | cases 非空 | 路由到                               |
+| ------ | -------- | --------------------------------- |
+| 否      | 否        | PREVIEW_* （现有，不变）                 |
+| 是      | 否        | PREVIEW_*_WITH_TGK （现有，不变）        |
+| 否      | 是        | PREVIEW_*_WITH_CASES （新增）         |
+| 是      | 是        | PREVIEW_*_WITH_TGK_AND_CASES （新增） |
+
 
 注意：**当 `topC>0` 但实际召回 0 条 ≥ 阈值时，cases 为空 → 自动回退到原 PREVIEW_*，不会显示"暂无相关案例"占位**。这是相对上一版 plan 的关键调整，符合"topC=0 与无案例命中体验一致"的语义。
 
@@ -321,14 +326,16 @@ run_preview(
 
 ### 3.10 失败降级矩阵
 
-| 失败场景 | 行为 |
-| --- | --- |
-| `topC=0` | 跳过 case 检索，走原 2 套 prompt（与改动前完全等价） |
-| `policy_id` 为空 / 解析不出 kh_code | 跳过，cases=[]，回退原 2 套 prompt |
-| embedding 服务不可用 | 跳过，cases=[]，记 warning |
-| LanceDB 服务 404（case 集合不存在） | 跳过，cases=[]，记 info（case_refinery 未上线是预期） |
-| LanceDB 5xx / 超时 | 跳过，cases=[]，记 warning |
-| 命中 0 条 ≥ 阈值 | cases=[]，回退原 2 套 prompt（不显示占位） |
+
+| 失败场景                          | 行为                                       |
+| ----------------------------- | ---------------------------------------- |
+| `topC=0`                      | 跳过 case 检索，走原 2 套 prompt（与改动前完全等价）       |
+| `policy_id` 为空 / 解析不出 kh_code | 跳过，cases=[]，回退原 2 套 prompt               |
+| embedding 服务不可用               | 跳过，cases=[]，记 warning                    |
+| LanceDB 服务 404（case 集合不存在）    | 跳过，cases=[]，记 info（case_refinery 未上线是预期） |
+| LanceDB 5xx / 超时              | 跳过，cases=[]，记 warning                    |
+| 命中 0 条 ≥ 阈值                   | cases=[]，回退原 2 套 prompt（不显示占位）           |
+
 
 所有降级路径绝不抛出阻塞 preview。
 
@@ -375,3 +382,4 @@ async def vector_search_v2(
 - 不做 case 检索结果缓存：preview 每次都重算
 - 不动 query_vector 在 hybrid_search 与 case_search 间复用：当前两者并发跑
 - 不动 case_refinery 服务（独立迭代，本改动只读它产出的 collection）
+
