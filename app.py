@@ -2223,9 +2223,9 @@ class InferenceRequest(BaseModel):
         le=20,
         description="preview 阶段 case 库召回数量。\n"
                     "- 0：关闭 case 检索，preview 使用原 2 套 prompt（PREVIEW_* / "
-                    "  PREVIEW_*_WITH_TGK），不带【相关案例经验】段；\n"
+                    "  PREVIEW_*_WITH_TGK），不带【历史经验】段；\n"
                     "- >0：按 ``caseSimThreshold`` 过滤 cosine_similarity 后取前 N 条，"
-                    "  preview 走带【相关案例经验】的新 prompt。\n"
+                    "  preview 走带【历史经验】的新 prompt。\n"
                     "案例库为 LanceDB v2 集合 ``case_{khCode}``（khCode = "
                     "policyId.split('_')[0]）；集合不存在 / embedding 服务异常 / "
                     "无命中达阈值时自动回退到原 prompt，不阻塞 preview。",
@@ -2490,7 +2490,7 @@ def _build_inference_options(req: InferenceRequest) -> _InferenceOptions:
         # 非空走 PREVIEW_*_WITH_TGK，注入用户传入的专题背景；空/None 回落到原版 PREVIEW_*。
         topic_general_knowledge=req.answerSystemPrompt,
         # topC=0 关闭 case 检索（preview 走原 prompt）；>0 时按 caseSimThreshold
-        # 过滤 cosine_similarity 后取 top-N，走带【相关案例经验】的新 prompt。
+        # 过滤 cosine_similarity 后取 top-N，走带【历史经验】的新 prompt。
         case_top_k=int(req.topC),
         case_sim_threshold=float(req.caseSimThreshold),
     )

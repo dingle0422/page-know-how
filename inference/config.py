@@ -59,10 +59,10 @@ RRF_K: int = 60
 PREVIEW_TPS: int = 5
 """preview 阶段写 redis 的目标速率（每秒最多写多少次/字符）。"""
 
-# --- preview case 检索（相关案例经验） --------------------------------------
+# --- preview case 检索（历史经验） --------------------------------------
 
 CASE_SEARCH_TOP_K_DEFAULT: int = max(
-    0, int(os.getenv("INFERENCE_CASE_SEARCH_TOP_K_DEFAULT", "3"))
+    0, int(os.getenv("INFERENCE_CASE_SEARCH_TOP_K_DEFAULT", "1"))
 )
 """``InferenceRequest.topC`` 未传时的默认值（>0 表示开启 case 检索）。
 

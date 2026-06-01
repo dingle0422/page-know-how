@@ -76,9 +76,9 @@ topC: int = Field(
     le=20,
     description=(
         "preview 阶段 case 库召回数量。"
-        "0 表示关闭 case 检索，preview 使用原 2 套 prompt（不带【相关案例经验】段）；"
+        "0 表示关闭 case 检索，preview 使用原 2 套 prompt（不带【历史经验】段）；"
         ">0 表示按 caseSimThreshold 过滤后取 cosine_similarity 最高的前 N 条，"
-        "走带【相关案例经验】的新 prompt。"
+        "走带【历史经验】的新 prompt。"
     ),
 )
 caseSimThreshold: float = Field(
@@ -186,13 +186,13 @@ class CaseHit:
 
 **原 2 套保留不变**：`PREVIEW_SYSTEM_PROMPT` / `PREVIEW_USER_PROMPT` / `PREVIEW_SYSTEM_PROMPT_WITH_TGK` / `PREVIEW_USER_PROMPT_WITH_TGK`（共 4 个常量，原文不动）。
 
-**新增 2 套**（user 新增 `{related_cases_block}` 槽位，system 在"请基于自身常识"之外多一句"参考**相关案例经验**"）：
+**新增 2 套**（user 新增 `{related_cases_block}` 槽位，system 在"请基于自身常识"之外多一句"参考**历史经验**"）：
 
 ```python
 PREVIEW_SYSTEM_PROMPT_WITH_CASES = """\
 你是一个资深财税实务咨询专家。
 
-请参考**相关案例经验**与自身常识，对用户问题做一次轻量分析
+请参考**历史经验**与自身常识，对用户问题做一次轻量分析
 - <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
 - <answer> 标签内容：给出还需要进一步验证的关键点（100字以内）
 
@@ -202,20 +202,20 @@ PREVIEW_SYSTEM_PROMPT_WITH_CASES = """\
 - 不用考虑可能的风险点
 - 严禁输出具体政策名称、内容及其相关要求（你的信息是过时的）
 - 严禁给出问题的答案，只要输出解答思路
-- 相关案例经验可作为推理参考，但不可直接抄录其结论
+- 历史经验可作为推理参考，但不可直接抄录其结论
 """
 
 PREVIEW_USER_PROMPT_WITH_CASES = """## 【用户问题】
 {question}
 
-## 【相关案例经验】
+## 【历史经验】
 {related_cases_block}
 """
 
 PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES = """\
 你是一个资深财税实务咨询专家。
 
-请遵循**专题通用知识**，参考**相关案例经验**与自身常识，对**用户问题**做一次轻量分析
+请遵循**专题通用知识**，参考**历史经验**与自身常识，对**用户问题**做一次轻量分析
 - <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
 - <answer> 标签内容：列出与问题相关的专题通用知识、以及还需要进一步验证的关键点。（200字以内）
 
@@ -226,7 +226,7 @@ PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES = """\
 - 严禁输出具体政策名称、内容及其相关要求（你的自身常识是过时的）
 - 严禁给出问题的答案，只要输出解答思路
 - 专题通用知识是绝对真理，可以放心输出
-- 相关案例经验可作为推理参考，但不可直接抄录其结论
+- 历史经验可作为推理参考，但不可直接抄录其结论
 """
 
 PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES = """## 【专题通用知识】
@@ -235,7 +235,7 @@ PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES = """## 【专题通用知识】
 ## 【用户问题】
 {question}
 
-## 【相关案例经验】
+## 【历史经验】
 {related_cases_block}
 """
 ```

@@ -43,7 +43,7 @@ class InferenceOptions:
     topic_general_knowledge: Optional[str] = None
     # preview 阶段 case 库召回参数；case_top_k=0 表示关闭 case 检索，preview 走
     # 原 2 套 PREVIEW_* / PREVIEW_*_WITH_TGK；>0 时按 case_sim_threshold 过滤
-    # cosine_similarity 后取 top-k，走带【相关案例经验】的新 prompt（详见
+    # cosine_similarity 后取 top-k，走带【历史经验】的新 prompt（详见
     # :func:`inference.prompts.select_preview_prompt`）。
     case_top_k: int = 3
     case_sim_threshold: float = 0.85

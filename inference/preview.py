@@ -114,7 +114,7 @@ async def run(
     召回参数。``case_top_k=0`` 或 ``policy_id`` 为空时**完全跳过 case 检索**,
     走原 2 套 PREVIEW_* prompt；``case_top_k>0`` 时调
     :func:`inference.retrieval.case_search.search_cases`，按 cosine_similarity
-    阈值过滤后取 top-k，命中非空则走带【相关案例经验】的新 prompt。case 检索
+    阈值过滤后取 top-k，命中非空则走带【历史经验】的新 prompt。case 检索
     全链路异常被吃掉返回 ``[]``，preview 不会因此卡死。
 
     显式传 ``system_prompt`` / ``user_prompt`` 时优先使用对应入参，路由结果被覆盖

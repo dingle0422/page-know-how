@@ -336,6 +336,7 @@ class RetrievalServiceClient:
         *,
         query_vector: list[float],
         top_n: int,
+        where: str | None = None,
         include_content: bool = True,
         include_derived: bool = True,
     ) -> list[dict]:
@@ -348,6 +349,11 @@ class RetrievalServiceClient:
         - **纯向量**：``query_tokenized=""``，``top_m=0``，仅走向量召回；
         - **暴露 cosine_similarity**：响应 ``hits[*]`` 内带原始 cosine 分，
           调用方可直接按阈值过滤（详见 :mod:`inference.retrieval.case_search`）。
+
+        ``where``：LanceDB where 过滤表达式（如 ``md_case_polarity_xxx = 'positive'``）。
+        **注意**：metadata 字段在服务端会被扁平化为 ``md_<path>_<hash8>`` 列，
+        where 必须用该扁平化列名（用原始字段名 ``case_polarity`` 不报错但永远筛不到），
+        列名以 :meth:`get_collection_meta_v2` 返回的 ``filterable_fields`` 为准。
 
         返回 raw ``hits`` list（每项含 ``document_id`` / ``score`` /
         ``cosine_similarity`` / ``content`` / ``metadata``），由调用方解析。
@@ -368,6 +374,8 @@ class RetrievalServiceClient:
             "include_derived": bool(include_derived),
             "strategy": "legacy_hybrid",
         }
+        if where:
+            body["where"] = where
         try:
             data = await self._request(
                 "POST", f"/v2/collections/{_quote(collection_id)}/search", json=body,
@@ -388,6 +396,30 @@ class RetrievalServiceClient:
                 return []
             raise
         return list(data.get("hits") or [])
+
+    async def get_collection_meta_v2(self, collection_id: str) -> dict | None:
+        """v2 集合元信息：``GET /v2/collections/{collection_id}/meta``。
+
+        主要供 case 检索解析 ``filterable_fields`` 里的扁平化列名（如
+        ``md_case_polarity_<hash8>`` / ``md_tombstoned_<hash8>``），用于构造 where。
+
+        降级：服务不可达 / 集合不存在（404）→ ``None``，调用方据此跳过 where 筛选。
+        """
+
+        try:
+            return await self._request(
+                "GET", f"/v2/collections/{_quote(collection_id)}/meta"
+            )
+        except RetrievalServiceUnavailable as e:
+            logger.warning(
+                "[RetrievalClient] get_collection_meta_v2 服务不可达 collection=%s: %s",
+                collection_id, e,
+            )
+            return None
+        except RetrievalServiceError as e:
+            if "404" in str(e):
+                return None
+            raise
 
     async def expand_relations(
         self,

@@ -73,15 +73,15 @@ __all__ = [
 #   对接外层 ``ReasonRequest.answerSystemPrompt``，让客户传入的专题背景知识
 #   参与 preview 预答。
 # - ``PREVIEW_SYSTEM_PROMPT_WITH_CASES`` / ``PREVIEW_USER_PROMPT_WITH_CASES``：
-#   要求模型"参考相关案例经验 + 自身常识"，user prompt 多一段【相关案例经验】。
+#   要求模型"参考历史经验 + 自身常识"，user prompt 多一段【历史经验】。
 #   案例来源见 :mod:`inference.retrieval.case_search`（LanceDB case 库纯向量检索,
 #   按 cosine_similarity 阈值过滤后取 top-k）。
 # - ``PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES`` / ``PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES``：
-#   两者并存：system 要求"遵循专题通用知识 + 参考相关案例经验 + 自身常识"，
-#   user prompt 同时包含【专题通用知识】与【相关案例经验】两个小节。
+#   两者并存：system 要求"遵循专题通用知识 + 参考历史经验 + 自身常识"，
+#   user prompt 同时包含【专题通用知识】与【历史经验】两个小节。
 #
 # 关键语义：``related_cases`` 为空（含"topC=0 关闭检索"和"召回 0 条达阈值"两种情况）时,
-# 一律回退到不带【相关案例经验】段的版本，**绝不**渲染"暂无相关案例"占位串，
+# 一律回退到不带【历史经验】段的版本，**绝不**渲染"暂无相关案例"占位串，
 # 避免空段落给模型带来无意义干扰。
 
 PREVIEW_SYSTEM_PROMPT = """\
@@ -89,7 +89,7 @@ PREVIEW_SYSTEM_PROMPT = """\
 
 请基于自身常识，对用户问题做一次轻量分析
 - <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
-- <answer> 标签内容：给出还需要进一步验证的关键点（100字以内）
+- <answer> 标签内容：给出还需要进一步验证的关键点（200字以内）
 
 【绝对约束】
 - 仅输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他文字。
@@ -131,9 +131,9 @@ PREVIEW_USER_PROMPT_WITH_TGK = """## 【专题通用知识】
 PREVIEW_SYSTEM_PROMPT_WITH_CASES = """\
 你是一个资深财税实务咨询专家。
 
-请参考**相关案例经验**，并基于自身常识，对**用户问题**做一次轻量分析
+请参考**历史经验**，并基于自身常识，对**用户问题**做一次轻量分析
 - <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
-- <answer> 标签内容：给出还需要进一步验证的关键点（100字以内）
+- <answer> 标签内容：给出还需要进一步验证的关键点（200字以内）
 
 【绝对约束】
 - 仅输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他文字。
@@ -141,13 +141,15 @@ PREVIEW_SYSTEM_PROMPT_WITH_CASES = """\
 - 不用考虑可能的风险点
 - 严禁输出具体政策名称、内容及其相关要求（你的信息是过时的）
 - 严禁给出问题的答案，只要输出解答思路
-- 相关案例经验可作为推理参考，但不可直接抄录其结论；若案例情境与本问题存在差异，需在思路中指出
+- 如何使用历史经验：
+    - 先严谨对比用户问题和案例问题的业务实质差异，若不相关则直接忽略；
+    - 若相关，则提炼出与**用户问题密切相关**的'关键判定要素'和'正确推导路径'。
 """
 
 PREVIEW_USER_PROMPT_WITH_CASES = """## 【用户问题】
 {question}
 
-## 【相关案例经验】
+## 【历史经验】
 {related_cases_block}
 """
 
@@ -155,7 +157,7 @@ PREVIEW_USER_PROMPT_WITH_CASES = """## 【用户问题】
 PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES = """\
 你是一个资深财税实务咨询专家。
 
-请遵循**专题通用知识**，参考**相关案例经验**，并基于自身常识，对**用户问题**做一次轻量分析
+请遵循**专题通用知识**，参考**历史经验**，并基于自身常识，对**用户问题**做一次轻量分析
 - <think> 标签内容：从财税实务角度对问题做拆解，列出涉及的知识体系与回答逻辑。（500字以内）
 - <answer> 标签内容：列出与问题相关的专题通用知识、以及还需要进一步验证的关键点。（200字以内）
 
@@ -166,7 +168,9 @@ PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES = """\
 - 严禁输出具体政策名称、内容及其相关要求（你的自身常识是过时的）
 - 严禁给出问题的答案，只要输出解答思路
 - 专题通用知识是绝对真理，可以放心输出
-- 相关案例经验可作为推理参考，但不可直接抄录其结论；若案例情境与本问题存在差异，需在思路中指出
+- 如何使用历史经验：
+    - 先严谨对比用户问题和案例问题的业务实质差异，若不相关则直接忽略；
+    - 若相关，则提炼出与**用户问题密切相关**的'关键判定要素'和'正确推导路径'。
 """
 
 PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES = """## 【专题通用知识】
@@ -175,26 +179,20 @@ PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES = """## 【专题通用知识】
 ## 【用户问题】
 {question}
 
-## 【相关案例经验】
+## 【历史经验】
 {related_cases_block}
 """
 
 
-_CASE_POLARITY_LABEL = {
-    "positive": "正向案例",
-    "negative": "反向案例",
-}
-
-
 def format_related_cases_block(related_cases: list | None) -> str:
-    """把 ``list[CaseHit]`` 渲染为 preview user prompt 的【相关案例经验】段正文。
+    """把 ``list[CaseHit]`` 渲染为 preview user prompt 的【历史经验】段正文。
 
     入参为 :class:`inference.retrieval.case_search.CaseHit` 列表（也兼容 dict
     形态，方便单测 / 离线脚本直接喂构造好的 dict）。返回 markdown 文本块,
-    用三级标题 ``### 案例N`` 列出每条，附 cosine 相似度与极性标注。
+    用三级标题 ``### 案例N`` 列出每条。
 
     入参为空（None / 空 list）时返回空串——**select_preview_prompt 据此回退
-    到不带【相关案例经验】段的 prompt**，不会在 prompt 里渲染空段。
+    到不带【历史经验】段的 prompt**，不会在 prompt 里渲染空段。
     """
 
     cases = list(related_cases or [])
@@ -204,25 +202,15 @@ def format_related_cases_block(related_cases: list | None) -> str:
     lines: list[str] = []
     for i, case in enumerate(cases, 1):
         if isinstance(case, dict):
-            sim = case.get("cosine_similarity")
             question = (case.get("question") or "").strip()
             knowledge = (case.get("knowledge") or "").strip()
-            polarity = (case.get("polarity") or "").strip().lower()
         else:
-            sim = getattr(case, "cosine_similarity", None)
             question = (getattr(case, "question", "") or "").strip()
             knowledge = (getattr(case, "knowledge", "") or "").strip()
-            polarity = (getattr(case, "polarity", "") or "").strip().lower()
 
-        try:
-            sim_text = f"{float(sim):.2f}" if sim is not None else "?"
-        except (TypeError, ValueError):
-            sim_text = "?"
-        polarity_label = _CASE_POLARITY_LABEL.get(polarity, "")
-        header_suffix = f"，{polarity_label}" if polarity_label else ""
-        lines.append(f"### 案例{i}（相似度 {sim_text}{header_suffix}）")
+        lines.append(f"### 案例{i}")
         if question:
-            lines.append(f"**原问题**：{question}")
+            lines.append(f"**案例问题**：{question}")
         if knowledge:
             lines.append(f"**案例知识**：{knowledge}")
         lines.append("")
@@ -249,7 +237,7 @@ def select_preview_prompt(
     +----------+----------+--------------------------------------+
 
     ``related_cases`` 为空（含 ``topC=0`` 关闭检索 / 召回 0 条达阈值两种情况）时
-    一律回退到不带【相关案例经验】段的版本——这保证了"关闭 case 模式"和
+    一律回退到不带【历史经验】段的版本——这保证了"关闭 case 模式"和
     "开启但无命中"对模型的可见 prompt 完全一致，避免空段落干扰预答质量。
 
     返回 ``(system_prompt, user_prompt)`` tuple，结构对齐 :func:`select_react_prompt`。
