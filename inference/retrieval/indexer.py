@@ -39,6 +39,8 @@ from reasoner.v3.chunk_builder import (
 from reasoner.v3.clause_locator import ClauseLocator
 from reasoner.v3.relation_crawler import RelationCrawler
 
+from utils.helpers import resolve_page_knowledge_dir as _resolve_page_knowledge_dir
+
 from .. import config
 from . import bm25 as bm25_mod
 from .client import get_default_client
@@ -88,8 +90,19 @@ def parse_index_policy_id(index_policy_id: str) -> tuple[str, Optional[int]]:
 
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-_PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
-_POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
+
+
+def _page_knowledge_dir() -> str:
+    """运行期解析 page_knowledge 根目录（读 ``PAGE_KNOWLEDGE_DIR`` 环境变量）。
+
+    用函数而非模块级常量：``app.py`` 在 ``python app.py`` 形态下回写环境变量发生在本模块
+    被延迟 import 之前/之后均可，运行期解析能稳妥拿到部署形态下的 ../resources/page_knowledge。
+    """
+    return _resolve_page_knowledge_dir(_PROJECT_ROOT)
+
+
+def _policy_index_file() -> str:
+    return os.path.join(_page_knowledge_dir(), "_policy_index.json")
 
 
 def _write_index_meta(root_dir: str, payload: dict, *, chunk_size: int) -> None:
@@ -115,15 +128,16 @@ def _resolve_policy_id_for_root(root_dir: str) -> Optional[str]:
     本身（保留可回查的 trace），但更建议调用方显式传 ``policy_id``。
     """
 
+    page_knowledge_dir = _page_knowledge_dir()
     abs_root = os.path.abspath(root_dir)
-    if not abs_root.startswith(os.path.abspath(_PAGE_KNOWLEDGE_DIR)):
+    if not abs_root.startswith(os.path.abspath(page_knowledge_dir)):
         return None
-    rel = os.path.relpath(abs_root, _PAGE_KNOWLEDGE_DIR)
+    rel = os.path.relpath(abs_root, page_knowledge_dir)
     rel = rel.split(os.sep)[0]  # 取顶层 dirname
 
     from extractor.policy_index import get_root_map
 
-    root_map = get_root_map(_POLICY_INDEX_FILE)  # {policy_id: dirname}
+    root_map = get_root_map(_policy_index_file())  # {policy_id: dirname}
     for pid, dn in root_map.items():
         if dn == rel:
             return pid
@@ -139,11 +153,11 @@ def resolve_root_dir(policy_id: str) -> Optional[str]:
 
     from extractor.policy_index import get_root_map
 
-    root_map = get_root_map(_POLICY_INDEX_FILE)
+    root_map = get_root_map(_policy_index_file())
     dirname = root_map.get(policy_id)
     if not dirname:
         return None
-    abs_dir = os.path.join(_PAGE_KNOWLEDGE_DIR, dirname)
+    abs_dir = os.path.join(_page_knowledge_dir(), dirname)
     return abs_dir if os.path.isdir(abs_dir) else None
 
 

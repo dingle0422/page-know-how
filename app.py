@@ -22,6 +22,7 @@ from utils.verbose_logger import (
     VERBOSE_DEFAULT_ENABLED,
     log_event as _log_verbose_event,
 )
+from utils.helpers import resolve_page_knowledge_dir
 from redis_server.client import RedisServerClient
 import task_queue as _tq
 
@@ -35,14 +36,17 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-# 通过 `python app.py` 直接启动时（部署形态），知识库位于项目同级的
-# ../resources/page_knowledge；以模块方式导入（如 uvicorn app:app）时仍用项目内的 page_knowledge。
-if __name__ == "__main__":
-    _PAGE_KNOWLEDGE_DIR = os.path.normpath(
+# 知识库根目录的单一事实源：
+# - 显式设置 PAGE_KNOWLEDGE_DIR 环境变量时一律以其为准；
+# - 否则通过 `python app.py` 直接启动（部署形态）时落到项目同级的
+#   ../resources/page_knowledge，并回写 PAGE_KNOWLEDGE_DIR，下发给 extractor / indexer
+#   等子模块，保证读取、抽取写入、自愈重建三条链路指向同一目录；
+# - 以模块方式导入（如 uvicorn app:app）时仍用项目内的 page_knowledge。
+if not os.environ.get("PAGE_KNOWLEDGE_DIR") and __name__ == "__main__":
+    os.environ["PAGE_KNOWLEDGE_DIR"] = os.path.normpath(
         os.path.join(_PROJECT_ROOT, "..", "resources", "page_knowledge")
     )
-else:
-    _PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
+_PAGE_KNOWLEDGE_DIR = resolve_page_knowledge_dir(_PROJECT_ROOT)
 _POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
 
 # policyId -> knowledge_dir 内存缓存

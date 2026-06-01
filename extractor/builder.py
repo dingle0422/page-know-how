@@ -6,7 +6,7 @@ import logging
 from extractor.parser import parse_document, parse_clause_json, fetch_api_clauses
 from extractor.heading_tree import build_heading_tree, build_tree_from_clauses, HeadingNode
 from extractor.policy_index import upsert_policy
-from utils.helpers import truncate_text, sanitize_filename
+from utils.helpers import truncate_text, sanitize_filename, resolve_page_knowledge_dir
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ def extract(filepath: str) -> str:
     返回生成的知识目录根路径。
     """
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    page_knowledge_dir = os.path.join(project_root, "page_knowledge")
+    page_knowledge_dir = resolve_page_knowledge_dir(project_root)
     os.makedirs(page_knowledge_dir, exist_ok=True)
 
     filename = os.path.splitext(os.path.basename(filepath))[0]
@@ -171,7 +171,7 @@ def extract_from_api(
         single_clause_api_url = DEFAULT_CLAUSE_API_URL
 
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    page_knowledge_dir = os.path.join(project_root, "page_knowledge")
+    page_knowledge_dir = resolve_page_knowledge_dir(project_root)
     os.makedirs(page_knowledge_dir, exist_ok=True)
 
     clauses, policy_name, version, raw_clause_map = fetch_api_clauses(

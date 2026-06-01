@@ -1,9 +1,28 @@
+import os
 import re
 import time
 import functools
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_page_knowledge_dir(project_root: str) -> str:
+    """解析 page_knowledge 根目录（读/写/索引/自愈重建的单一事实源）。
+
+    优先级：
+    1. 显式设置的 ``PAGE_KNOWLEDGE_DIR`` 环境变量（取绝对路径）；
+       ``app.py`` 以 ``python app.py`` 部署形态启动时会把它写成
+       ``<project_root>/../resources/page_knowledge``，下发给 extractor / indexer 等子模块。
+    2. 回落到项目内的 ``<project_root>/page_knowledge``（模块导入 / CLI 默认行为）。
+
+    extractor 抽取落盘、inference 建索引与 hybrid 自愈重建都经由本函数取目录，
+    确保读取、抽取写入、自愈重建三条链路始终指向同一目录。
+    """
+    override = os.environ.get("PAGE_KNOWLEDGE_DIR")
+    if override:
+        return os.path.abspath(override)
+    return os.path.join(project_root, "page_knowledge")
 
 
 def retry(max_retries: int = 3, sleep_seconds: float = 5.0):
