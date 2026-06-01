@@ -35,7 +35,14 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-_PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
+# 通过 `python app.py` 直接启动时（部署形态），知识库位于项目同级的
+# ../resources/page_knowledge；以模块方式导入（如 uvicorn app:app）时仍用项目内的 page_knowledge。
+if __name__ == "__main__":
+    _PAGE_KNOWLEDGE_DIR = os.path.normpath(
+        os.path.join(_PROJECT_ROOT, "..", "resources", "page_knowledge")
+    )
+else:
+    _PAGE_KNOWLEDGE_DIR = os.path.join(_PROJECT_ROOT, "page_knowledge")
 _POLICY_INDEX_FILE = os.path.join(_PAGE_KNOWLEDGE_DIR, "_policy_index.json")
 
 # policyId -> knowledge_dir 内存缓存
