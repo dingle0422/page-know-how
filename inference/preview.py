@@ -99,6 +99,7 @@ async def run(
     user_prompt: Optional[str] = None,
     topic_general_knowledge: Optional[str] = None,
     policy_id: Optional[str] = None,
+    case_policy_ids: Optional[list[str]] = None,
     case_top_k: int = 0,
     case_sim_threshold: float = 0.85,
     tps: int = config.PREVIEW_TPS,
@@ -117,6 +118,12 @@ async def run(
     阈值过滤后取 top-k，命中非空则走带【历史经验】的新 prompt。case 检索
     全链路异常被吃掉返回 ``[]``，preview 不会因此卡死。
 
+    ``case_policy_ids``：专题定位返回**多个**候选专题时的完整 policyId 列表。
+    非空且包含多个专题时，case 检索走
+    :func:`inference.retrieval.case_search.search_cases_multi`，对所有专题各自
+    ``case_{khCode}`` collection **并发**独立召回后合并去重（每专题保留分桶 + 阈值 +
+    topC 逻辑）；为空/单专题时回落到单集合 ``search_cases``（用 ``policy_id``）。
+
     显式传 ``system_prompt`` / ``user_prompt`` 时优先使用对应入参，路由结果被覆盖
     （此时 case 检索仍会触发，但其结果不会影响 prompt——保留触发是为了让上层
     需要日志/统计时仍能复用本入口；如需彻底跳过，传 ``case_top_k=0``）。
@@ -128,15 +135,27 @@ async def run(
     from .prompts import select_preview_prompt
 
     related_cases: list = []
-    if case_top_k > 0 and policy_id:
+    # 多专题命中（topic locator 多候选）→ fan-out 到所有专题 collection 并发检索；
+    # 否则走单集合 search_cases。用 policy_id 兜底保证至少能查首专题。
+    multi_policy_ids = [p for p in (case_policy_ids or []) if p]
+    if case_top_k > 0 and (policy_id or multi_policy_ids):
         try:
-            from .retrieval.case_search import search_cases
+            if len(multi_policy_ids) > 1:
+                from .retrieval.case_search import search_cases_multi
 
-            related_cases = await search_cases(
-                question, policy_id,
-                threshold=case_sim_threshold,
-                top_k=case_top_k,
-            )
+                related_cases = await search_cases_multi(
+                    question, multi_policy_ids,
+                    threshold=case_sim_threshold,
+                    top_k=case_top_k,
+                )
+            else:
+                from .retrieval.case_search import search_cases
+
+                related_cases = await search_cases(
+                    question, policy_id or multi_policy_ids[0],
+                    threshold=case_sim_threshold,
+                    top_k=case_top_k,
+                )
         except Exception as e:
             # search_cases 内部已经全兜底；这里双保险，确保任何意外都不阻塞 preview。
             logger.warning(

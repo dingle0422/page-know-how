@@ -47,6 +47,11 @@ class InferenceOptions:
     # :func:`inference.prompts.select_preview_prompt`）。
     case_top_k: int = 3
     case_sim_threshold: float = 0.85
+    # 专题定位多候选时的完整 policyId 列表，供 preview 把 case 检索 fan-out 到所有
+    # 专题各自 case_{khCode} collection（并发独立召回后合并去重）。None / 单元素时
+    # case 检索回落到单集合（用 policy_id），与改造前等价。主推理 pipeline 仍只用
+    # 降级取首项的 policy_id，不受此字段影响。
+    case_policy_ids: Optional[list[str]] = None
 
 
 async def _await_or_log(coro, *, label: str) -> None:
@@ -87,6 +92,7 @@ async def run(
                         vendor=opts.vendor, model=opts.model,
                         topic_general_knowledge=opts.topic_general_knowledge,
                         policy_id=policy_id,
+                        case_policy_ids=opts.case_policy_ids,
                         case_top_k=opts.case_top_k,
                         case_sim_threshold=opts.case_sim_threshold,
                     ),

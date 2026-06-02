@@ -45,6 +45,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -54,6 +55,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "CaseHit",
     "search_cases",
+    "search_cases_multi",
     "resolve_case_collection_id",
 ]
 
@@ -276,47 +278,23 @@ async def _search_one_bucket(
     return cases[:top_k]
 
 
-async def search_cases(
-    question: str,
-    policy_id: Optional[str],
+async def _search_one_collection(
+    client,
+    collection_id: str,
+    q_vec: list[float],
     *,
     threshold: float,
     top_k: int,
 ) -> list[CaseHit]:
-    """preview 阶段 case 检索主入口（positive / negative 分桶独立召回后合并）。
+    """单个 ``case_{khCode}`` collection 的分桶召回（positive / negative）。
 
-    对 ``case_polarity`` 做分桶检索：positive 召回 ``top_k``、negative 召回
-    ``top_k``，各自先 cosine ≥ ``threshold`` 过滤再按相似度降序截断，最后
-    positive 段在前、negative 段在后合并返回（长度 ≤ ``2 * top_k``）。
+    - meta 能解析出 polarity 列：positive / negative 各自独立召回 ``top_k`` 条,
+      合并为 positive 段在前、negative 段在后（长度 ≤ ``2 * top_k``）；
+    - 解析不出：退化为单次混合检索（取 ``top_k``）。
 
-    meta 解析不出 polarity 列时退化为单次混合检索（取 ``top_k``）。
-    任意失败路径都返回 ``[]``，不抛出（preview 自身仍可继续）。
+    任意失败路径返回 ``[]``（向量检索内部已兜底，不抛）。``client`` / ``q_vec``
+    由调用方复用，便于多 collection fan-out 时共享 embedding 与连接。
     """
-
-    if top_k <= 0:
-        return []
-    q = (question or "").strip()
-    if not q:
-        return []
-    collection_id = resolve_case_collection_id(policy_id)
-    if not collection_id:
-        return []
-
-    q_vec = await _embed_question(q)
-    if not q_vec:
-        return []
-
-    try:
-        from .client import get_default_client
-    except Exception as e:  # pragma: no cover
-        logger.warning("[CaseSearch] 导入 retrieval client 失败: %s", e)
-        return []
-
-    try:
-        client = await get_default_client()
-    except Exception as e:  # pragma: no cover
-        logger.warning("[CaseSearch] 获取 retrieval client 失败: %s", e)
-        return []
 
     polarity_col, tombstone_col = await _resolve_filter_columns(client, collection_id)
 
@@ -345,5 +323,176 @@ async def search_cases(
         "[CaseSearch] collection=%s threshold=%.3f top_k=%d 命中 positive=%d negative=%d（合计 %d）",
         collection_id, threshold, top_k,
         len(buckets["positive"]), len(buckets["negative"]), len(result),
+    )
+    return result
+
+
+async def _prepare_search_context(question: str):
+    """共享前置：校验 question + embedding + 取 retrieval client。
+
+    返回 ``(q_vec, client)``；任意一步失败返回 ``(None, None)``，调用方据此跳过检索。
+    """
+
+    q = (question or "").strip()
+    if not q:
+        return None, None
+
+    q_vec = await _embed_question(q)
+    if not q_vec:
+        return None, None
+
+    try:
+        from .client import get_default_client
+    except Exception as e:  # pragma: no cover
+        logger.warning("[CaseSearch] 导入 retrieval client 失败: %s", e)
+        return None, None
+
+    try:
+        client = await get_default_client()
+    except Exception as e:  # pragma: no cover
+        logger.warning("[CaseSearch] 获取 retrieval client 失败: %s", e)
+        return None, None
+
+    return q_vec, client
+
+
+def _merge_dedup_cases(buckets: list[list[CaseHit]]) -> list[CaseHit]:
+    """跨 collection 合并 + 全量去重，按 positive 段在前、negative 段在后输出。
+
+    - 去重键用内容 ``(question, knowledge)``（规范化后）——跨专题 collection 小概率
+      存在同一条样本，``document_id`` 跨集合不保证一致，故用内容判定"同一条样本"；
+      命中重复时保留 cosine 更高者（同一样本对同一 query 向量 cosine 相同，保留任一即可）；
+    - 去重后按极性分组：positive 段（按 cosine 降序）在前，negative 段在后，
+      未知极性（不分桶退化产生）紧随其后，组内同样按 cosine 降序。
+    """
+
+    best: dict[tuple[str, str], CaseHit] = {}
+    for bucket in buckets:
+        for case in bucket:
+            key = (case.question.strip(), case.knowledge.strip())
+            prev = best.get(key)
+            if prev is None or case.cosine_similarity > prev.cosine_similarity:
+                best[key] = case
+
+    deduped = list(best.values())
+    positive = sorted(
+        (c for c in deduped if c.polarity == "positive"),
+        key=lambda c: c.cosine_similarity, reverse=True,
+    )
+    negative = sorted(
+        (c for c in deduped if c.polarity == "negative"),
+        key=lambda c: c.cosine_similarity, reverse=True,
+    )
+    other = sorted(
+        (c for c in deduped if c.polarity not in {"positive", "negative"}),
+        key=lambda c: c.cosine_similarity, reverse=True,
+    )
+    return positive + negative + other
+
+
+async def search_cases(
+    question: str,
+    policy_id: Optional[str],
+    *,
+    threshold: float,
+    top_k: int,
+) -> list[CaseHit]:
+    """preview 阶段 case 检索主入口（positive / negative 分桶独立召回后合并）。
+
+    对 ``case_polarity`` 做分桶检索：positive 召回 ``top_k``、negative 召回
+    ``top_k``，各自先 cosine ≥ ``threshold`` 过滤再按相似度降序截断，最后
+    positive 段在前、negative 段在后合并返回（长度 ≤ ``2 * top_k``）。
+
+    meta 解析不出 polarity 列时退化为单次混合检索（取 ``top_k``）。
+    任意失败路径都返回 ``[]``，不抛出（preview 自身仍可继续）。
+    """
+
+    if top_k <= 0:
+        return []
+    collection_id = resolve_case_collection_id(policy_id)
+    if not collection_id:
+        return []
+
+    q_vec, client = await _prepare_search_context(question)
+    if q_vec is None or client is None:
+        return []
+
+    return await _search_one_collection(
+        client, collection_id, q_vec, threshold=threshold, top_k=top_k,
+    )
+
+
+async def search_cases_multi(
+    question: str,
+    policy_ids: list[str] | None,
+    *,
+    threshold: float,
+    top_k: int,
+) -> list[CaseHit]:
+    """多专题 case 检索（fan-out）：对每个专题各自 collection 并发独立召回后合并去重。
+
+    用于 topic locator 返回**多个**候选专题的场景：从不同专题下捞可能相关的 case。
+
+    - 每个专题 ``policy_id`` 解析出 ``case_{khCode}`` collection（去重，同 khCode 只查一次）；
+    - 各 collection **并发**走 :func:`_search_one_collection`，保留 positive / negative
+      分桶独立检索 + cosine ≥ ``threshold`` 过滤 + 每极性取 ``top_k`` 的逻辑；
+    - 所有 collection 结果合并后做**跨 collection 全量去重**（内容键），再按
+      positive 段在前、negative 段在后输出（每个专题各自取满 ``top_k``，不做跨专题
+      全局再截断）。
+
+    候选不足 1 个有效 collection 时回退到单集合 :func:`search_cases`（取首项）。
+    任意失败路径都返回 ``[]``，不抛出。
+    """
+
+    if top_k <= 0:
+        return []
+
+    # 解析候选 collection 并按出现顺序去重（多个 policy_id 可能落同一 khCode）。
+    collection_ids: list[str] = []
+    seen: set[str] = set()
+    for pid in policy_ids or []:
+        cid = resolve_case_collection_id(pid)
+        if cid and cid not in seen:
+            seen.add(cid)
+            collection_ids.append(cid)
+
+    if not collection_ids:
+        return []
+    if len(collection_ids) == 1:
+        # 单专题：与原 search_cases 完全等价，省去合并去重开销。
+        return await search_cases(
+            question, (policy_ids or [None])[0],
+            threshold=threshold, top_k=top_k,
+        )
+
+    q_vec, client = await _prepare_search_context(question)
+    if q_vec is None or client is None:
+        return []
+
+    bucket_lists = await asyncio.gather(
+        *(
+            _search_one_collection(
+                client, cid, q_vec, threshold=threshold, top_k=top_k,
+            )
+            for cid in collection_ids
+        ),
+        return_exceptions=True,
+    )
+
+    safe_buckets: list[list[CaseHit]] = []
+    for cid, res in zip(collection_ids, bucket_lists):
+        if isinstance(res, Exception):
+            logger.warning(
+                "[CaseSearch] fan-out collection=%s 检索异常（忽略）: %s", cid, res
+            )
+            continue
+        safe_buckets.append(res)
+
+    result = _merge_dedup_cases(safe_buckets)
+    logger.info(
+        "[CaseSearch] fan-out collections=%d threshold=%.3f top_k=%d "
+        "合并去重后 %d 条（去重前 %d 条）",
+        len(collection_ids), threshold, top_k, len(result),
+        sum(len(b) for b in safe_buckets),
     )
     return result

@@ -118,19 +118,23 @@ async def run_topic_locator(
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
     connect_timeout_seconds: float = _DEFAULT_CONNECT_TIMEOUT_SECONDS,
     client: Optional[httpx.AsyncClient] = None,
-) -> tuple[Optional[str], Optional[str], Optional[str]]:
+) -> tuple[Optional[str], Optional[str], Optional[str], list[str]]:
     """流式调用【专题Know How定位】并把 reasoning 转发到 redis 快照。
 
-    返回 ``(policy_id, ywzt, refusal_message)``：
+    返回 ``(policy_id, ywzt, refusal_message, policy_ids)``，其中 ``policy_ids``
+    是命中分支下的**完整**候选 policyId 列表（顺序与接口返回一致，首项即
+    ``policy_id``）：
 
-    - 唯一命中（``len==1``）：``(policyId[0], ywzt[0], None)``，并已经把 done=True/ywzt
-      写到快照，调用方应继续用该 ``policyId`` 跑 inference pipeline;
-    - 多候选（``len>1``）：默认取首项，``(policyId[0], ywzt[0], None)``，同样会写
-      done=True/ywzt 到快照，并在 logger 留痕"多候选降级"，便于后续复盘；
-    - 0 候选：``(None, None, REFUSAL_NO_HIT)``，调用方应写 ``topicLocate.refusal``
+    - 唯一命中（``len==1``）：``(policyId[0], ywzt[0], None, [policyId[0]])``，并已经把
+      done=True/ywzt 写到快照，调用方应继续用该 ``policyId`` 跑 inference pipeline;
+    - 多候选（``len>1``）：默认取首项 ``(policyId[0], ywzt[0], None, [全部 policyId])``，
+      同样会写 done=True/ywzt 到快照，并在 logger 留痕"多候选降级"。主推理 pipeline
+      仍只用首项 ``policy_id``；``policy_ids`` 整列供 case 检索节点 fan-out 用（跨所有
+      专题各自 ``case_{khCode}`` collection 并发召回）；
+    - 0 候选：``(None, None, REFUSAL_NO_HIT, [])``，调用方应写 ``topicLocate.refusal``
       并把任务置为 ``status=done`` 直接拒答；
     - 流被切断 / 接口数据异常（如 ywzt / policyId 长度不一致、取值为空串）：
-      ``(None, None, REFUSAL_SERVICE_ERROR)``；
+      ``(None, None, REFUSAL_SERVICE_ERROR, [])``；
     - 网络/HTTP/解析异常：直接向上抛 ``Exception`` 由调用方兜底（调用方应同样使用
       ``REFUSAL_SERVICE_ERROR`` 文案，保持端到端一致）。
 
@@ -151,6 +155,10 @@ async def run_topic_locator(
     # 仅当 finish 帧出现且唯一命中时填充。
     final_ywzt: Optional[str] = None
     final_policy_id: Optional[str] = None
+    # 命中分支下的**完整**候选 policyId 列表（含降级取首项之外的其余专题）。
+    # 供 case 检索节点 fan-out 用：多候选时对所有专题各自 case_{khCode}
+    # collection 并发检索。主推理 pipeline 仍只用 final_policy_id（首项）。
+    final_policy_ids: list[str] = []
     refusal: Optional[str] = None
     saw_finish = False
 
@@ -213,7 +221,13 @@ async def run_topic_locator(
                             refusal = REFUSAL_SERVICE_ERROR
                             final_ywzt = None
                             final_policy_id = None
-                        elif len(ywzt_list) > 1:
+                        else:
+                            # 命中（含唯一/多候选）：记录全部非空候选 policyId，供
+                            # case 检索 fan-out。顺序与接口返回一致，首项即主专题。
+                            final_policy_ids = [
+                                str(p).strip() for p in pid_list if str(p).strip()
+                            ]
+                        if final_policy_id and final_ywzt and len(ywzt_list) > 1:
                             # 多候选降级取首项，留一条 info 日志便于线下复盘
                             # （ywzt_list 整体也带上，方便定位"为什么没走 B 专题"）。
                             logger.info(
@@ -233,7 +247,7 @@ async def run_topic_locator(
 
     if not saw_finish:
         # 流被中途切断：未拿到 finish 帧，归为服务异常。
-        return None, None, REFUSAL_SERVICE_ERROR
+        return None, None, REFUSAL_SERVICE_ERROR, []
 
     if final_policy_id and final_ywzt:
         try:
@@ -243,6 +257,6 @@ async def run_topic_locator(
                 "[TopicLocator] task=%s 写 topicLocate.done 失败（忽略）: %s",
                 task_id, e,
             )
-        return final_policy_id, final_ywzt, None
+        return final_policy_id, final_ywzt, None, final_policy_ids
 
-    return None, None, refusal or REFUSAL_SERVICE_ERROR
+    return None, None, refusal or REFUSAL_SERVICE_ERROR, []

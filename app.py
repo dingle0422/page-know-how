@@ -2593,9 +2593,10 @@ async def _run_inference_with_topic_locator(
             question=req.question,
         )
 
-        # 1) 调外部 SSE 拿 policyId / ywzt
+        # 1) 调外部 SSE 拿 policyId / ywzt（topic_policy_ids 为完整候选列表，
+        #    多候选时供 case 检索节点 fan-out；主 pipeline 仍只用首项 policy_id）。
         try:
-            policy_id, ywzt, refusal = await run_topic_locator(
+            policy_id, ywzt, refusal, topic_policy_ids = await run_topic_locator(
                 task_id, req.question, rs
             )
         except Exception as e:
@@ -2692,6 +2693,13 @@ async def _run_inference_with_topic_locator(
 
         index_policy_id = _make_index_policy_id(policy_id, chunk_size)
         options = _build_inference_options(req)
+
+        # 多候选专题：把完整候选列表透传给 case 检索做 fan-out（case_search 内部剥
+        # __cs 后缀取 khCode，传原始 policyId 即可）。单候选时不设，case 走单集合。
+        if len(topic_policy_ids) > 1:
+            from dataclasses import replace as _replace
+
+            options = _replace(options, case_policy_ids=topic_policy_ids)
 
         # 复用外层 session 直接跑 pipeline，避免嵌套 open_session 生成两份 jsonl。
         await _run_inference_pipeline_inner(
