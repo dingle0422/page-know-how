@@ -17,7 +17,7 @@ page_knowledge/_policy_index.json 的统一读写模块。
       ...
     }
 
-新增 `clauses` 二级索引专门服务于 v1 关联展开（reasoner/v1/clause_locator.py）：
+新增 `clauses` 二级索引专门服务于关联展开（knowledge_core/clause_locator.py）：
 按 (policyId, clauseId) 直接定位本地 clause.json，避免运行时全树扫描。
 
 向后兼容策略：

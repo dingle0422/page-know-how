@@ -1,0 +1,105 @@
+# .understandignore — patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+# Lines below are suggestions — uncomment to activate.
+# Use ! prefix to force-include something excluded by defaults.
+#
+# Built-in defaults (always excluded unless negated):
+#   node_modules/, .git/, dist/, build/, obj/, *.lock, *.min.js, etc.
+#
+# --- From .gitignore (uncomment to exclude) ---
+
+# *.py[cod]
+# *$py.class
+# *.so
+# .Python
+# develop-eggs/
+# downloads/
+# eggs/
+# .eggs/
+# lib/
+# lib64/
+# parts/
+# sdist/
+# var/
+# wheels/
+# share/python-wheels/
+# *.egg-info/
+# .installed.cfg
+# *.egg
+# MANIFEST
+# *.manifest
+# *.spec
+# .env
+# env/
+# ENV/
+# env.bak/
+# venv.bak/
+# .tox/
+# .nox/
+# .coverage
+# .coverage.*
+# nosetests.xml
+# coverage.xml
+# *.cover
+# *.py,cover
+# .hypothesis/
+# .pytest_cache/
+# htmlcov/
+# .mypy_cache/
+# .dmypy.json
+# dmypy.json
+# .pyre/
+# .pytype/
+# .ruff_cache/
+# .ipynb_checkpoints/
+# profile_default/
+# ipython_config.py
+# *.swp
+# *.swo
+# *~
+# .DS_Store
+# Thumbs.db
+# ehthumbs.db
+# Desktop.ini
+# $RECYCLE.BIN/
+# logs/
+# .env
+# .env.*
+# !.env.example
+# *.pem
+# *.key
+# secrets.json
+# config.local.*
+# runtime/output/
+# verbose_logs/
+# redis_server/data/
+# tmp/
+# temp/
+# *.tmp
+# *.bak
+# *.csv
+# *.xlsx
+# *.pkl
+# *.npy
+
+# --- Detected directories (uncomment to exclude) ---
+
+test/
+tests_logs/
+# docs/
+
+# --- Knowledge data store (not source architecture) ---
+# Keep page_knowledge/__init__.py and _policy_index.json, drop the per-topic data dirs
+page_knowledge/*/
+
+# --- Understand-Anything 自身产物（不参与架构分析）---
+.understand-anything/
+
+# --- Cursor IDE rules (not source architecture) ---
+.cursor/
+
+# --- Test file patterns (uncomment to exclude) ---
+
+# *.test.*
+# *.spec.*
+# *.snap

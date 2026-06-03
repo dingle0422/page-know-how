@@ -123,10 +123,9 @@ TASK_TTL_SECONDS: float = 86400.0
 
 # --- 高亮外链关联：离线索引侧静态展开 -----------------------------------------
 #
-# inference 走的是 retrieval_service（LanceDB）里的 BM25 + 向量混合检索，与
-# reasoner 在线模式里 HighlightPrecheck/RelationCrawler 那条实时通路独立。
+# inference 走的是 retrieval_service（LanceDB）里的 BM25 + 向量混合检索。
 # 为了在 inference 模式下也能命中"父章节高亮词 -> 关联条款"语义，建索引时
-# 复用同一套 RelationCrawler（expand_all=True，纯静态展开，不走 LLM），把
+# 复用 knowledge_core 的 RelationCrawler（expand_all=True，纯静态展开，不走 LLM），把
 # 命中的 RelationFragment 渲染成派生 chunk 一起 upsert（含 relation_keys 列）。
 #
 # 关掉本开关时全链路退化为旧行为：不展开关联、跨 policy cascade 也不会触发，
@@ -140,7 +139,7 @@ INCLUDE_HIGHLIGHTED_RELATIONS_IN_INDEX: bool = (
 HIGHLIGHT_INDEX_MAX_DEPTH: int = int(
     os.getenv("INFERENCE_HIGHLIGHT_INDEX_MAX_DEPTH", "5")
 )
-"""RelationCrawler 多跳 BFS 最大深度，与 reasoner 默认一致。"""
+"""RelationCrawler 多跳 BFS 最大深度。"""
 
 HIGHLIGHT_INDEX_MAX_NODES: int = int(
     os.getenv("INFERENCE_HIGHLIGHT_INDEX_MAX_NODES", "50")

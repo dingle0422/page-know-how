@@ -1,0 +1,12 @@
+{
+  "schema_version": 3,
+  "policy_id": "KH1493204307733168128_20260422181920",
+  "index_policy_id": "KH1493204307733168128_20260422181920__cs500",
+  "chunk_size": 500,
+  "with_relations": true,
+  "n_original": 102,
+  "n_derived": 1,
+  "embeddings": true,
+  "stale": false,
+  "built_at": 1780486212070
+}

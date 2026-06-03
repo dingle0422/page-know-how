@@ -244,171 +244,29 @@ class ReasonRequest(BaseModel):
         default="deepseek-v3.2-1163259bcc6c",
         description="LLM 模型名称（默认 deepseek-v3.2-1163259bcc6c）",
     )
-    cleanAnswer: bool = Field(
-        default=False,
-        description="启用答案清洗：在 summary 后追加一轮 LLM 调用，以咨询客服口吻输出精简结论（默认 False）",
-    )
-    summaryBatchSize: int = Field(
-        default=3,
-        description="分批并行压缩总结：指定每批包含的证据条数（如 3），启用后自动激活分层总结模式。默认 0 表示不分批",
-    )
-    retrievalMode: bool = Field(
-        default=True,
-        description="启用召回模式：子智能体仅做相关性判定并收集原始知识，避免探索阶段信息畸变（默认 False）",
-    )
-    checkPitfalls: bool = Field(
-        default=True,
-        description="启用易错点收集：第一层推理时让 LLM 同步产出易错点，"
-                        "并在汇总前注入到证据/知识片段中，由总结阶段一并参考；"
-                        "V1 不会追加独立的二次校验 LLM 调用",
-    )
-    chunkSize: int = Field(
-        default=3000,
-        description="知识分块模式的字符数上限，0 表示不启用（web 默认 3000 启用 chunk 模式）",
-    )
     version: str = Field(
         default="v4",
-        description="推理引擎版本（v0=原始版本, v1=统一EXPLORE+三层目录树, v2=KV-cache 优化 prompt, "
-                    "v3=v2 基础上把最终汇总节点 system prompt 切换为 _CORPUS_SYSTEM_PROMPT 训练样本风格；"
-                    "v4=底层切到 /api/inference/stream 那套 pipeline（preview+skills+hybrid 检索+多轮 ReAct），"
-                    "等 inference 任务跑完再把 react 流式最后一个 final 节点的 think/answer 同步回填到 ReasonData，"
-                    "khObj 取实际进入 react prompt 的 chunks 的 heading_paths 叶子；"
-                    "v4 下 reasoner 专属字段（cleanAnswer/summaryBatchSize/retrievalMode/checkPitfalls/"
-                    "summaryCleanAnswer/answerSystemPrompt/lastThink/thinkMode/enableRelations/relationMaxDepth/"
-                    "relationMaxNodes/relationWorkers/relationsExpansionMode/summaryPipelineMode/reduceMaxPartDepth/"
-                    "pureModelResult/answerRefine/enableSkillDoubleCheck）一律忽略；"
-                    "默认 v4）",
+        description="推理引擎版本。v0/v1/v2/v3（reasoner 引擎）已整体下线，"
+                    "当前仅支持 v4（inference pipeline：preview + skills + hybrid 检索 + 多轮 ReAct）。"
+                    "inference 任务跑完后把 react 流式最后一个 final 节点的 think/answer 回填到 ReasonData，"
+                    "khObj 取实际进入 react prompt 的 chunks 的 heading_paths 叶子。"
+                    "传入非 v4 会直接报错。默认 v4。",
     )
     enableSkills: bool = Field(
         default=True,
-        description="是否启用 skill 评估与 double-check（默认开启，对应 CLI 的 --disable-skills 取反）",
-    )
-    enableSkillDoubleCheck: bool = Field(
-        default=False,
-        description="启用 skill double-check：在 v3 推理流程末尾追加一轮 skill 复核（默认关闭）；"
-                    "需 enableSkills=True 同时开启；仅在 version=v3 下生效，"
-                    "其他 version 收到该字段会被忽略并打 warning",
-    )
-    summaryCleanAnswer: bool = Field(
-        default=True,
-        description="启用 summary+clean 一体化："
-                    "在 retrieval 分批合并阶段直接产出面向用户的客服话术答案，"
-                    "跳过独立的 clean-answer 调用以减少一次 LLM 串行延迟",
+        description="是否启用 skill 评估（默认开启，对应 CLI 的 --disable-skills 取反）",
     )
     answerSystemPrompt: str | None = Field(
         default=None,
-        description="自定义专题/作答背景知识。语义随 version 分流：\n"
-                    "- version=v1/v2/v3：作为【最终作答阶段的 system prompt】，仅作用于"
-                    "  all_in_answer / final_summary / batch_final_merge / retrieval_final_summary / "
-                    "  retrieval_batch_final_merge 节点，不影响中间提炼层。"
-                    "  不传或传空字符串时直接使用内置 SUMMARY_ANSWER_SYSTEM_PROMPT；"
-                    "  传入非空内容时不会覆盖默认 prompt，而是按"
-                    "  「## 最高行为准则\\n{自定义}\\n\\n## 默认作答规范\\n{SUMMARY_ANSWER_SYSTEM_PROMPT}」"
-                    "  结构拼接（自定义部分优先级最高，与默认冲突时以自定义为准）。\n"
-                    "- version=v4：按值路由 inference pipeline 的 preview 阶段 prompt:\n"
-                    "  · 非空（去空白后仍有内容）→ 走新版 PREVIEW_*_WITH_TGK，system 切到"
-                    "    \"请遵循**专题通用知识**\"版本、user prompt 多一段【专题通用知识】"
-                    "    （注入本字段内容），用于提升预答的领域背景能力；\n"
-                    "  · None / 空字符串 / 纯空白 → 走原版 PREVIEW_*，与改造前完全等价"
-                    "    （system 仅要求\"基于自身常识\"、user prompt 只有【用户问题】）。\n"
-                    "  v4 路径下本字段仅作用于 preview，react 主循环与最终轮 prompt 不受影响。"
+        description="自定义专题/作答背景知识，按值路由 inference pipeline 的 preview 阶段 prompt：\n"
+                    "- 非空（去空白后仍有内容）→ 走新版 PREVIEW_*_WITH_TGK，system 切到"
+                    "  \"请遵循**专题通用知识**\"版本、user prompt 多一段【专题通用知识】"
+                    "  （注入本字段内容），用于提升预答的领域背景能力；\n"
+                    "- None / 空字符串 / 纯空白 → 走原版 PREVIEW_*，与改造前完全等价"
+                    "  （system 仅要求\"基于自身常识\"、user prompt 只有【用户问题】）。\n"
+                    "本字段仅作用于 preview，react 主循环与最终轮 prompt 不受影响。"
     )
-    lastThink: bool = Field(
-        default=True,
-        description="在【全流程最后一步总结/清洗】阶段打开底层 LLM 的 enable_thinking=True，"
-                    "让模型返回推理轨迹（qwen3.5/3.6 会把 <think>...</think> 写进 content；"
-                    "deepseek-reasoner / deepseek-v3.2 等会返回到 message.reasoning_content，"
-                    "llm/client.py 已统一前缀回注到 content）。"
-                    "只作用于最终节点的 chat 调用（all_in_answer / final_summary / "
-                    "batch_final_merge / retrieval_final_summary / retrieval_batch_final_merge / "
-                    "clean_answer），中间 batch/chunk/探索阶段都不受影响。"
-                    "与 thinkMode 正交：thinkMode 只改 prompt 模板（要求 JSON 输出结构），"
-                    "lastThink 只改 chat_template_kwargs.enable_thinking（开启模型推理轨迹）。",
-    )
-    thinkMode: bool = Field(
-        default=True,
-        description="启用 think 模式：在【所有最终节点】的 summary+clean 阶段，"
-                    "改用 *_AND_CLEAN_THINK 版 prompt，要求模型严格按 "
-                    "JSON 对象 {\"analysis\": \"...\", \"answer\": \"...\"} 输出。"
-                    "字段语义：analysis = 完整客服回答（受 ≤500 字等所有硬约束），"
-                    "answer = 基于分析内容给出回答用户的最终答案。"
-                    "解析后映射到响应体：think <- analysis，answer <- answer。"
-                    "覆盖范围不受分批/召回/chunk 影响（非分批 SUMMARY_AND_CLEAN、"
-                    "分批 BATCH_MERGE_AND_CLEAN，及其 RETRIEVAL_* 对应版本均会切换）；"
-                    "中间提炼 prompt 始终保持原样不动。"
-                    "需配合 summaryCleanAnswer=True 使用；仅在 version=v1/v2 下生效",
-    )
-    enableRelations: bool = Field(
-        default=True,
-        description="启用关联条款展开：当某个 chunk / 子智能体命中相关知识且其目录包含 "
-                    "clause.json 中的预展开 references 时，按 LLM 多跳并发拉取外部条款，"
-                    "在 chunk 模式下切分为派生 chunk 后续与原 chunk 一并进入流式 batch summary；"
-                    "在 standard / retrieval 模式下 inline 追加到对应 fragment 末尾。"
-                    "本地缺失时自动通过 DEFAULT_CLAUSE_API_URL 实时拉取。仅在 version=v1/v2 下生效。",
-    )
-    relationMaxDepth: int = Field(
-        default=5,
-        description="关联展开最大跳深（含首跳）。enableRelations=False 时忽略。",
-    )
-    relationMaxNodes: int = Field(
-        default=999,
-        description="单次 chunk / 子智能体触发的关联展开 BFS 总节点数上限，超出即停止扩展（横向纵向都包含）。",
-    )
-    relationWorkers: int = Field(
-        default=8,
-        description="关联展开的调度线程数；",
-    )
-    relationsExpansionMode: str = Field(
-        default="all",
-        description="关联展开模式。enableRelations=True 时生效：\n"
-                    "- 'all'（默认）：跳过对每个候选条款的 LLM 二次判定，"
-                    "  只要 ClauseLocator 能定位到内容，一律入 RelationFragment 并按深度全展开。"
-                    "  触发率 100%、省掉 N 次 LLM 评估调用反而更快，token 略增；"
-                    "  外层闸（chunk LLM relevant_headings 命中）仍然保留。\n"
-                    "- 'smart'：每个候选条款都用 LLM 判 is_relevant，准确率高但触发率受 LLM "
-                    "  采样波动影响（同一问题多次跑可能命中数不一致）。",
-    )
-    summaryPipelineMode: str = Field(
-        default="layered",
-        description="batch summary 流水线模式（summaryBatchSize > 0 时生效）：\n"
-                    "- 'layered'（默认）：当前实现。chunk + 关联展开走 _chunk_streaming_pipeline\n"
-                    "  的'按 slot 顺序流式 batch + 后续递归压缩按层同步'；其他入口走\n"
-                    "  _recursive_batch_reduce 同步分层。\n"
-                    "- 'reduce_queue'：所有压缩任务统一进 ReducePipeline，凑批+回灌，"
-                    "  无层间同步点。chunk 数大、batch 长尾差异显著时可见明显加速；"
-                    "  代价是早 flush 的 part 经过更多次中间压缩。"
-                    "  生产侧的相关性激活逻辑（chunk LLM relevant_headings 命中才展开关联）"
-                    "  完全保留。",
-    )
-    reduceMaxPartDepth: int = Field(
-        default=4,
-        description="reduce_queue 模式下单 part 经过的最大中间 BATCH_SUMMARY 次数。"
-                    "命中上限的 part 不再参与凑批，转入 frozen 列表直接保留到 final merge，"
-                    "避免某些 part 被反复压缩造成信息严重损耗。"
-                    "调大可减少 frozen 数量、让 final merge 入口更接近 batch_size；"
-                    "调小则相反。summaryPipelineMode='layered' 时本字段忽略。",
-    )
-    pureModelResult: bool = Field(
-        default=False,
-        description="开启后在推理流程初始节点并行向 deepseek-v4-pro 发起一次纯大模型原生作答"
-                    "（system=SUMMARY_SYSTEM_PROMPT，要求 ≤500 字 + 分「判断逻辑 / 关键证据 / 有效期限」三段），"
-                    "并在 batch summary / final summary 阶段把该回答以「参考回答」小节形式注入到"
-                    "用户问题下方，供推理模型在知识体系中摘取支撑 / 修正 / 冲突证据；"
-                    "final 阶段会把冲突信息以「疑点」方式呈现给用户但不暴露外部模型来源。"
-                    "外部请求 60s 内未返回 / 失败时自动降级为「无外部参考」。"
-                    "submit / reason 两个入口均生效；仅在 version=v1/v2 下生效。",
-    )
-    answerRefine: bool = Field(
-        default=False,
-        description="启用答案精简：在整体推理流程最末一步对最终 answer 做"
-                    "「结论先行 + 核心证据/因果逻辑/注意事项」结构化精简，"
-                    "保留核心因果链与硬性限制条件、不引入新事实、不改变判断结论。"
-                    "thinkMode=True 时：原完整 answer 内容会迁移到响应 think 字段，"
-                    "精简结果写入响应 answer 字段；thinkMode=False 时直接覆盖响应 answer 字段。"
-                    "与 cleanAnswer / summaryCleanAnswer / thinkMode / lastThink 完全正交。"
-                    "仅在 version=v1/v2 下生效",
-    )
-    # ----- V4 专属字段（仅在 version=v4 下生效）-----
+    # ----- V4 专属字段 -----
     # 这几个字段对齐 InferenceRequest 的同名字段，让 v4 路径可以从 ReasonRequest 入口
     # 调到底层 inference pipeline 里的 preview/skills/hybrid 三件参数。
     # 其他 version 收到这些字段会被忽略，不打 warning（保持 V3 路径噪音零）。
@@ -459,16 +317,11 @@ class ReasonData(BaseModel):
     khObj: str = Field(description="知识点名称到章节编号的 JSON 字符串映射")
     policyId: str
     answer: str = Field(
-        description="最终面向用户的客服回答。"
-                    "thinkMode=False 时：模型 *_AND_CLEAN_PROMPT 输出的完整客服回答（≤500 字）；"
-                    "thinkMode=True 时：取自 LLM JSON 输出中的 answer 字段（面向用户的最终答案）。"
-                    "如 thinkMode=True 但模型未严格按 JSON 输出，则兜底为模型原始输出全文",
+        description="最终面向用户的客服回答，取自 inference ReAct 最终轮 <answer> 标签内容",
     )
     think: str = Field(
         default="",
-        description="模型在 thinkMode 开启时 LLM JSON 输出中的 analysis 字段，"
-                    "即完整面向用户的客服回答（受 ≤500 字、客服口吻、知识原文引用等所有硬约束）。"
-                    "未开启 thinkMode、或开启后模型未严格按 JSON 输出/缺少 analysis 字段时为空字符串",
+        description="inference ReAct 最终轮 <think> 标签内容（模型推理轨迹）；解析失败时为空字符串",
     )
     skillsResult: dict[str, str] = Field(
         default_factory=dict,
@@ -741,342 +594,6 @@ def _get_or_extract_knowledge(policy_id: str) -> str:
     _knowledge_cache[policy_id] = knowledge_dir
     logger.info(f"知识目录抽取完成并已索引: {knowledge_dir}")
     return knowledge_dir
-
-
-def _build_kh_obj(graph) -> dict[str, str]:
-    """从推理结果中构建 知识点名称 -> 章节编号 映射"""
-    chunk_headings = getattr(graph, '_chunk_relevant_headings', [])
-    if chunk_headings:
-        return _build_kh_obj_from_headings(chunk_headings)
-
-    all_dirs: list[str] = []
-    for r in graph.all_results:
-        all_dirs.extend(r.relevant_dirs)
-
-    if graph.retrieval_mode and graph.retrieval_registry:
-        for frag in graph.retrieval_registry.get_all():
-            if frag.directory_path not in all_dirs:
-                all_dirs.append(frag.directory_path)
-
-    kh_map: dict[str, str] = {}
-    for dir_path in all_dirs:
-        rel = os.path.relpath(dir_path, graph.knowledge_root)
-        if rel == ".":
-            continue
-        parts = rel.replace("\\", "/").split("/")
-        leaf = parts[-1]
-        if "_" in leaf:
-            chapter_num, chapter_name = leaf.split("_", 1)
-            if chapter_name not in kh_map:
-                kh_map[chapter_name] = chapter_num
-
-    return kh_map
-
-
-def _build_kh_obj_from_headings(headings: list[str]) -> dict[str, str]:
-    """从 relevant_headings 列表构建 khObj，只取最细粒度的叶子节点。
-
-    例如 "2_涉税处理 > 2.1_增值税" -> {"增值税": "2.1"}
-    """
-    kh_map: dict[str, str] = {}
-    for heading in headings:
-        cleaned = heading.strip().strip("【】")
-        parts = [p.strip() for p in cleaned.split(">")]
-        leaf = parts[-1]
-        if "_" in leaf:
-            chapter_num, chapter_name = leaf.split("_", 1)
-            if chapter_num and chapter_num[0].isdigit() and chapter_name not in kh_map:
-                kh_map[chapter_name] = chapter_num
-    return kh_map
-
-
-# think_mode 下模型应输出形如 {"think": "...", "answer": "..."} 的合法 JSON，
-# 历史字段名 `analysis`、`concise_answer` 仍兼容；响应体映射：
-#   think  <- think（缺失时回落到 analysis）
-#   answer <- answer（缺失时回落到 concise_answer）
-# 模型未严格遵守 JSON 格式时，agent_graph 会先发起一次 HTML 标签格式重试再 coercion 兜底，
-# 因此本函数会按顺序尝试 JSON / HTML / coercion 三种形态。
-_JSON_CODEBLOCK_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
-_JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
-_HTML_THINK_BLOCK_RE = re.compile(r"<think>(?P<body>.*?)</think>", re.DOTALL | re.IGNORECASE)
-_HTML_ANSWER_BLOCK_RE = re.compile(r"<answer>(?P<body>.*?)</answer>", re.DOTALL | re.IGNORECASE)
-
-
-def _try_parse_json_obj(text: str) -> dict | None:
-    """优先 json.loads 严格解析；失败再退化到 json5（容忍尾随逗号、单引号、注释等）。
-    解析结果不是 dict 时一律视为失败。
-    """
-    if not text:
-        return None
-    try:
-        obj = json.loads(text)
-        return obj if isinstance(obj, dict) else None
-    except (json.JSONDecodeError, ValueError):
-        pass
-    try:
-        import json5  # 已在 requirements 中
-        obj = json5.loads(text)
-        return obj if isinstance(obj, dict) else None
-    except Exception:
-        return None
-
-
-def _try_parse_think_answer_dict(raw: str) -> dict | None:
-    """尝试把 raw 解析为 {think, answer} dict（兼容 analysis/concise_answer 旧字段）。
-
-    顺序：原文 json/json5 → 剥 ```json``` 围栏 → 抓首个 {...} 子串。
-    任意一关命中即返回；都失败返回 None。
-    """
-    if not raw:
-        return None
-    raw_stripped = raw.strip()
-    parsed = _try_parse_json_obj(raw_stripped)
-    if parsed is None:
-        cb_match = _JSON_CODEBLOCK_RE.search(raw_stripped)
-        if cb_match:
-            parsed = _try_parse_json_obj(cb_match.group(1).strip())
-    if parsed is None:
-        obj_match = _JSON_OBJECT_RE.search(raw_stripped)
-        if obj_match:
-            parsed = _try_parse_json_obj(obj_match.group(0))
-    return parsed
-
-
-def _try_parse_think_answer_html(raw: str) -> dict | None:
-    """尝试把 raw 解析为 HTML 标签版 {think, answer}：
-    - 必须有 <answer>...</answer>；
-    - <think>...</think> 可选（无则 think 为空字符串，由调用方按字段缺失规则兜底）。
-    """
-    if not raw:
-        return None
-    am = _HTML_ANSWER_BLOCK_RE.search(raw)
-    if not am:
-        return None
-    answer_text = (am.group("body") or "").strip()
-    if not answer_text:
-        return None
-    tm = _HTML_THINK_BLOCK_RE.search(raw)
-    think_text = (tm.group("body") or "").strip() if tm else ""
-    return {"think": think_text, "answer": answer_text}
-
-
-def _extract_think_answer_fields(parsed: dict) -> tuple[str, str]:
-    """从 dict 中按字段优先级提取 think/answer 文本（兼容历史字段名）。"""
-    think_val = parsed.get("think")
-    if not (isinstance(think_val, str) and think_val.strip()):
-        legacy_think = parsed.get("analysis")
-        think_val = legacy_think if isinstance(legacy_think, str) else ""
-    answer_val = parsed.get("answer")
-    if not (isinstance(answer_val, str) and answer_val.strip()):
-        legacy_answer = parsed.get("concise_answer")
-        answer_val = legacy_answer if isinstance(legacy_answer, str) else ""
-    think_text = think_val.strip() if isinstance(think_val, str) else ""
-    answer_text = answer_val.strip() if isinstance(answer_val, str) else ""
-    return think_text, answer_text
-
-
-def _split_analysis_concise_answer(raw: str, think_mode: bool) -> tuple[str, str]:
-    """解析最终节点 think_mode 下的模型输出，映射到 ReasonData.think / answer。
-
-    上游 (reasoner.v2.agent_graph._chat_final_with_format_retry) 已保证 raw 形态属于
-    以下三种之一：
-      A. 标准 `{think, answer}` JSON（首轮成功）
-      B. HTML 标签 `<think>...</think><answer>...</answer>`（首轮 JSON 失败，HTML 重试成功）
-      C. coercion 兜底封装 `{"think": "<reasoning_content 或空>", "answer": "<原始 body>"}`
-
-    本函数按以下顺序尝试解析：
-      1. think_mode=False 或 raw 为空：直接 ("", raw or "")
-      2. JSON dict 解析（兼容裸 JSON / ```json``` / 含解释文字 / json5 / 旧字段名 analysis、concise_answer）
-      3. HTML 标签解析（<think>/<answer>，<think> 可选）
-      4. 全失败：视为完全不遵循格式 → ("", raw)，并打 WARNING
-
-    解析成功（拿到 think/answer 文本）后字段缺失兜底，按用户最终确认的策略：
-      - 同时有 think 与 answer：分别映射
-      - 只有 think（或 analysis）：think、answer 都填该内容（保证 answer 字段不空）
-      - 只有 answer（或 concise_answer）：think="", answer=该值
-      - 都为空：("", raw)，并打 WARNING
-    """
-    if not think_mode or not raw:
-        return "", raw or ""
-
-    parsed = _try_parse_think_answer_dict(raw)
-    source: str
-    think_text: str
-    answer_text: str
-    if parsed is not None:
-        think_text, answer_text = _extract_think_answer_fields(parsed)
-        source = "json"
-    else:
-        html_obj = _try_parse_think_answer_html(raw)
-        if html_obj is not None:
-            think_text = html_obj.get("think", "") or ""
-            answer_text = html_obj.get("answer", "") or ""
-            source = "html"
-        else:
-            logger.warning(
-                "[ThinkMode] 模型输出无法解析为 JSON{think, answer} 或 HTML <think>/<answer>"
-                "（json/json5/codeblock/regex/HTML 全部失败），"
-                "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
-            )
-            return "", raw
-
-    if not think_text and not answer_text:
-        logger.warning(
-            f"[ThinkMode] 模型 {source} 输出中未提取到任何有效字段 "
-            f"(parsed={list(parsed.keys()) if parsed else 'html-empty'})，"
-            "本次 think 字段将返回空字符串，answer 字段保留模型原始输出"
-        )
-        return "", raw
-
-    if think_text and not answer_text:
-        # 只有 think/analysis：两个字段都用同一份 think 内容，避免 answer 完全为空
-        logger.warning(
-            f"[ThinkMode] 模型 {source} 输出缺少 answer 字段，"
-            "回落策略：think 与 answer 字段都使用 think 内容"
-        )
-        return think_text, think_text
-
-    if answer_text and not think_text:
-        # 只有 answer/concise_answer：think 留空
-        logger.warning(
-            f"[ThinkMode] 模型 {source} 输出缺少 think/analysis 字段，"
-            "回落策略：think 字段填空字符串，answer 字段保留 answer 内容"
-        )
-        return "", answer_text
-
-    return think_text, answer_text
-
-
-def _import_agent_graph(version: str):
-    if version == "v0":
-        from reasoner.v0.agent_graph import AgentGraph
-    elif version == "v2":
-        from reasoner.v2.agent_graph import AgentGraph
-    elif version == "v3":
-        from reasoner.v3.agent_graph import AgentGraph
-    else:
-        from reasoner.v1.agent_graph import AgentGraph
-    return AgentGraph
-
-
-def _run_reasoning(
-    question: str,
-    knowledge_dir: str,
-    version: str = "v1",
-    max_rounds: int = 5,
-    vendor: str = "servyou",
-    model: str = "deepseek-v3.2-1163259bcc6c",
-    clean_answer: bool = False,
-    summary_batch_size: int = 0,
-    retrieval_mode: bool = False,
-    check_pitfalls: bool = False,
-    chunk_size: int = 0,
-    enable_skills: bool = True,
-    enable_skill_double_check: bool = False,
-    summary_clean_answer: bool = False,
-    answer_system_prompt: str | None = None,
-    think_mode: bool = False,
-    last_think: bool = False,
-    enable_relations: bool = False,
-    relation_max_depth: int = 5,
-    relation_max_nodes: int = 50,
-    relation_workers: int = 8,
-    relations_expansion_mode: str = "all",
-    summary_pipeline_mode: str = "layered",
-    reduce_max_part_depth: int = 5,
-    pure_model_result: bool = False,
-    answer_refine: bool = False,
-) -> dict:
-    """执行单问题推理，返回 answer 和 kh_obj"""
-    AgentGraphCls = _import_agent_graph(version)
-    extra_kwargs = {}
-    if version in ("v1", "v2", "v3"):
-        extra_kwargs["summary_clean_answer"] = summary_clean_answer
-        extra_kwargs["answer_system_prompt"] = answer_system_prompt
-        extra_kwargs["think_mode"] = think_mode
-        extra_kwargs["enable_relations"] = enable_relations
-        extra_kwargs["relation_max_depth"] = relation_max_depth
-        extra_kwargs["relation_max_nodes"] = relation_max_nodes
-        extra_kwargs["relation_workers"] = relation_workers
-        extra_kwargs["relations_expansion_mode"] = relations_expansion_mode
-        extra_kwargs["summary_pipeline_mode"] = summary_pipeline_mode
-        extra_kwargs["reduce_max_part_depth"] = reduce_max_part_depth
-        extra_kwargs["pure_model_result"] = pure_model_result
-    # answer_refine 仅在 v2/v3 的 AgentGraph 中实现；v1 不接受该参数，
-    # 透传过去会 TypeError。这里按 version 显式分流，避免 v1 调用方撞到。
-    if version in ("v2", "v3"):
-        extra_kwargs["answer_refine"] = answer_refine
-    elif answer_refine:
-        logger.warning(
-            "answerRefine 仅在 version=v2/v3 下生效，version=%s 本次将被忽略", version,
-        )
-    if version == "v3":
-        extra_kwargs["enable_skill_double_check"] = enable_skill_double_check
-    elif enable_skill_double_check:
-        logger.warning(
-            "enableSkillDoubleCheck 仅在 version=v3 下生效，本次将被忽略"
-        )
-    if version not in ("v1", "v2", "v3"):
-        if summary_clean_answer:
-            logger.warning("summaryCleanAnswer 仅在 version=v1/v2/v3 下生效，本次将被忽略")
-        if answer_system_prompt:
-            logger.warning("answerSystemPrompt 仅在 version=v1/v2/v3 下生效，本次将被忽略")
-        if think_mode:
-            logger.warning("thinkMode 仅在 version=v1/v2/v3 下生效，本次将被忽略")
-        if enable_relations:
-            logger.warning("enableRelations 仅在 version=v1/v2/v3 下生效，本次将被忽略")
-        if pure_model_result:
-            logger.warning("pureModelResult 仅在 version=v1/v2/v3 下生效，本次将被忽略")
-        if answer_refine:
-            logger.warning("answerRefine 仅在 version=v1/v2/v3 下生效，本次将被忽略")
-    graph = AgentGraphCls(
-        question=question,
-        knowledge_root=knowledge_dir,
-        max_rounds=max_rounds,
-        vendor=vendor,
-        model=model,
-        clean_answer=clean_answer,
-        summary_batch_size=summary_batch_size,
-        retrieval_mode=retrieval_mode,
-        check_pitfalls=check_pitfalls,
-        chunk_size=chunk_size,
-        enable_skills=enable_skills,
-        last_think=last_think,
-        **extra_kwargs,
-    )
-    result = graph.run()
-    kh_obj = _build_kh_obj(graph)
-    skills_result = _build_skills_result(graph)
-    think_text, answer_text = _split_analysis_concise_answer(result["answer"], think_mode)
-    return {
-        "answer": answer_text,
-        "think": think_text,
-        "kh_obj": kh_obj,
-        "skills_result": skills_result,
-    }
-
-
-def _build_skills_result(graph) -> dict[str, str]:
-    """聚合 skill_registry 中的执行结果为 {skill_name: dumped_stdout}。
-
-    - skill 关闭 / 未触发任何 skill / 全部失败    -> 返回 {}
-    - 同一 skill 多次调用                          -> stdout 以两个换行拼接
-    - 失败的调用                                   -> 跳过（保证字段语义为"可用结果"）
-    """
-    registry = getattr(graph, "skill_registry", None)
-    if registry is None or not registry.has_any():
-        return {}
-
-    bucket: dict[str, list[str]] = {}
-    for rec in registry.get_all():
-        if not rec.result.success:
-            continue
-        text = (rec.result.stdout or "").strip()
-        if not text:
-            continue
-        bucket.setdefault(rec.skill_name, []).append(text)
-
-    return {name: "\n\n".join(parts) for name, parts in bucket.items()}
 
 
 def _create_knowledge(policy_id: str) -> str:
@@ -1571,8 +1088,8 @@ async def _reason_executor(request_payload: dict) -> dict:
 
     - ``version=v4``  -> :func:`_run_inference_v4_executor`：底层切到 inference pipeline
       （preview + skills + hybrid 检索 + 多轮 ReAct），最终从 redis 快照回填 react 流式
-      最后一个 final 节点的 think/answer。
-    - ``version=v0/v1/v2/v3`` -> :func:`_run_reasoning`：原 reasoner 路径完全保持不变。
+      最后一个 final 节点的 think/answer。这是当前唯一受支持的推理路径。
+    - 其余 version（v0/v1/v2/v3）：reasoner 引擎已下线，直接抛错。
     """
     policy_id = request_payload["policyId"]
     question = request_payload["question"]
@@ -1588,13 +1105,6 @@ async def _reason_executor(request_payload: dict) -> dict:
         "version": version,
         "vendor": request_payload.get("vendor"),
         "model": request_payload.get("model"),
-        "retrievalMode": request_payload.get("retrievalMode"),
-        "chunkSize": request_payload.get("chunkSize"),
-        "summaryBatchSize": request_payload.get("summaryBatchSize"),
-        "enableRelations": request_payload.get("enableRelations"),
-        "thinkMode": request_payload.get("thinkMode"),
-        "pureModelResult": request_payload.get("pureModelResult"),
-        "answerRefine": request_payload.get("answerRefine"),
     }
     if version == "v4":
         # V4 走 inference pipeline，单独打几个面向 inference 的 meta 字段，便于
@@ -1628,66 +1138,12 @@ async def _reason_executor(request_payload: dict) -> dict:
                 log_name=resp_log_name,
             )
 
-        # ----- 原 reasoner 路径（v0/v1/v2/v3）：以下逻辑保持不变 -----
-        # reasoner 直接消费 page_knowledge/{root}/ 下的 markdown 树，与 inference
-        # 模块（hybrid_search / LanceDB）零耦合 —— 这里不再"顺手"建 inference 默认
-        # chunkSize 索引。新 policy 的 inference 索引由 /api/kh/update 抽取成功后
-        # 主动建一次默认 chunkSize 索引；老 policy 走 /api/inference/stream 时由
-        # 路由内部的 _ensure_inference_artifacts 按入参 chunkSize 兜底建库。V4 路径
-        # 也走自身的 streamChunkSize 维度独立兜底，不依赖这里。
-        knowledge_dir = await asyncio.to_thread(_get_or_extract_knowledge, policy_id)
-        if req_verbose:
-            _log_verbose_event(
-                "knowledge_ready",
-                policyId=policy_id,
-                knowledge_dir=knowledge_dir,
-            )
-
-        result = await asyncio.to_thread(
-            _run_reasoning, question, knowledge_dir,
-            version=version,
-            max_rounds=request_payload.get("maxRounds", 10),
-            vendor=request_payload.get("vendor", "servyou"),
-            model=request_payload.get("model", "deepseek-v3.2-1163259bcc6c"),
-            clean_answer=request_payload.get("cleanAnswer", False),
-            summary_batch_size=request_payload.get("summaryBatchSize", 3),
-            retrieval_mode=request_payload.get("retrievalMode", True),
-            check_pitfalls=request_payload.get("checkPitfalls", True),
-            chunk_size=request_payload.get("chunkSize", 3000),
-            enable_skills=request_payload.get("enableSkills", True),
-            enable_skill_double_check=request_payload.get("enableSkillDoubleCheck", False),
-            summary_clean_answer=request_payload.get("summaryCleanAnswer", True),
-            answer_system_prompt=request_payload.get("answerSystemPrompt"),
-            think_mode=request_payload.get("thinkMode", True),
-            last_think=request_payload.get("lastThink", True),
-            enable_relations=request_payload.get("enableRelations", True),
-            relation_max_depth=request_payload.get("relationMaxDepth", 5),
-            relation_max_nodes=request_payload.get("relationMaxNodes", 999),
-            relation_workers=request_payload.get("relationWorkers", 8),
-            relations_expansion_mode=request_payload.get("relationsExpansionMode", "all"),
-            summary_pipeline_mode=request_payload.get("summaryPipelineMode", "layered"),
-            reduce_max_part_depth=request_payload.get("reduceMaxPartDepth", 4),
-            pure_model_result=request_payload.get("pureModelResult", False),
-            answer_refine=request_payload.get("answerRefine", False),
+        # reasoner 引擎（v0/v1/v2/v3）已整体下线：仅保留 v4（inference pipeline）。
+        # 历史客户端若仍传非 v4 version，这里直接抛错由 WorkerPool 写入 task.error。
+        raise ValueError(
+            f"不支持的 version={version!r}：reasoner 引擎（v0/v1/v2/v3）已下线，"
+            "请使用 version=v4（默认，inference pipeline）。"
         )
-
-        if req_verbose:
-            _log_verbose_event(
-                "reason_finished",
-                answer_preview=(result.get("answer") or "")[:200],
-                kh_obj=result.get("kh_obj", {}),
-            )
-
-        # 字段名对齐 ReasonData（camelCase）。result / 同步包装接口据此直接构造。
-        return {
-            "khObj": json.dumps(result["kh_obj"], ensure_ascii=False),
-            "answer": result["answer"],
-            "think": result.get("think", ""),
-            "skillsResult": result.get("skills_result", {}),
-            "policyId": policy_id,
-            "taskId": task_id,
-            "logName": resp_log_name,
-        }
 
 
 # ----------------------------------------------------------- 异步提交 / 结果查询
@@ -2928,8 +2384,7 @@ def _v4_resolve_used_chunk_indices(
 def _v4_build_kh_obj_from_chunks(chunks: list) -> dict[str, str]:
     """从 ``KnowledgeChunk.heading_paths`` 聚合 khObj。
 
-    每条 path 形如 ``["1_增值税", "1.1_xxx"]``，取叶子拆 ``chapter_num + chapter_name``,
-    与 :func:`_build_kh_obj_from_headings`（reasoner 路径）的接口语义保持一致：
+    每条 path 形如 ``["1_增值税", "1.1_xxx"]``，取叶子拆 ``chapter_num + chapter_name``：
 
     - 叶子必须 ``"_"`` 分隔且数字开头才计入；
     - 同名章节先到先得（保留首次写入）。
@@ -2951,8 +2406,6 @@ def _v4_build_kh_obj_from_chunks(chunks: list) -> dict[str, str]:
 
 def _v4_skills_result_from_snapshot(skills_snapshot: list[dict] | None) -> dict[str, str]:
     """把 inference 写入 redis 的 skills 快照转成 ReasonData.skillsResult 形态。
-
-    与 :func:`_build_skills_result`（reasoner 路径）行为对齐：
 
     - skill 关闭 / 未触发 / 失败 / stdout 为空：跳过；
     - 同名 skill 多条 stdout：以两个换行拼接。

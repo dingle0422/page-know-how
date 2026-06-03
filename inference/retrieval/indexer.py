@@ -3,8 +3,8 @@
 
 入口 :func:`build_for_root`：
 
-1. 调 ``reasoner/v3/chunk_builder.build_knowledge_chunks(root, chunk_size)`` 切块；
-2. 复用 ``reasoner/v3/relation_crawler.RelationCrawler``（``expand_all=True``，
+1. 调 ``knowledge_core/chunk_builder.build_knowledge_chunks(root, chunk_size)`` 切块；
+2. 复用 ``knowledge_core/relation_crawler.RelationCrawler``（``expand_all=True``，
    纯静态展开、不走 LLM）扫该 root 下所有 ``clause.json`` 的外链 ``highlightedContent``
    引用图，多跳 BFS 抓回关联条款，渲染成派生 ``KnowledgeChunk`` 与原始 chunks 一并 upsert；
 3. 客户端 :func:`inference.retrieval.bm25.tokenize_join` 计算 ``content_tokenized``；
@@ -30,14 +30,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
-from reasoner._registries import RelationFragment, RelationRegistry
-from reasoner.v3.chunk_builder import (
+from knowledge_core.registries import RelationFragment, RelationRegistry
+from knowledge_core.chunk_builder import (
     KnowledgeChunk,
     build_knowledge_chunks,
     split_relations_into_chunks,
 )
-from reasoner.v3.clause_locator import ClauseLocator
-from reasoner.v3.relation_crawler import RelationCrawler
+from knowledge_core.clause_locator import ClauseLocator
+from knowledge_core.relation_crawler import RelationCrawler
 
 from utils.helpers import resolve_page_knowledge_dir as _resolve_page_knowledge_dir
 
@@ -176,8 +176,8 @@ def _collect_relation_chunks(
 ) -> tuple[list[KnowledgeChunk], list[dict]]:
     """扫 root_dir 下所有 clause.json，静态展开高亮外链 -> 派生 KnowledgeChunk。
 
-    与 reasoner 在线模式（HighlightPrecheck + RelationCrawler）共用同一套 crawler，
-    但这里 ``expand_all=True`` + ``question=""``：跳过所有 LLM 判定，定位到内容即入
+    复用 knowledge_core 的 RelationCrawler，但这里 ``expand_all=True`` +
+    ``question=""``：跳过所有 LLM 判定，定位到内容即入
     fragment。本函数**不修改** original_chunks，但派生 chunk 的 ``parent_chunk_index``
     会指向最近的原始 chunk（按 source_dir 反查），便于 trace；定位不到时填 -1。
 

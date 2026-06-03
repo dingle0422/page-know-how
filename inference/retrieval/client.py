@@ -30,7 +30,7 @@ from typing import Any, Optional
 
 import httpx
 
-from reasoner.v3.chunk_builder import KnowledgeChunk
+from knowledge_core.chunk_builder import KnowledgeChunk
 
 logger = logging.getLogger(__name__)
 

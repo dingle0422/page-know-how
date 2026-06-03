@@ -2,7 +2,7 @@
 
 设计原则：
 
-- ``CORPUS_SYSTEM_PROMPT`` / ``CORPUS_USER_PROMPT`` 直接 import 自 ``reasoner/v3/prompts.py``，
+- ``CORPUS_SYSTEM_PROMPT`` / ``CORPUS_USER_PROMPT`` 直接 import 自 ``knowledge_core/prompts.py``，
   不复制不修改，避免两份口径漂移。
 - **中间轮**（``incomplete`` 判定阶段）：用独立的 ``REACT_INTERMEDIATE_*`` prompt，
   不依赖 CORPUS_*，本轮只做两件事：
@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from reasoner.v3.prompts import (
+from knowledge_core.prompts import (
     CORPUS_SYSTEM_PROMPT,
     CORPUS_USER_PROMPT,
 )
@@ -339,7 +339,7 @@ REACT_INTERMEDIATE_USER_PROMPT = """## 【用户问题】
 
 # -------------------------------------------------------------- react: 最终轮
 #
-# 最终轮直接复用 v3 的 CORPUS_SYSTEM_PROMPT / CORPUS_USER_PROMPT，
+# 最终轮直接复用 knowledge_core 的 CORPUS_SYSTEM_PROMPT / CORPUS_USER_PROMPT，
 # 不再叠加任何 ReAct 指令头。preview / 历史思考 / 本轮新增检索证据全部通过
 # :func:`format_evidence_for_final` 拼到 CORPUS_USER_PROMPT 的 evidence 槽位里，
 # 内部用 ### 三级标题，避免与 ## 【已知信息】抢标题层级。
@@ -509,8 +509,7 @@ def format_react_final_user_prompt(
 ) -> str:
     """组装最终轮 user prompt（纯 ``CORPUS_USER_PROMPT``，evidence 内塞所有上下文）。
 
-    skills 渲染口径与 ``reasoner/v3/agent_graph._build_skill_context_for_summary``
-    保持一致：``## 参考依据\\n<body>\\n\\n``，空依据时整段省略。
+    skills 渲染口径：``## 参考依据\\n<body>\\n\\n``，空依据时整段省略。
 
     最终轮 prompt 一律在 skills 尾部追加一条"当前真实日期"虚拟记录（结构与真实 skill
     完全一致，详见 :func:`_make_current_date_skill_record`），让模型在写最终答案时

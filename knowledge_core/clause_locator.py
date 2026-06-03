@@ -1,4 +1,4 @@
-"""跨策略条款定位器：服务于 v1 关联展开（RelationCrawler）。
+"""跨策略条款定位器：服务于关联展开（RelationCrawler）。
 
 核心职责：
     给定 (policy_id, clause_id) → 返回标准化 clause dict（含 markdownified 内容、

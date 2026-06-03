@@ -1,10 +1,10 @@
 """
-基础设施：跨版本共享的注册表与数据结构。
+基础设施：知识检索共享的注册表与数据结构。
 
 设计意图：
-- 这些类是纯基础设施（线程安全的注册表 + dataclass），不属于 v0 或 v1 版本特有的业务逻辑
-- v0 / v1 都从这里 import，避免 v1.agent_graph 反向依赖 v0.agent_graph 造成版本耦合
-- 与 reasoner/_sort_utils.py 共享工具的设计保持一致
+- 这些类是纯基础设施（线程安全的注册表 + dataclass），不含具体业务逻辑
+- 供 knowledge_core / inference 共享，避免业务模块互相耦合
+- 与 knowledge_core/sort_utils.py 共享工具的设计保持一致
 """
 
 import os

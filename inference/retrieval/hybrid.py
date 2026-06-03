@@ -23,7 +23,7 @@ import asyncio
 import logging
 import time
 
-from reasoner.v3.chunk_builder import KnowledgeChunk
+from knowledge_core.chunk_builder import KnowledgeChunk
 
 from . import bm25 as bm25_mod
 from .client import RetrievalServiceError, RetrievalServiceUnavailable, get_default_client

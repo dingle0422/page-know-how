@@ -1,0 +1,6713 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "c44459571c28d75f864749ad6eb2c0b818552337",
+  "generatedAt": "2026-06-03T11:56:46.102Z",
+  "files": {
+    "app.py": {
+      "filePath": "app.py",
+      "contentHash": "4c0dd8962d07677b250b395485895dd621ba484985e531b5c4b9044500fce04e",
+      "functions": [
+        {
+          "name": "_require_redis",
+          "params": [],
+          "returnType": "RedisServerClient",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "lifespan",
+          "params": [
+            "_app"
+          ],
+          "exported": true,
+          "lineCount": 75
+        },
+        {
+          "name": "_web_stream_mode_gate",
+          "params": [
+            "request",
+            "call_next"
+          ],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "_load_policy_index",
+          "params": [],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "_is_valid_knowledge_dir",
+          "params": [
+            "dir_path"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_get_or_extract_knowledge",
+          "params": [
+            "policy_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 32
+        },
+        {
+          "name": "_create_knowledge",
+          "params": [
+            "policy_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_get_index_build_lock",
+          "params": [
+            "key"
+          ],
+          "returnType": "asyncio.Lock",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_index_meta_path",
+          "params": [
+            "knowledge_dir",
+            "chunk_size"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_existing_index_meta_chunk_sizes",
+          "params": [
+            "knowledge_dir"
+          ],
+          "returnType": "list[int]",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "_inference_artifacts_missing",
+          "params": [
+            "knowledge_dir",
+            "chunk_size"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "_read_index_meta",
+          "params": [
+            "knowledge_dir",
+            "chunk_size"
+          ],
+          "returnType": "dict | None",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "_write_index_meta_stale",
+          "params": [
+            "knowledge_dir",
+            "stale",
+            "chunk_size"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_mark_all_chunk_size_variants_stale",
+          "params": [
+            "knowledge_dir"
+          ],
+          "returnType": "list[int]",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "_inference_artifacts_stale",
+          "params": [
+            "knowledge_dir",
+            "chunk_size"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "_keepalive_redis_during_long_task",
+          "params": [
+            "label"
+          ],
+          "exported": true,
+          "lineCount": 43
+        },
+        {
+          "name": "_ensure_inference_artifacts",
+          "params": [
+            "knowledge_dir",
+            "policy_id",
+            "chunk_size",
+            "force_rebuild"
+          ],
+          "returnType": "dict | None",
+          "exported": true,
+          "lineCount": 69
+        },
+        {
+          "name": "_scan_dependent_roots",
+          "params": [
+            "updated_policy_id"
+          ],
+          "returnType": "list[tuple[str, int, str, str]]",
+          "exported": true,
+          "lineCount": 62
+        },
+        {
+          "name": "_cascade_dependent_rebuilds",
+          "params": [
+            "updated_policy_id"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 51
+        },
+        {
+          "name": "kh_update",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 52
+        },
+        {
+          "name": "_reason_executor",
+          "params": [
+            "request_payload"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 69
+        },
+        {
+          "name": "_task_to_result_data",
+          "params": [
+            "task"
+          ],
+          "returnType": "ReasonResultData",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "reason_submit",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "reason_result",
+          "params": [
+            "task_id"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "reason",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 61
+        },
+        {
+          "name": "request_queue_status",
+          "params": [],
+          "exported": true,
+          "lineCount": 66
+        },
+        {
+          "name": "clean_queue",
+          "params": [],
+          "exported": true,
+          "lineCount": 55
+        },
+        {
+          "name": "cleanup_stale_running",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 101
+        },
+        {
+          "name": "clean_running_task",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 69
+        },
+        {
+          "name": "example",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "check",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_run_inference_pipeline_inner",
+          "params": [
+            "task_id",
+            "question",
+            "policy_id",
+            "index_policy_id",
+            "chunk_size",
+            "rs",
+            "options"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 85
+        },
+        {
+          "name": "_run_inference_with_verbose",
+          "params": [
+            "task_id",
+            "question",
+            "policy_id",
+            "index_policy_id",
+            "chunk_size",
+            "rs",
+            "options",
+            "verbose",
+            "session_meta"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 45
+        },
+        {
+          "name": "_format_sse",
+          "params": [
+            "event",
+            "data"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "_sse_relay",
+          "params": [
+            "task_id",
+            "rs"
+          ],
+          "exported": true,
+          "lineCount": 81
+        },
+        {
+          "name": "_build_inference_options",
+          "params": [
+            "req"
+          ],
+          "returnType": "_InferenceOptions",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "_build_inference_session_meta",
+          "params": [
+            "task_id",
+            "policy_id",
+            "index_policy_id",
+            "chunk_size",
+            "req",
+            "topic_located"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "_run_inference_with_topic_locator",
+          "params": [
+            "task_id",
+            "chunk_size",
+            "rs",
+            "req"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 172
+        },
+        {
+          "name": "inference_stream",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 118
+        },
+        {
+          "name": "_v4_repack_groups_with_chunk_indices",
+          "params": [
+            "chunks",
+            "chunk_size",
+            "max_rounds"
+          ],
+          "returnType": "list[list[int]]",
+          "exported": true,
+          "lineCount": 37
+        },
+        {
+          "name": "_v4_resolve_used_chunk_indices",
+          "params": [
+            "groups",
+            "rounds_done"
+          ],
+          "returnType": "list[int]",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "_v4_build_kh_obj_from_chunks",
+          "params": [
+            "chunks"
+          ],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "_v4_skills_result_from_snapshot",
+          "params": [
+            "skills_snapshot"
+          ],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "_v4_await_or_log",
+          "params": [
+            "coro",
+            "label"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_run_inference_v4_executor",
+          "params": [
+            "request_payload",
+            "task_id",
+            "log_name"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 271
+        }
+      ],
+      "classes": [
+        {
+          "name": "ReasonRequest",
+          "methods": [],
+          "properties": [
+            "policyId",
+            "question",
+            "maxRounds",
+            "vendor",
+            "model",
+            "version",
+            "enableSkills",
+            "answerSystemPrompt",
+            "streamChunkSize",
+            "previewEnabled",
+            "topN",
+            "topM",
+            "intermediateThinkEnabled",
+            "verbose",
+            "sessionId"
+          ],
+          "exported": true,
+          "lineCount": 76
+        },
+        {
+          "name": "ReasonData",
+          "methods": [],
+          "properties": [
+            "khObj",
+            "policyId",
+            "answer",
+            "think",
+            "skillsResult",
+            "taskId",
+            "logName"
+          ],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "ReasonResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "KhUpdateRequest",
+          "methods": [],
+          "properties": [
+            "khId",
+            "version",
+            "typeId"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "KhUpdateData",
+          "methods": [],
+          "properties": [
+            "policyId",
+            "update_time"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "KhUpdateResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "QueueEntry",
+          "methods": [],
+          "properties": [
+            "taskId",
+            "question",
+            "policyId",
+            "state",
+            "enqueueTime",
+            "startTime",
+            "waitingSeconds",
+            "runningSeconds"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "QueueStatusData",
+          "methods": [],
+          "properties": [
+            "maxConcurrent",
+            "runningCount",
+            "queuedCount",
+            "running",
+            "queued"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "QueueStatusResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "CleanQueueEntry",
+          "methods": [],
+          "properties": [
+            "taskId",
+            "removedFromQueue",
+            "deletedTask",
+            "skippedReason"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "CleanQueueData",
+          "methods": [],
+          "properties": [
+            "removedQueueItems",
+            "deletedTaskCount",
+            "skippedCount",
+            "tasks"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "CleanQueueResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "CleanupStaleRunningRequest",
+          "methods": [],
+          "properties": [
+            "thresholdSeconds",
+            "dryRun"
+          ],
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "CleanupStaleRunningEntry",
+          "methods": [],
+          "properties": [
+            "taskId",
+            "policyId",
+            "question",
+            "runningSeconds",
+            "startTime",
+            "workerId",
+            "instanceId",
+            "matchesCurrentInstance",
+            "retryCount",
+            "requeued",
+            "skippedReason"
+          ],
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "CleanupStaleRunningData",
+          "methods": [],
+          "properties": [
+            "thresholdSeconds",
+            "dryRun",
+            "instanceId",
+            "matchedCount",
+            "requeuedCount",
+            "skippedCount",
+            "tasks"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "CleanupStaleRunningResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "CleanRunningTaskRequest",
+          "methods": [],
+          "properties": [
+            "taskId",
+            "errorMessage"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "CleanRunningTaskData",
+          "methods": [],
+          "properties": [
+            "taskId",
+            "previousStatus",
+            "updatedToFailed",
+            "removedFromRunning",
+            "skippedReason"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "CleanRunningTaskResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ReasonSubmitData",
+          "methods": [],
+          "properties": [
+            "taskId",
+            "status",
+            "enqueueTime"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ReasonSubmitResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ReasonResultData",
+          "methods": [],
+          "properties": [
+            "taskId",
+            "status",
+            "enqueueTime",
+            "startTime",
+            "endTime",
+            "result",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "ReasonResultResponse",
+          "methods": [],
+          "properties": [
+            "data",
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "InferenceRequest",
+          "methods": [],
+          "properties": [
+            "policyId",
+            "question",
+            "history",
+            "taskId",
+            "vendor",
+            "model",
+            "previewEnabled",
+            "skillsEnabled",
+            "topN",
+            "topM",
+            "chunkSize",
+            "intermediateThinkEnabled",
+            "answerSystemPrompt",
+            "topC",
+            "caseSimThreshold",
+            "verbose"
+          ],
+          "exported": true,
+          "lineCount": 87
+        }
+      ],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "asynccontextmanager"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "FastAPI",
+            "HTTPException",
+            "Request"
+          ]
+        },
+        {
+          "source": "fastapi.responses",
+          "specifiers": [
+            "JSONResponse"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "Field"
+          ]
+        },
+        {
+          "source": "extractor.builder",
+          "specifiers": [
+            "extract_from_api"
+          ]
+        },
+        {
+          "source": "extractor.policy_index",
+          "specifiers": [
+            "_policy_index_root_map"
+          ]
+        },
+        {
+          "source": "utils.verbose_logger",
+          "specifiers": [
+            "VERBOSE_DEFAULT_ENABLED",
+            "_open_verbose_session",
+            "_log_verbose_event"
+          ]
+        },
+        {
+          "source": "utils.helpers",
+          "specifiers": [
+            "resolve_page_knowledge_dir"
+          ]
+        },
+        {
+          "source": "redis_server.client",
+          "specifiers": [
+            "RedisServerClient"
+          ]
+        },
+        {
+          "source": "task_queue",
+          "specifiers": [
+            "_tq"
+          ]
+        },
+        {
+          "source": "fastapi.responses",
+          "specifiers": [
+            "StreamingResponse"
+          ]
+        },
+        {
+          "source": "inference",
+          "specifiers": [
+            "_inference_config"
+          ]
+        },
+        {
+          "source": "inference.pipeline",
+          "specifiers": [
+            "_InferenceOptions"
+          ]
+        },
+        {
+          "source": "inference.pipeline",
+          "specifiers": [
+            "_inference_run"
+          ]
+        },
+        {
+          "source": "inference.redis_stream",
+          "specifiers": [
+            "_InferenceRedisStream"
+          ]
+        }
+      ],
+      "exports": [
+        "_require_redis",
+        "lifespan",
+        "_web_stream_mode_gate",
+        "_load_policy_index",
+        "_is_valid_knowledge_dir",
+        "ReasonRequest",
+        "ReasonData",
+        "ReasonResponse",
+        "KhUpdateRequest",
+        "KhUpdateData",
+        "KhUpdateResponse",
+        "QueueEntry",
+        "QueueStatusData",
+        "QueueStatusResponse",
+        "CleanQueueEntry",
+        "CleanQueueData",
+        "CleanQueueResponse",
+        "CleanupStaleRunningRequest",
+        "CleanupStaleRunningEntry",
+        "CleanupStaleRunningData",
+        "CleanupStaleRunningResponse",
+        "CleanRunningTaskRequest",
+        "CleanRunningTaskData",
+        "CleanRunningTaskResponse",
+        "ReasonSubmitData",
+        "ReasonSubmitResponse",
+        "ReasonResultData",
+        "ReasonResultResponse",
+        "_get_or_extract_knowledge",
+        "_create_knowledge",
+        "_get_index_build_lock",
+        "_index_meta_path",
+        "_existing_index_meta_chunk_sizes",
+        "_inference_artifacts_missing",
+        "_read_index_meta",
+        "_write_index_meta_stale",
+        "_mark_all_chunk_size_variants_stale",
+        "_inference_artifacts_stale",
+        "_keepalive_redis_during_long_task",
+        "_ensure_inference_artifacts",
+        "_scan_dependent_roots",
+        "_cascade_dependent_rebuilds",
+        "kh_update",
+        "_reason_executor",
+        "_task_to_result_data",
+        "reason_submit",
+        "reason_result",
+        "reason",
+        "request_queue_status",
+        "clean_queue",
+        "cleanup_stale_running",
+        "clean_running_task",
+        "example",
+        "check",
+        "InferenceRequest",
+        "_run_inference_pipeline_inner",
+        "_run_inference_with_verbose",
+        "_format_sse",
+        "_sse_relay",
+        "_build_inference_options",
+        "_build_inference_session_meta",
+        "_run_inference_with_topic_locator",
+        "inference_stream",
+        "_v4_repack_groups_with_chunk_indices",
+        "_v4_resolve_used_chunk_indices",
+        "_v4_build_kh_obj_from_chunks",
+        "_v4_skills_result_from_snapshot",
+        "_v4_await_or_log",
+        "_run_inference_v4_executor"
+      ],
+      "totalLines": 2741,
+      "hasStructuralAnalysis": true
+    },
+    "docs/lancedb_v2_api.md": {
+      "filePath": "docs/lancedb_v2_api.md",
+      "contentHash": "969c4f297c5ded683fca7e2f24ba1cf311bd0f0c4216a4d36e12e7eddaada2e9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 719,
+      "hasStructuralAnalysis": true
+    },
+    "extractor/__init__.py": {
+      "filePath": "extractor/__init__.py",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": true
+    },
+    "extractor/builder.py": {
+      "filePath": "extractor/builder.py",
+      "contentHash": "d1c8c250616729cbd815f07c941847dacafda762b267747e966f6b24a8233bd9",
+      "functions": [
+        {
+          "name": "_build_knowledge_md",
+          "params": [
+            "node",
+            "abs_dir",
+            "knowledge_root"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "_build_root_knowledge_md",
+          "params": [
+            "nodes",
+            "abs_root"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "_build_dirs_recursive",
+          "params": [
+            "nodes",
+            "base_dir",
+            "knowledge_root",
+            "raw_clause_map",
+            "clause_id_index"
+          ],
+          "exported": true,
+          "lineCount": 38
+        },
+        {
+          "name": "extract",
+          "params": [
+            "filepath"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 43
+        },
+        {
+          "name": "extract_from_api",
+          "params": [
+            "policy_id",
+            "api_url",
+            "single_clause_api_url"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 73
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "extractor.parser",
+          "specifiers": [
+            "parse_document",
+            "parse_clause_json",
+            "fetch_api_clauses"
+          ]
+        },
+        {
+          "source": "extractor.heading_tree",
+          "specifiers": [
+            "build_heading_tree",
+            "build_tree_from_clauses",
+            "HeadingNode"
+          ]
+        },
+        {
+          "source": "extractor.policy_index",
+          "specifiers": [
+            "upsert_policy"
+          ]
+        },
+        {
+          "source": "utils.helpers",
+          "specifiers": [
+            "truncate_text",
+            "sanitize_filename",
+            "resolve_page_knowledge_dir"
+          ]
+        }
+      ],
+      "exports": [
+        "_build_knowledge_md",
+        "_build_root_knowledge_md",
+        "_build_dirs_recursive",
+        "extract",
+        "extract_from_api"
+      ],
+      "totalLines": 220,
+      "hasStructuralAnalysis": true
+    },
+    "extractor/heading_tree.py": {
+      "filePath": "extractor/heading_tree.py",
+      "contentHash": "8ffea60534dbdca9b07120a0c862f9d19753380c3f48e8a66e27ce0044f2c52c",
+      "functions": [
+        {
+          "name": "build_heading_tree",
+          "params": [
+            "lines"
+          ],
+          "returnType": "list[HeadingNode]",
+          "exported": true,
+          "lineCount": 94
+        },
+        {
+          "name": "_strip_content",
+          "params": [
+            "node"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "build_tree_from_clauses",
+          "params": [
+            "clauses"
+          ],
+          "returnType": "list[HeadingNode]",
+          "exported": true,
+          "lineCount": 51
+        }
+      ],
+      "classes": [
+        {
+          "name": "HeadingNode",
+          "methods": [
+            "depth",
+            "folder_name"
+          ],
+          "properties": [
+            "number",
+            "title",
+            "content",
+            "full_name",
+            "children"
+          ],
+          "exported": true,
+          "lineCount": 17
+        }
+      ],
+      "imports": [
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        }
+      ],
+      "exports": [
+        "HeadingNode",
+        "build_heading_tree",
+        "_strip_content",
+        "build_tree_from_clauses"
+      ],
+      "totalLines": 185,
+      "hasStructuralAnalysis": true
+    },
+    "extractor/parser.py": {
+      "filePath": "extractor/parser.py",
+      "contentHash": "ebad03f8a143ae1f6bac63e5590f718f6c1269f6972b9719d468888e4f8d74e3",
+      "functions": [
+        {
+          "name": "_normalize_timeout",
+          "params": [
+            "timeout"
+          ],
+          "returnType": "Union[float, tuple[float, float]]",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "_table_to_narrative",
+          "params": [
+            "table"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "_is_heading_style",
+          "params": [
+            "style_name"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_get_heading_level",
+          "params": [
+            "style_name"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "parse_docx",
+          "params": [
+            "filepath"
+          ],
+          "returnType": "list[ParsedLine]",
+          "exported": true,
+          "lineCount": 52
+        },
+        {
+          "name": "parse_txt",
+          "params": [
+            "filepath"
+          ],
+          "returnType": "list[ParsedLine]",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_expand_html_table_grid",
+          "params": [
+            "table_tag"
+          ],
+          "returnType": "list[list[str]]",
+          "exported": true,
+          "lineCount": 51
+        },
+        {
+          "name": "_build_narrative_headers",
+          "params": [
+            "raw_header_row",
+            "is_header_row"
+          ],
+          "returnType": "tuple[list[str], list[int]]",
+          "exported": true,
+          "lineCount": 48
+        },
+        {
+          "name": "_html_table_to_narrative",
+          "params": [
+            "table_tag"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 58
+        },
+        {
+          "name": "extract_clause_references",
+          "params": [
+            "html"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 47
+        },
+        {
+          "name": "_convert_html_to_markdown",
+          "params": [
+            "text",
+            "narrativize"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "normalize_clause_number",
+          "params": [
+            "value"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "_derive_parent_number",
+          "params": [
+            "number"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_build_full_path",
+          "params": [
+            "number",
+            "node_map"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "parse_clause_json",
+          "params": [
+            "filepath"
+          ],
+          "returnType": "list[Clause]",
+          "exported": true,
+          "lineCount": 54
+        },
+        {
+          "name": "parse_document",
+          "params": [
+            "filepath"
+          ],
+          "returnType": "list[ParsedLine]",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "_fetch_single_clause",
+          "params": [
+            "policy_id",
+            "clause_id",
+            "api_url",
+            "timeout"
+          ],
+          "returnType": "dict | None",
+          "exported": true,
+          "lineCount": 52
+        },
+        {
+          "name": "_fetch_policy_clauses_raw",
+          "params": [
+            "policy_id",
+            "api_url",
+            "timeout"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "resolve_references",
+          "params": [
+            "refs",
+            "clause_cache",
+            "policy_cache",
+            "visited",
+            "single_url",
+            "bulk_url",
+            "timeout"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "_expand_to_clause_nodes",
+          "params": [
+            "policy_id",
+            "raw_clause_id",
+            "clause_cache",
+            "policy_cache",
+            "visited",
+            "single_url",
+            "bulk_url",
+            "timeout"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 37
+        },
+        {
+          "name": "_expand_whole_policy",
+          "params": [
+            "policy_id",
+            "clause_cache",
+            "policy_cache",
+            "bulk_url",
+            "timeout"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "_resolve_single_clause",
+          "params": [
+            "policy_id",
+            "clause_id",
+            "clause_cache",
+            "policy_cache",
+            "visited",
+            "single_url",
+            "bulk_url",
+            "timeout"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 57
+        },
+        {
+          "name": "_extract_version_from_clause_name",
+          "params": [
+            "clause_name"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "_extract_policy_name",
+          "params": [
+            "clause_name"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "fetch_api_clauses",
+          "params": [
+            "policy_id",
+            "api_url",
+            "single_clause_api_url"
+          ],
+          "returnType": "tuple[list[Clause], str, str, dict[str, dict]]",
+          "exported": true,
+          "lineCount": 116
+        }
+      ],
+      "classes": [
+        {
+          "name": "Clause",
+          "methods": [],
+          "properties": [
+            "number",
+            "content",
+            "level",
+            "path",
+            "full_name"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ParsedLine",
+          "methods": [],
+          "properties": [
+            "text",
+            "is_heading_style",
+            "heading_level"
+          ],
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "TypedDict",
+            "Optional",
+            "Union"
+          ]
+        }
+      ],
+      "exports": [
+        "_normalize_timeout",
+        "Clause",
+        "ParsedLine",
+        "_table_to_narrative",
+        "_is_heading_style",
+        "_get_heading_level",
+        "parse_docx",
+        "parse_txt",
+        "_expand_html_table_grid",
+        "_build_narrative_headers",
+        "_html_table_to_narrative",
+        "extract_clause_references",
+        "_convert_html_to_markdown",
+        "normalize_clause_number",
+        "_derive_parent_number",
+        "_build_full_path",
+        "parse_clause_json",
+        "parse_document",
+        "_fetch_single_clause",
+        "_fetch_policy_clauses_raw",
+        "resolve_references",
+        "_expand_to_clause_nodes",
+        "_expand_whole_policy",
+        "_resolve_single_clause",
+        "_extract_version_from_clause_name",
+        "_extract_policy_name",
+        "fetch_api_clauses"
+      ],
+      "totalLines": 919,
+      "hasStructuralAnalysis": true
+    },
+    "extractor/policy_index.py": {
+      "filePath": "extractor/policy_index.py",
+      "contentHash": "3bd5913ea194facc55042fcb37e41a72f93dd6b96b81a1fadd0818d6d18860e5",
+      "functions": [
+        {
+          "name": "_normalize_entry",
+          "params": [
+            "value"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "load_index",
+          "params": [
+            "path"
+          ],
+          "returnType": "dict[str, dict]",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "save_index",
+          "params": [
+            "path",
+            "index"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "upsert_policy",
+          "params": [
+            "path",
+            "policy_id",
+            "root_dirname",
+            "name",
+            "version",
+            "clauses"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "get_root_map",
+          "params": [
+            "path"
+          ],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        }
+      ],
+      "exports": [
+        "_normalize_entry",
+        "load_index",
+        "save_index",
+        "upsert_policy",
+        "get_root_map"
+      ],
+      "totalLines": 116,
+      "hasStructuralAnalysis": true
+    },
+    "inference/__init__.py": {
+      "filePath": "inference/__init__.py",
+      "contentHash": "d15e688b8675879f2b36b1248dcf92e36dcea4d8df0c14f1ef4b8e4324ac867d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "inference/config.py": {
+      "filePath": "inference/config.py",
+      "contentHash": "f62bba5270eafc1689cf8db010d656ece4cf1b5eaa1fd0ec8fe4eb0af3259d72",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 187,
+      "hasStructuralAnalysis": true
+    },
+    "inference/embedding_client.py": {
+      "filePath": "inference/embedding_client.py",
+      "contentHash": "1df3783b94395e0ac2bc8d237556f18332e5b75b17c24898eecf01126a1a1824",
+      "functions": [
+        {
+          "name": "_clamp_batch_size",
+          "params": [
+            "batch_size"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_clip_for_embedding",
+          "params": [
+            "text"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "_is_business_error_retryable",
+          "params": [
+            "msg"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_retry_delay",
+          "params": [
+            "attempt"
+          ],
+          "returnType": "float",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_detect_protocol",
+          "params": [
+            "url"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "_build_payload",
+          "params": [
+            "batch",
+            "model",
+            "protocol"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "_read_env",
+          "params": [],
+          "returnType": "tuple[str, str, Optional[str], str]",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_parse_response",
+          "params": [
+            "body",
+            "batch_len",
+            "protocol"
+          ],
+          "returnType": "list[list[float]]",
+          "exported": true,
+          "lineCount": 85
+        },
+        {
+          "name": "embed_texts",
+          "params": [
+            "texts",
+            "model",
+            "batch_size",
+            "timeout_seconds",
+            "client"
+          ],
+          "returnType": "list[list[float]]",
+          "exported": true,
+          "lineCount": 98
+        },
+        {
+          "name": "embed_texts_sync",
+          "params": [
+            "texts",
+            "model",
+            "batch_size",
+            "timeout_seconds"
+          ],
+          "returnType": "list[list[float]]",
+          "exported": true,
+          "lineCount": 93
+        }
+      ],
+      "classes": [
+        {
+          "name": "_NonRetryableEmbeddingError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "EmbeddingNotConfigured",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "random",
+          "specifiers": [
+            "random"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        }
+      ],
+      "exports": [
+        "_clamp_batch_size",
+        "_clip_for_embedding",
+        "_NonRetryableEmbeddingError",
+        "_is_business_error_retryable",
+        "_retry_delay",
+        "_detect_protocol",
+        "_build_payload",
+        "EmbeddingNotConfigured",
+        "_read_env",
+        "_parse_response",
+        "embed_texts",
+        "embed_texts_sync"
+      ],
+      "totalLines": 461,
+      "hasStructuralAnalysis": true
+    },
+    "inference/kh_info_client.py": {
+      "filePath": "inference/kh_info_client.py",
+      "contentHash": "d6f8258ba81439d40543e762c48e574cd149c7b1f2d4bfff7d02ef017ff3ec5b",
+      "functions": [
+        {
+          "name": "fetch_topic_general_knowledge",
+          "params": [
+            "policy_id",
+            "timeout_seconds",
+            "connect_timeout_seconds",
+            "client"
+          ],
+          "returnType": "Optional[str]",
+          "exported": true,
+          "lineCount": 75
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        }
+      ],
+      "exports": [
+        "fetch_topic_general_knowledge"
+      ],
+      "totalLines": 112,
+      "hasStructuralAnalysis": true
+    },
+    "inference/llm_stream.py": {
+      "filePath": "inference/llm_stream.py",
+      "contentHash": "2c9694f3fe19513c7e640c8d120755c8ca9b5fd0a3fd67f1b4472a7dda2f3b3b",
+      "functions": [
+        {
+          "name": "_build_request",
+          "params": [
+            "messages_payload",
+            "vendor",
+            "model",
+            "enable_thinking"
+          ],
+          "returnType": "tuple[str, dict, dict]",
+          "exported": true,
+          "lineCount": 74
+        },
+        {
+          "name": "_parse_sse_line",
+          "params": [
+            "line"
+          ],
+          "returnType": "Optional[dict]",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "_extract_deltas",
+          "params": [
+            "chunk"
+          ],
+          "returnType": "list[tuple[str, str]]",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "chat_stream",
+          "params": [
+            "messages",
+            "vendor",
+            "model",
+            "system",
+            "enable_thinking",
+            "timeout_seconds",
+            "connect_timeout_seconds",
+            "client"
+          ],
+          "returnType": "AsyncIterator[tuple[str, str]]",
+          "exported": true,
+          "lineCount": 74
+        }
+      ],
+      "classes": [
+        {
+          "name": "StreamTagRouter",
+          "methods": [
+            "__init__",
+            "_max_pending_partial_tag_len",
+            "feed",
+            "_dispatch"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 108
+        }
+      ],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "AsyncIterator",
+            "Optional"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        }
+      ],
+      "exports": [
+        "_build_request",
+        "_parse_sse_line",
+        "_extract_deltas",
+        "chat_stream",
+        "StreamTagRouter"
+      ],
+      "totalLines": 348,
+      "hasStructuralAnalysis": true
+    },
+    "inference/pipeline.py": {
+      "filePath": "inference/pipeline.py",
+      "contentHash": "81e9556c5f1e417f261e3ab1a1ae224cf18199296a18bb3e3b4550f49ab9b2bf",
+      "functions": [
+        {
+          "name": "_await_or_log",
+          "params": [
+            "coro",
+            "label"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "run",
+          "params": [
+            "task_id",
+            "question",
+            "policy_id",
+            "redis_stream",
+            "options"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 107
+        }
+      ],
+      "classes": [
+        {
+          "name": "InferenceOptions",
+          "methods": [],
+          "properties": [
+            "vendor",
+            "model",
+            "preview_enabled",
+            "skills_enabled",
+            "top_n",
+            "top_m",
+            "intermediate_think_enabled",
+            "topic_general_knowledge",
+            "case_top_k",
+            "case_sim_threshold",
+            "case_policy_ids"
+          ],
+          "exported": true,
+          "lineCount": 22
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": ".react_loop",
+          "specifiers": [
+            "run_react_loop"
+          ]
+        },
+        {
+          "source": ".redis_stream",
+          "specifiers": [
+            "RedisStream"
+          ]
+        },
+        {
+          "source": ".retrieval",
+          "specifiers": [
+            "hybrid_search"
+          ]
+        }
+      ],
+      "exports": [
+        "InferenceOptions",
+        "_await_or_log",
+        "run"
+      ],
+      "totalLines": 173,
+      "hasStructuralAnalysis": true
+    },
+    "inference/preview.py": {
+      "filePath": "inference/preview.py",
+      "contentHash": "26cfaedeacbf64d22eef9c93fec0324a96ab020d6c6d8a9e007018676ad67b12",
+      "functions": [
+        {
+          "name": "_flush_loop",
+          "params": [
+            "task_id",
+            "redis_stream",
+            "buffer",
+            "interval",
+            "stop"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "run",
+          "params": [
+            "task_id",
+            "question",
+            "redis_stream",
+            "vendor",
+            "model",
+            "system_prompt",
+            "user_prompt",
+            "topic_general_knowledge",
+            "policy_id",
+            "case_policy_ids",
+            "case_top_k",
+            "case_sim_threshold",
+            "tps"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 189
+        }
+      ],
+      "classes": [
+        {
+          "name": "_ChannelBuffer",
+          "methods": [
+            "__init__",
+            "push",
+            "take",
+            "empty"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 26
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "utils.verbose_logger",
+          "specifiers": [
+            "is_session_active",
+            "log_llm_call",
+            "log_llm_error",
+            "step_scope"
+          ]
+        },
+        {
+          "source": ".",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": ".llm_stream",
+          "specifiers": [
+            "StreamTagRouter",
+            "chat_stream"
+          ]
+        },
+        {
+          "source": ".redis_stream",
+          "specifiers": [
+            "RedisStream"
+          ]
+        }
+      ],
+      "exports": [
+        "_ChannelBuffer",
+        "_flush_loop",
+        "run"
+      ],
+      "totalLines": 280,
+      "hasStructuralAnalysis": true
+    },
+    "inference/prompts.py": {
+      "filePath": "inference/prompts.py",
+      "contentHash": "1388749ff1402380267d4e7768fb9fd95fab3912f959d922ed4df4b2c7e721e8",
+      "functions": [
+        {
+          "name": "format_related_cases_block",
+          "params": [
+            "related_cases"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "select_preview_prompt",
+          "params": [
+            "question",
+            "topic_general_knowledge",
+            "related_cases"
+          ],
+          "returnType": "tuple[str, str]",
+          "exported": true,
+          "lineCount": 59
+        },
+        {
+          "name": "format_preview_user_prompt",
+          "params": [
+            "question",
+            "topic_general_knowledge",
+            "related_cases"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "_make_current_date_skill_record",
+          "params": [],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "format_skill_block",
+          "params": [
+            "skills"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "format_preview_block",
+          "params": [
+            "preview"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "_format_preview_block_markdown",
+          "params": [
+            "preview"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "format_evidence_for_final",
+          "params": [
+            "prev_think",
+            "preview",
+            "new_evidence"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "format_react_intermediate_user_prompt",
+          "params": [
+            "question",
+            "evidence",
+            "prev_think",
+            "preview",
+            "skills"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "format_react_final_user_prompt",
+          "params": [
+            "question",
+            "evidence",
+            "prev_think",
+            "preview",
+            "skills"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "select_react_prompt",
+          "params": [
+            "is_last_chunk",
+            "question",
+            "evidence",
+            "prev_think",
+            "preview",
+            "skills"
+          ],
+          "returnType": "tuple[str, str]",
+          "exported": true,
+          "lineCount": 30
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "datetime",
+          "specifiers": [
+            "_dt"
+          ]
+        },
+        {
+          "source": "knowledge_core.prompts",
+          "specifiers": [
+            "CORPUS_SYSTEM_PROMPT",
+            "CORPUS_USER_PROMPT"
+          ]
+        }
+      ],
+      "exports": [
+        "format_related_cases_block",
+        "select_preview_prompt",
+        "format_preview_user_prompt",
+        "_make_current_date_skill_record",
+        "format_skill_block",
+        "format_preview_block",
+        "_format_preview_block_markdown",
+        "format_evidence_for_final",
+        "format_react_intermediate_user_prompt",
+        "format_react_final_user_prompt",
+        "select_react_prompt"
+      ],
+      "totalLines": 573,
+      "hasStructuralAnalysis": true
+    },
+    "inference/react_loop.py": {
+      "filePath": "inference/react_loop.py",
+      "contentHash": "a59a6783179052261849c895260de16e6236fb54f3268b701f13151ea30e0d5e",
+      "functions": [
+        {
+          "name": "pack_chunks_by_size",
+          "params": [
+            "chunks",
+            "chunk_size"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "_pack_chunks_with_indices",
+          "params": [
+            "chunks",
+            "chunk_size"
+          ],
+          "returnType": "list[list[int]]",
+          "exported": true,
+          "lineCount": 38
+        },
+        {
+          "name": "_collect_used_headings",
+          "params": [
+            "chunks",
+            "used_indices"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "_stream_react_round",
+          "params": [
+            "task_id",
+            "round_idx",
+            "redis_stream",
+            "system_prompt",
+            "user_prompt",
+            "vendor",
+            "model",
+            "is_last_chunk",
+            "enable_thinking",
+            "store_think_to_chunk",
+            "answer_as_verdict",
+            "flush_tps"
+          ],
+          "returnType": "tuple[str, str, str]",
+          "exported": true,
+          "lineCount": 222
+        },
+        {
+          "name": "run",
+          "params": [
+            "task_id",
+            "question",
+            "chunks",
+            "redis_stream",
+            "vendor",
+            "model",
+            "chunk_size",
+            "max_rounds",
+            "intermediate_think_enabled",
+            "bg_tasks"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 294
+        }
+      ],
+      "classes": [
+        {
+          "name": "_ReactChannelBuffer",
+          "methods": [
+            "__init__",
+            "push_think",
+            "push_answer",
+            "take",
+            "empty"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 37
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "knowledge_core.chunk_builder",
+          "specifiers": [
+            "KnowledgeChunk"
+          ]
+        },
+        {
+          "source": "utils.verbose_logger",
+          "specifiers": [
+            "is_session_active",
+            "log_llm_call",
+            "log_llm_error",
+            "step_scope"
+          ]
+        },
+        {
+          "source": ".",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": ".llm_stream",
+          "specifiers": [
+            "StreamTagRouter",
+            "chat_stream"
+          ]
+        },
+        {
+          "source": ".prompts",
+          "specifiers": [
+            "select_react_prompt"
+          ]
+        },
+        {
+          "source": ".redis_stream",
+          "specifiers": [
+            "RedisStream"
+          ]
+        }
+      ],
+      "exports": [
+        "_ReactChannelBuffer",
+        "pack_chunks_by_size",
+        "_pack_chunks_with_indices",
+        "_collect_used_headings",
+        "_stream_react_round",
+        "run"
+      ],
+      "totalLines": 714,
+      "hasStructuralAnalysis": true
+    },
+    "inference/redis_stream.py": {
+      "filePath": "inference/redis_stream.py",
+      "contentHash": "73d8f832b0428c50252fe6e69f0894e4a569718ac5c69b85e3bc981540f285ae",
+      "functions": [
+        {
+          "name": "make_initial_snapshot",
+          "params": [
+            "task_id",
+            "question",
+            "policy_id",
+            "intermediate_think_enabled"
+          ],
+          "returnType": "Snapshot",
+          "exported": true,
+          "lineCount": 91
+        },
+        {
+          "name": "recompute_aggregates",
+          "params": [
+            "snapshot",
+            "intermediate_think_enabled"
+          ],
+          "returnType": "tuple[str, str, Optional[bool]]",
+          "exported": true,
+          "lineCount": 155
+        },
+        {
+          "name": "with_recompute",
+          "params": [
+            "stream",
+            "task_id",
+            "work"
+          ],
+          "returnType": "Snapshot",
+          "exported": true,
+          "lineCount": 26
+        }
+      ],
+      "classes": [
+        {
+          "name": "RedisStream",
+          "methods": [
+            "__init__",
+            "key_for",
+            "_lock_for",
+            "exists",
+            "get",
+            "init",
+            "update",
+            "set_status",
+            "set_log_name",
+            "append_preview",
+            "set_preview_done",
+            "set_skills",
+            "set_skills_done",
+            "ensure_react_chunk",
+            "append_react_chunk_delta",
+            "set_react_chunk_complete",
+            "set_used_headings",
+            "set_react_intermediate_locked",
+            "set_react_final_locked",
+            "append_topic_locate_reasoning",
+            "set_topic_locate_done",
+            "set_topic_locate_skipped",
+            "set_topic_locate_refusal"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 381
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Awaitable",
+            "Callable",
+            "Optional"
+          ]
+        },
+        {
+          "source": "redis_server.client",
+          "specifiers": [
+            "RedisServerClient"
+          ]
+        },
+        {
+          "source": ".",
+          "specifiers": [
+            "config"
+          ]
+        }
+      ],
+      "exports": [
+        "make_initial_snapshot",
+        "recompute_aggregates",
+        "RedisStream",
+        "with_recompute"
+      ],
+      "totalLines": 699,
+      "hasStructuralAnalysis": true
+    },
+    "inference/retrieval/__init__.py": {
+      "filePath": "inference/retrieval/__init__.py",
+      "contentHash": "58519c2b1428c503423ac8fab44352a8a59bc3350df34371cfc6dd552a9d71a9",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".hybrid",
+          "specifiers": [
+            "hybrid_search",
+            "invalidate"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 17,
+      "hasStructuralAnalysis": true
+    },
+    "inference/retrieval/bm25.py": {
+      "filePath": "inference/retrieval/bm25.py",
+      "contentHash": "65f4a18d621e80a6ed5f39612fe8101ae17f1f5f42c91f16b2355db10ef729cc",
+      "functions": [
+        {
+          "name": "tokenize",
+          "params": [
+            "text"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "tokenize_join",
+          "params": [
+            "text"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        }
+      ],
+      "exports": [
+        "tokenize",
+        "tokenize_join"
+      ],
+      "totalLines": 55,
+      "hasStructuralAnalysis": true
+    },
+    "inference/retrieval/case_search.py": {
+      "filePath": "inference/retrieval/case_search.py",
+      "contentHash": "daaf652ff375e5efc7158b63665ab94abae2583486d1cc90191b794748f5ee0c",
+      "functions": [
+        {
+          "name": "resolve_case_collection_id",
+          "params": [
+            "policy_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "_coerce_str",
+          "params": [
+            "value"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_extract_knowledge",
+          "params": [
+            "metadata"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_hit_to_case",
+          "params": [
+            "hit"
+          ],
+          "returnType": "Optional[CaseHit]",
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "_embed_question",
+          "params": [
+            "question"
+          ],
+          "returnType": "list[float]",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "_resolve_filter_columns",
+          "params": [
+            "client",
+            "collection_id"
+          ],
+          "returnType": "tuple[Optional[str], Optional[str]]",
+          "exported": true,
+          "lineCount": 47
+        },
+        {
+          "name": "_build_where",
+          "params": [
+            "polarity",
+            "polarity_col",
+            "tombstone_col"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_search_one_bucket",
+          "params": [
+            "client",
+            "collection_id",
+            "q_vec",
+            "where",
+            "threshold",
+            "top_k"
+          ],
+          "returnType": "list[CaseHit]",
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "_search_one_collection",
+          "params": [
+            "client",
+            "collection_id",
+            "q_vec",
+            "threshold",
+            "top_k"
+          ],
+          "returnType": "list[CaseHit]",
+          "exported": true,
+          "lineCount": 47
+        },
+        {
+          "name": "_prepare_search_context",
+          "params": [
+            "question"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "_merge_dedup_cases",
+          "params": [
+            "buckets"
+          ],
+          "returnType": "list[CaseHit]",
+          "exported": true,
+          "lineCount": 32
+        },
+        {
+          "name": "search_cases",
+          "params": [
+            "question",
+            "policy_id",
+            "threshold",
+            "top_k"
+          ],
+          "returnType": "list[CaseHit]",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "search_cases_multi",
+          "params": [
+            "question",
+            "policy_ids",
+            "threshold",
+            "top_k"
+          ],
+          "returnType": "list[CaseHit]",
+          "exported": true,
+          "lineCount": 74
+        }
+      ],
+      "classes": [
+        {
+          "name": "CaseHit",
+          "methods": [],
+          "properties": [
+            "cosine_similarity",
+            "question",
+            "knowledge",
+            "polarity"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        }
+      ],
+      "exports": [
+        "CaseHit",
+        "resolve_case_collection_id",
+        "_coerce_str",
+        "_extract_knowledge",
+        "_hit_to_case",
+        "_embed_question",
+        "_resolve_filter_columns",
+        "_build_where",
+        "_search_one_bucket",
+        "_search_one_collection",
+        "_prepare_search_context",
+        "_merge_dedup_cases",
+        "search_cases",
+        "search_cases_multi"
+      ],
+      "totalLines": 499,
+      "hasStructuralAnalysis": true
+    },
+    "inference/retrieval/client.py": {
+      "filePath": "inference/retrieval/client.py",
+      "contentHash": "5e1497aa95b7551eef45b035125b8c0cd0da000f8edb81f69e6614bc87384eac",
+      "functions": [
+        {
+          "name": "get_default_client",
+          "params": [],
+          "returnType": "\"RetrievalServiceClient\"",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_kind_of",
+          "params": [
+            "chunk"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_serialize_chunk_row",
+          "params": [
+            "chunk",
+            "tokenized",
+            "vector"
+          ],
+          "returnType": "dict[str, Any]",
+          "exported": true,
+          "lineCount": 35
+        },
+        {
+          "name": "_hit_to_knowledge_chunk",
+          "params": [
+            "hit"
+          ],
+          "returnType": "KnowledgeChunk",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_quote",
+          "params": [
+            "s"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [
+        {
+          "name": "RetrievalServiceError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "RetrievalServiceUnavailable",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "RetrievalServiceClient",
+          "methods": [
+            "__init__",
+            "base_url",
+            "_client_ref",
+            "aclose",
+            "_request",
+            "_backoff",
+            "healthz",
+            "upsert_chunks",
+            "upsert_knowledge_chunks",
+            "search",
+            "vector_search_v2",
+            "get_collection_meta_v2",
+            "expand_relations",
+            "lookup_in_policy",
+            "lookup_dependents",
+            "list_chunks",
+            "get_meta",
+            "list_policies",
+            "drop_policy"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 390
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "random",
+          "specifiers": [
+            "random"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Optional"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        },
+        {
+          "source": "knowledge_core.chunk_builder",
+          "specifiers": [
+            "KnowledgeChunk"
+          ]
+        }
+      ],
+      "exports": [
+        "RetrievalServiceError",
+        "RetrievalServiceUnavailable",
+        "get_default_client",
+        "_kind_of",
+        "_serialize_chunk_row",
+        "_hit_to_knowledge_chunk",
+        "RetrievalServiceClient",
+        "_quote"
+      ],
+      "totalLines": 541,
+      "hasStructuralAnalysis": true
+    },
+    "inference/retrieval/hybrid.py": {
+      "filePath": "inference/retrieval/hybrid.py",
+      "contentHash": "6f507042d419128bb04357e90cb0add01e49479fd3ab8d15085c85d7d525be0f",
+      "functions": [
+        {
+          "name": "_is_not_indexed_error",
+          "params": [
+            "exc"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_get_index_rebuild_lock",
+          "params": [
+            "key"
+          ],
+          "returnType": "asyncio.Lock",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "invalidate",
+          "params": [
+            "policy_id"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_query_vector",
+          "params": [
+            "question"
+          ],
+          "returnType": "list[float]",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_maybe_trigger_embedding_rebuild",
+          "params": [
+            "policy_id"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "_search_once",
+          "params": [
+            "index_policy_id",
+            "query_tokenized",
+            "query_vector",
+            "top_n",
+            "top_m",
+            "rrf_k"
+          ],
+          "returnType": "list[KnowledgeChunk]",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "_recover_missing_index",
+          "params": [
+            "index_policy_id",
+            "query_tokenized",
+            "query_vector",
+            "top_n",
+            "top_m",
+            "rrf_k"
+          ],
+          "returnType": "list[KnowledgeChunk] | None",
+          "exported": true,
+          "lineCount": 109
+        },
+        {
+          "name": "hybrid_search",
+          "params": [
+            "question",
+            "policy_id",
+            "top_n",
+            "top_m",
+            "rrf_k"
+          ],
+          "returnType": "list[KnowledgeChunk]",
+          "exported": true,
+          "lineCount": 78
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "knowledge_core.chunk_builder",
+          "specifiers": [
+            "KnowledgeChunk"
+          ]
+        },
+        {
+          "source": ".",
+          "specifiers": [
+            "bm25_mod"
+          ]
+        },
+        {
+          "source": ".client",
+          "specifiers": [
+            "RetrievalServiceError",
+            "RetrievalServiceUnavailable",
+            "get_default_client"
+          ]
+        }
+      ],
+      "exports": [
+        "_is_not_indexed_error",
+        "_get_index_rebuild_lock",
+        "invalidate",
+        "_query_vector",
+        "_maybe_trigger_embedding_rebuild",
+        "_search_once",
+        "_recover_missing_index",
+        "hybrid_search"
+      ],
+      "totalLines": 361,
+      "hasStructuralAnalysis": true
+    },
+    "inference/retrieval/indexer.py": {
+      "filePath": "inference/retrieval/indexer.py",
+      "contentHash": "d2d8e3e14107f88f8e352dcfa3e460dbe57c80860996caa77f0b357e0a60779b",
+      "functions": [
+        {
+          "name": "make_index_policy_id",
+          "params": [
+            "policy_id",
+            "chunk_size"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "index_meta_filename",
+          "params": [
+            "chunk_size"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "parse_index_policy_id",
+          "params": [
+            "index_policy_id"
+          ],
+          "returnType": "tuple[str, Optional[int]]",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_page_knowledge_dir",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_policy_index_file",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_write_index_meta",
+          "params": [
+            "root_dir",
+            "payload",
+            "chunk_size"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "_resolve_policy_id_for_root",
+          "params": [
+            "root_dir"
+          ],
+          "returnType": "Optional[str]",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "resolve_root_dir",
+          "params": [
+            "policy_id"
+          ],
+          "returnType": "Optional[str]",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "_collect_relation_chunks",
+          "params": [
+            "root_dir",
+            "original_chunks",
+            "chunk_size",
+            "max_depth",
+            "max_nodes",
+            "allow_remote",
+            "remote_timeout"
+          ],
+          "returnType": "tuple[list[KnowledgeChunk], list[dict]]",
+          "exported": true,
+          "lineCount": 131
+        },
+        {
+          "name": "_embed_texts_safe",
+          "params": [
+            "texts",
+            "batch_size",
+            "model"
+          ],
+          "returnType": "tuple[list[list[float]], int]",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "build_for_root",
+          "params": [
+            "root_dir",
+            "policy_id",
+            "chunk_size",
+            "embedding_batch_size",
+            "embedding_model",
+            "skip_embedding",
+            "include_relations",
+            "relation_max_depth",
+            "relation_max_nodes",
+            "relation_allow_remote",
+            "relation_remote_timeout"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 176
+        },
+        {
+          "name": "rebuild_embeddings_only",
+          "params": [
+            "policy_id",
+            "embedding_batch_size",
+            "embedding_model"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 73
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "concurrent.futures",
+          "specifiers": [
+            "ThreadPoolExecutor"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "knowledge_core.registries",
+          "specifiers": [
+            "RelationFragment",
+            "RelationRegistry"
+          ]
+        },
+        {
+          "source": "knowledge_core.chunk_builder",
+          "specifiers": [
+            "KnowledgeChunk",
+            "build_knowledge_chunks",
+            "split_relations_into_chunks"
+          ]
+        },
+        {
+          "source": "knowledge_core.clause_locator",
+          "specifiers": [
+            "ClauseLocator"
+          ]
+        },
+        {
+          "source": "knowledge_core.relation_crawler",
+          "specifiers": [
+            "RelationCrawler"
+          ]
+        },
+        {
+          "source": "utils.helpers",
+          "specifiers": [
+            "_resolve_page_knowledge_dir"
+          ]
+        },
+        {
+          "source": "..",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": ".",
+          "specifiers": [
+            "bm25_mod"
+          ]
+        },
+        {
+          "source": ".client",
+          "specifiers": [
+            "get_default_client"
+          ]
+        }
+      ],
+      "exports": [
+        "make_index_policy_id",
+        "index_meta_filename",
+        "parse_index_policy_id",
+        "_page_knowledge_dir",
+        "_policy_index_file",
+        "_write_index_meta",
+        "_resolve_policy_id_for_root",
+        "resolve_root_dir",
+        "_collect_relation_chunks",
+        "_embed_texts_safe",
+        "build_for_root",
+        "rebuild_embeddings_only"
+      ],
+      "totalLines": 589,
+      "hasStructuralAnalysis": true
+    },
+    "inference/scripts/__init__.py": {
+      "filePath": "inference/scripts/__init__.py",
+      "contentHash": "21a18322274f64e7591ca7f6ee6b14506c8f2a01802a2beeb91594ecb73a2697",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": true
+    },
+    "inference/scripts/build_indices.py": {
+      "filePath": "inference/scripts/build_indices.py",
+      "contentHash": "157b3b6d0cca9e8a591d1a88715ff5138e3788d32ab7c146d59e2a428563b230",
+      "functions": [
+        {
+          "name": "_resolve_root",
+          "params": [
+            "args"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "_amain",
+          "params": [
+            "args"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "main",
+          "params": [
+            "argv"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 54
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "argparse",
+          "specifiers": [
+            "argparse"
+          ]
+        },
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "..",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": "..retrieval.indexer",
+          "specifiers": [
+            "_PAGE_KNOWLEDGE_DIR",
+            "build_for_root",
+            "_resolve_root_dir"
+          ]
+        }
+      ],
+      "exports": [
+        "_resolve_root",
+        "_amain",
+        "main"
+      ],
+      "totalLines": 144,
+      "hasStructuralAnalysis": true
+    },
+    "inference/skills_runner.py": {
+      "filePath": "inference/skills_runner.py",
+      "contentHash": "72c8edf0c2fb2ffe235f3f77139573ac017200a8283fb30e6e8cfaad9dbd7abe",
+      "functions": [
+        {
+          "name": "_serialize_registry",
+          "params": [
+            "registry"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "run",
+          "params": [
+            "task_id",
+            "question",
+            "redis_stream",
+            "vendor",
+            "model",
+            "skill_names"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 50
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "skills",
+          "specifiers": [
+            "SkillResultRegistry",
+            "SkillRunner",
+            "evaluate_and_run"
+          ]
+        },
+        {
+          "source": ".redis_stream",
+          "specifiers": [
+            "RedisStream"
+          ]
+        }
+      ],
+      "exports": [
+        "_serialize_registry",
+        "run"
+      ],
+      "totalLines": 91,
+      "hasStructuralAnalysis": true
+    },
+    "inference/topic_locator.py": {
+      "filePath": "inference/topic_locator.py",
+      "contentHash": "df9eae3ee9b7051a5f9da16d9b44380718f26122fc247cd463055578afe406b4",
+      "functions": [
+        {
+          "name": "_parse_sse_line",
+          "params": [
+            "line"
+          ],
+          "returnType": "Optional[dict]",
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "run_topic_locator",
+          "params": [
+            "task_id",
+            "question",
+            "redis_stream",
+            "timeout_seconds",
+            "connect_timeout_seconds",
+            "client"
+          ],
+          "returnType": "tuple[Optional[str], Optional[str], Optional[str], list[str]]",
+          "exported": true,
+          "lineCount": 150
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        },
+        {
+          "source": ".redis_stream",
+          "specifiers": [
+            "RedisStream"
+          ]
+        }
+      ],
+      "exports": [
+        "_parse_sse_line",
+        "run_topic_locator"
+      ],
+      "totalLines": 263,
+      "hasStructuralAnalysis": true
+    },
+    "knowledge_core/chunk_builder.py": {
+      "filePath": "knowledge_core/chunk_builder.py",
+      "contentHash": "718871bf9806b58ed2eccb82b2577f5d0b243e0c6fc19d89a30ea0a22c289a5f",
+      "functions": [
+        {
+          "name": "build_target_location_label",
+          "params": [
+            "fragment"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "build_highlighted_label",
+          "params": [
+            "fragment"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "_read_knowledge_name",
+          "params": [
+            "knowledge_root"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 58
+        },
+        {
+          "name": "build_parent_location_label",
+          "params": [
+            "knowledge_root",
+            "parent_dir"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_list_subdirs",
+          "params": [
+            "directory"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_read_knowledge_md",
+          "params": [
+            "directory"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_strip_metadata_sections",
+          "params": [
+            "content"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_get_dir_depth",
+          "params": [
+            "dir_name"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_is_top_level_dir",
+          "params": [
+            "dir_name"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_format_heading_label",
+          "params": [
+            "ancestors",
+            "dir_name"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_walk_knowledge_tree",
+          "params": [
+            "directory",
+            "ancestors",
+            "depth"
+          ],
+          "returnType": "list[_KnowledgeNode]",
+          "exported": true,
+          "lineCount": 32
+        },
+        {
+          "name": "build_knowledge_chunks",
+          "params": [
+            "knowledge_root",
+            "chunk_size"
+          ],
+          "returnType": "list[KnowledgeChunk]",
+          "exported": true,
+          "lineCount": 87
+        },
+        {
+          "name": "_format_relation_fragment_text",
+          "params": [
+            "fragment",
+            "knowledge_root"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 38
+        },
+        {
+          "name": "_build_target_location_label",
+          "params": [
+            "fragment"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "_one_line",
+          "params": [
+            "text",
+            "limit"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "split_relations_into_chunks",
+          "params": [
+            "fragments",
+            "chunk_size",
+            "parent_chunk",
+            "start_derived_seq",
+            "knowledge_root"
+          ],
+          "returnType": "list[KnowledgeChunk]",
+          "exported": true,
+          "lineCount": 73
+        }
+      ],
+      "classes": [
+        {
+          "name": "KnowledgeChunk",
+          "methods": [],
+          "properties": [
+            "index",
+            "content",
+            "heading_paths",
+            "directories",
+            "parent_chunk_index",
+            "derived_seq",
+            "relation_keys"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_KnowledgeNode",
+          "methods": [],
+          "properties": [
+            "dir_path",
+            "dir_name",
+            "depth",
+            "ancestors",
+            "body"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "TYPE_CHECKING"
+          ]
+        },
+        {
+          "source": "knowledge_core.sort_utils",
+          "specifiers": [
+            "natural_dir_sort_key"
+          ]
+        }
+      ],
+      "exports": [
+        "build_target_location_label",
+        "build_highlighted_label",
+        "_read_knowledge_name",
+        "build_parent_location_label",
+        "KnowledgeChunk",
+        "_KnowledgeNode",
+        "_list_subdirs",
+        "_read_knowledge_md",
+        "_strip_metadata_sections",
+        "_get_dir_depth",
+        "_is_top_level_dir",
+        "_format_heading_label",
+        "_walk_knowledge_tree",
+        "build_knowledge_chunks",
+        "_format_relation_fragment_text",
+        "_build_target_location_label",
+        "_one_line",
+        "split_relations_into_chunks"
+      ],
+      "totalLines": 501,
+      "hasStructuralAnalysis": true
+    },
+    "knowledge_core/clause_locator.py": {
+      "filePath": "knowledge_core/clause_locator.py",
+      "contentHash": "c2cd3f705fda7a3b6f4afc01ec8f1470fe2380b07aa20119555333cbd2bd75c4",
+      "functions": [
+        {
+          "name": "_safe_import_remote_fetcher",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [
+        {
+          "name": "ClauseLocator",
+          "methods": [
+            "__init__",
+            "_get_policy_index",
+            "_try_local",
+            "_heading_path_from_relpath",
+            "_guess_full_name",
+            "_try_remote",
+            "locate"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 185
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "extractor.parser",
+          "specifiers": [
+            "normalize_clause_number"
+          ]
+        }
+      ],
+      "exports": [
+        "_safe_import_remote_fetcher",
+        "ClauseLocator"
+      ],
+      "totalLines": 223,
+      "hasStructuralAnalysis": true
+    },
+    "knowledge_core/prompts.py": {
+      "filePath": "knowledge_core/prompts.py",
+      "contentHash": "9c0f8fdbf58bd78dc0609ee9c2e90478fdfbf659d27595ae5d01a2446e7fffea",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 137,
+      "hasStructuralAnalysis": true
+    },
+    "knowledge_core/registries.py": {
+      "filePath": "knowledge_core/registries.py",
+      "contentHash": "206b76692981c54d34f610602b17bebb0e2cfe285faaf23c5b124545caa26cce",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ExploredRegistry",
+          "methods": [
+            "__init__",
+            "try_claim",
+            "is_explored",
+            "get_explorer"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "PitfallsRegistry",
+          "methods": [
+            "__init__",
+            "add",
+            "get_all",
+            "get_by_dir",
+            "format_context"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 35
+        },
+        {
+          "name": "KnowledgeFragment",
+          "methods": [],
+          "properties": [
+            "content",
+            "heading_path",
+            "directory_path"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "RetrievalKnowledgeRegistry",
+          "methods": [
+            "__init__",
+            "add",
+            "get_all"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "RelationFragment",
+          "methods": [],
+          "properties": [
+            "policy_id",
+            "clause_id",
+            "clause_number",
+            "clause_full_name",
+            "heading_path",
+            "content",
+            "highlighted",
+            "parent_assessment",
+            "hop_depth",
+            "source",
+            "parent_chunk_index",
+            "parent_dir",
+            "target_dir",
+            "target_knowledge_root",
+            "highlighted_aliases"
+          ],
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "RelationRegistry",
+          "methods": [
+            "__init__",
+            "add",
+            "merge_aliases",
+            "get_by_chunk",
+            "get_by_dir",
+            "get_all",
+            "has_any",
+            "has"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 99
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        }
+      ],
+      "exports": [
+        "ExploredRegistry",
+        "PitfallsRegistry",
+        "KnowledgeFragment",
+        "RetrievalKnowledgeRegistry",
+        "RelationFragment",
+        "RelationRegistry"
+      ],
+      "totalLines": 231,
+      "hasStructuralAnalysis": true
+    },
+    "knowledge_core/relation_crawler.py": {
+      "filePath": "knowledge_core/relation_crawler.py",
+      "contentHash": "af5edb71be82763da3d0f15c1d3bcca9907890cb55525616a76db6ebf2f889a1",
+      "functions": [
+        {
+          "name": "_call_llm_json",
+          "params": [
+            "prompt",
+            "vendor",
+            "model"
+          ],
+          "returnType": "Optional[dict]",
+          "exported": true,
+          "lineCount": 25
+        }
+      ],
+      "classes": [
+        {
+          "name": "_CandidateRef",
+          "methods": [],
+          "properties": [
+            "policy_id",
+            "clause_id",
+            "highlighted",
+            "parent_assessment",
+            "hop_depth"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "RelationCrawler",
+          "methods": [
+            "__init__",
+            "crawl",
+            "_bfs_evaluate",
+            "_evaluate_single",
+            "_derive_target_knowledge_root"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 330
+        }
+      ],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        },
+        {
+          "source": "concurrent.futures",
+          "specifiers": [
+            "ThreadPoolExecutor",
+            "as_completed"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Callable",
+            "Optional"
+          ]
+        },
+        {
+          "source": "llm.client",
+          "specifiers": [
+            "chat"
+          ]
+        },
+        {
+          "source": "utils.verbose_logger",
+          "specifiers": [
+            "step_scope"
+          ]
+        },
+        {
+          "source": "knowledge_core.registries",
+          "specifiers": [
+            "RelationFragment",
+            "RelationRegistry"
+          ]
+        },
+        {
+          "source": "knowledge_core.clause_locator",
+          "specifiers": [
+            "ClauseLocator"
+          ]
+        },
+        {
+          "source": "knowledge_core.prompts",
+          "specifiers": [
+            "RELATION_RELEVANCE_PROMPT"
+          ]
+        }
+      ],
+      "exports": [
+        "_CandidateRef",
+        "RelationCrawler",
+        "_call_llm_json"
+      ],
+      "totalLines": 414,
+      "hasStructuralAnalysis": true
+    },
+    "knowledge_core/sort_utils.py": {
+      "filePath": "knowledge_core/sort_utils.py",
+      "contentHash": "dc534e97f4a5d536427fd0819f023c6c45de51679e1b286adb2d3dad4b505f8f",
+      "functions": [
+        {
+          "name": "natural_dir_sort_key",
+          "params": [
+            "name"
+          ],
+          "returnType": "list",
+          "exported": true,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "natural_dir_sort_key"
+      ],
+      "totalLines": 23,
+      "hasStructuralAnalysis": true
+    },
+    "llm/__init__.py": {
+      "filePath": "llm/__init__.py",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": true
+    },
+    "llm/client.py": {
+      "filePath": "llm/client.py",
+      "contentHash": "8cefbbe3d545e1db807407984ab2bafb20711c56e4184c372d7e3e6e1d2ab934",
+      "functions": [
+        {
+          "name": "chat",
+          "params": [
+            "messages",
+            "vendor",
+            "model",
+            "system",
+            "enable_thinking"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 168
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "requests",
+          "specifiers": [
+            "requests"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "utils.helpers",
+          "specifiers": [
+            "retry"
+          ]
+        },
+        {
+          "source": "utils.verbose_logger",
+          "specifiers": [
+            "is_session_active",
+            "log_llm_call",
+            "log_llm_error"
+          ]
+        }
+      ],
+      "exports": [
+        "chat"
+      ],
+      "totalLines": 196,
+      "hasStructuralAnalysis": true
+    },
+    "main.py": {
+      "filePath": "main.py",
+      "contentHash": "dd852813fa6da225a23eb88263329f29a4b5da8f59465c55c69f816ece13cf25",
+      "functions": [
+        {
+          "name": "setup_logging",
+          "params": [
+            "verbose"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "cmd_extract",
+          "params": [
+            "args"
+          ],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "cmd_serve",
+          "params": [
+            "args"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": true,
+          "lineCount": 45
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "argparse",
+          "specifiers": [
+            "argparse"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        }
+      ],
+      "exports": [
+        "setup_logging",
+        "cmd_extract",
+        "cmd_serve",
+        "main"
+      ],
+      "totalLines": 106,
+      "hasStructuralAnalysis": true
+    },
+    "page_knowledge/__init__.py": {
+      "filePath": "page_knowledge/__init__.py",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": true
+    },
+    "page_knowledge/_policy_index.json": {
+      "filePath": "page_knowledge/_policy_index.json",
+      "contentHash": "685628f1f06625d0000fb4ca509c1d769f3775c1c08db6c5da3790f53b1b2130",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 442,
+      "hasStructuralAnalysis": true
+    },
+    "redis_server/__init__.py": {
+      "filePath": "redis_server/__init__.py",
+      "contentHash": "4f93b48ef970b98d4e9e4efc2bff0eda8e46b8ba0bd37987b0ce2e9bec34ae7b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 14,
+      "hasStructuralAnalysis": true
+    },
+    "redis_server/client.py": {
+      "filePath": "redis_server/client.py",
+      "contentHash": "85f1f99830db9017f4d7aeca9f4dac295e59aa8529c69e1af45e80c5714d000a",
+      "functions": [],
+      "classes": [
+        {
+          "name": "RedisServerError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "RedisServerClient",
+          "methods": [
+            "__init__",
+            "__aenter__",
+            "__aexit__",
+            "close",
+            "_request",
+            "set",
+            "get",
+            "delete",
+            "exists",
+            "expire",
+            "ttl",
+            "keys",
+            "rpush",
+            "lpop",
+            "blpop",
+            "llen",
+            "lrange",
+            "lrem",
+            "health",
+            "stats",
+            "snapshot",
+            "flushall"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 280
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Optional"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        }
+      ],
+      "exports": [
+        "RedisServerError",
+        "RedisServerClient"
+      ],
+      "totalLines": 321,
+      "hasStructuralAnalysis": true
+    },
+    "redis_server/models.py": {
+      "filePath": "redis_server/models.py",
+      "contentHash": "d50677429361f606038bf0fbc9f190e841636462017a2a6fa1b8db8ef684b6f4",
+      "functions": [],
+      "classes": [
+        {
+          "name": "BaseResp",
+          "methods": [],
+          "properties": [
+            "status_code",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "SetReq",
+          "methods": [],
+          "properties": [
+            "key",
+            "value",
+            "ttl_seconds"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "GetResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "DeleteResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "ExistsResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "ExpireReq",
+          "methods": [],
+          "properties": [
+            "key",
+            "ttl_seconds"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "ExpireResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "TtlResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "KeysResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "PushReq",
+          "methods": [],
+          "properties": [
+            "queue",
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "PushResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "PopReq",
+          "methods": [],
+          "properties": [
+            "queue"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "BPopReq",
+          "methods": [],
+          "properties": [
+            "queue",
+            "timeout_seconds"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "PopResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "LLenResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "LRangeResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "LRemReq",
+          "methods": [],
+          "properties": [
+            "queue",
+            "value",
+            "count"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "LRemResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "StatsResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "SnapshotResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "FlushResp",
+          "methods": [],
+          "properties": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 2
+        }
+      ],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Optional"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "Field"
+          ]
+        }
+      ],
+      "exports": [
+        "BaseResp",
+        "SetReq",
+        "GetResp",
+        "DeleteResp",
+        "ExistsResp",
+        "ExpireReq",
+        "ExpireResp",
+        "TtlResp",
+        "KeysResp",
+        "PushReq",
+        "PushResp",
+        "PopReq",
+        "BPopReq",
+        "PopResp",
+        "LLenResp",
+        "LRangeResp",
+        "LRemReq",
+        "LRemResp",
+        "StatsResp",
+        "SnapshotResp",
+        "FlushResp"
+      ],
+      "totalLines": 162,
+      "hasStructuralAnalysis": true
+    },
+    "redis_server/README.md": {
+      "filePath": "redis_server/README.md",
+      "contentHash": "dbd28d7e8c105a888be5d7fd90b71c8145fb18baa3528b781a3e93bf2156ce88",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 149,
+      "hasStructuralAnalysis": true
+    },
+    "redis_server/requirements.txt": {
+      "filePath": "redis_server/requirements.txt",
+      "contentHash": "f5323e7e9c53cf81ff4045963c691fd7986ccfbc3055fd88a628a41fe6ee0370",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": false
+    },
+    "redis_server/run.py": {
+      "filePath": "redis_server/run.py",
+      "contentHash": "d83c5a1fc8e2b65b5eff2c5d6366e7a2bb1cf981ae851f576394a24afe8f456f",
+      "functions": [
+        {
+          "name": "_project_default_data_dir",
+          "params": [],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_require_auth",
+          "params": [
+            "x_auth_token"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "lifespan",
+          "params": [
+            "_app"
+          ],
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "health",
+          "params": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "example",
+          "params": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "root_check",
+          "params": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "kv_set",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "kv_get",
+          "params": [
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "kv_delete",
+          "params": [
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "kv_exists",
+          "params": [
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "kv_expire",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "kv_ttl",
+          "params": [
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "kv_keys",
+          "params": [
+            "prefix"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "queue_rpush",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "queue_lpop",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "queue_blpop",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "queue_llen",
+          "params": [
+            "queue"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "queue_lrange",
+          "params": [
+            "queue",
+            "start",
+            "stop"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "queue_lrem",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "admin_stats",
+          "params": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "admin_snapshot",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "admin_flushall",
+          "params": [],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 29
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "argparse",
+          "specifiers": [
+            "argparse"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "asynccontextmanager"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "Depends",
+            "FastAPI",
+            "Header",
+            "HTTPException"
+          ]
+        },
+        {
+          "source": "storage",
+          "specifiers": [
+            "Store"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "BPopReq",
+            "DeleteResp",
+            "ExistsResp",
+            "ExpireReq",
+            "ExpireResp",
+            "FlushResp",
+            "GetResp",
+            "KeysResp",
+            "LLenResp",
+            "LRangeResp",
+            "LRemReq",
+            "LRemResp",
+            "PopReq",
+            "PopResp",
+            "PushReq",
+            "PushResp",
+            "SetReq",
+            "SnapshotResp",
+            "StatsResp",
+            "TtlResp"
+          ]
+        }
+      ],
+      "exports": [
+        "_project_default_data_dir",
+        "_require_auth",
+        "lifespan",
+        "health",
+        "example",
+        "root_check",
+        "kv_set",
+        "kv_get",
+        "kv_delete",
+        "kv_exists",
+        "kv_expire",
+        "kv_ttl",
+        "kv_keys",
+        "queue_rpush",
+        "queue_lpop",
+        "queue_blpop",
+        "queue_llen",
+        "queue_lrange",
+        "queue_lrem",
+        "admin_stats",
+        "admin_snapshot",
+        "admin_flushall",
+        "main"
+      ],
+      "totalLines": 287,
+      "hasStructuralAnalysis": true
+    },
+    "redis_server/smoke_test.py": {
+      "filePath": "redis_server/smoke_test.py",
+      "contentHash": "fdd58922562e84dba545c7d8c76f3ec39e1343791d7ef278854ad4f73455d856",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 70
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "redis_server.client",
+          "specifiers": [
+            "RedisServerClient"
+          ]
+        }
+      ],
+      "exports": [
+        "main"
+      ],
+      "totalLines": 89,
+      "hasStructuralAnalysis": true
+    },
+    "redis_server/storage.py": {
+      "filePath": "redis_server/storage.py",
+      "contentHash": "dd6b3754ae673fe77739bbf51fa65332f520a1ffcf2309e2b9eece273de63b55",
+      "functions": [],
+      "classes": [
+        {
+          "name": "_Entry",
+          "methods": [
+            "is_expired"
+          ],
+          "properties": [
+            "value",
+            "expires_at"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "Store",
+          "methods": [
+            "__init__",
+            "set",
+            "get",
+            "delete",
+            "exists",
+            "expire",
+            "ttl",
+            "keys",
+            "rpush",
+            "lpop",
+            "blpop",
+            "llen",
+            "lrange",
+            "lrem",
+            "stats",
+            "sweep_expired",
+            "flushall",
+            "snapshot_to_dict",
+            "load_from_dict",
+            "save_snapshot",
+            "load_snapshot",
+            "start_background_tasks",
+            "stop_background_tasks",
+            "_snapshot_loop",
+            "_sweep_loop"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 359
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "collections",
+          "specifiers": [
+            "deque"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Optional"
+          ]
+        }
+      ],
+      "exports": [
+        "_Entry",
+        "Store"
+      ],
+      "totalLines": 404,
+      "hasStructuralAnalysis": true
+    },
+    "requirements.txt": {
+      "filePath": "requirements.txt",
+      "contentHash": "b513b10d29d4a93883b04a1902d972e3f5f26b795e49dda8629eff73d78555a3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": false
+    },
+    "runtime/__init__.py": {
+      "filePath": "runtime/__init__.py",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": true
+    },
+    "runtime/input/ncp_0409.txt": {
+      "filePath": "runtime/input/ncp_0409.txt",
+      "contentHash": "f4764e0083a300e125db64bd1bd701d07a8860c7b1807988658694472277f426",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 547,
+      "hasStructuralAnalysis": false
+    },
+    "runtime/input/test_knowhow_result.json": {
+      "filePath": "runtime/input/test_knowhow_result.json",
+      "contentHash": "be8cde263a8ce911c0f6d831a760019045806d58fed08aa1fa93c2c5b71c1568",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 865,
+      "hasStructuralAnalysis": true
+    },
+    "runtime/input/农产品V3.0.docx": {
+      "filePath": "runtime/input/农产品V3.0.docx",
+      "contentHash": "2e857378c1b1465470158b069f61e230e8c63d2519ef0b8bb7f1bd201f8a0ef8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 138,
+      "hasStructuralAnalysis": false
+    },
+    "runtime/input/农产品语料-0408自测.csv": {
+      "filePath": "runtime/input/农产品语料-0408自测.csv",
+      "contentHash": "6e88b31283f07366896e92e3301cfc7b69d2dcb2175f694b509e77ccf9ac4815",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2194,
+      "hasStructuralAnalysis": false
+    },
+    "runtime/input/租赁资产专题简版KH-版本3.docx": {
+      "filePath": "runtime/input/租赁资产专题简版KH-版本3.docx",
+      "contentHash": "a87e9c0cc66d5463c5c155b1b8611e92925eed050612678db17e0d4c5ae7dd89",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 235,
+      "hasStructuralAnalysis": false
+    },
+    "runtime/output/ncp_0409_results.csv": {
+      "filePath": "runtime/output/ncp_0409_results.csv",
+      "contentHash": "c20f084079a0f1753d25d0a4e23aad11c63ae0a3c122b0097a48ccdf41a7df0c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 52,
+      "hasStructuralAnalysis": false
+    },
+    "skills/__init__.py": {
+      "filePath": "skills/__init__.py",
+      "contentHash": "cd73f707b5eb675f812eb15c3393fd3e95775f54045cc2e635a07484278c38e5",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".runner",
+          "specifiers": [
+            "SkillRunner",
+            "SkillExecutionResult"
+          ]
+        },
+        {
+          "source": ".registry",
+          "specifiers": [
+            "SkillResultRegistry",
+            "SkillRecord"
+          ]
+        },
+        {
+          "source": ".evaluator",
+          "specifiers": [
+            "evaluate_and_run",
+            "select_extra_skills"
+          ]
+        },
+        {
+          "source": ".double_check",
+          "specifiers": [
+            "check_and_enhance"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 22,
+      "hasStructuralAnalysis": true
+    },
+    "skills/double_check.py": {
+      "filePath": "skills/double_check.py",
+      "contentHash": "4ed4e927ef321d9f842ed76178a582a4908c2da5155c3e1d7aa297696984602e",
+      "functions": [
+        {
+          "name": "_extract_json_array",
+          "params": [
+            "text"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "_enhance_with_skill_results",
+          "params": [
+            "question",
+            "raw_answer",
+            "skill_context",
+            "vendor",
+            "model"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "_judge_need_skill",
+          "params": [
+            "question",
+            "raw_answer",
+            "vendor",
+            "model"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "check_and_enhance",
+          "params": [
+            "question",
+            "raw_answer",
+            "registry",
+            "runner",
+            "vendor",
+            "model"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 42
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "llm.client",
+          "specifiers": [
+            "chat"
+          ]
+        },
+        {
+          "source": ".evaluator",
+          "specifiers": [
+            "evaluate_and_run",
+            "_list_available_skills",
+            "_load_index_doc"
+          ]
+        },
+        {
+          "source": ".registry",
+          "specifiers": [
+            "SkillResultRegistry"
+          ]
+        },
+        {
+          "source": ".runner",
+          "specifiers": [
+            "SkillRunner"
+          ]
+        }
+      ],
+      "exports": [
+        "_extract_json_array",
+        "_enhance_with_skill_results",
+        "_judge_need_skill",
+        "check_and_enhance"
+      ],
+      "totalLines": 174,
+      "hasStructuralAnalysis": true
+    },
+    "skills/evaluator.py": {
+      "filePath": "skills/evaluator.py",
+      "contentHash": "02ba6d343e3f73a16a6768db3384bc0e6af0039c5948244ab194fe43207105d5",
+      "functions": [
+        {
+          "name": "_format_retry_hint",
+          "params": [
+            "prev_cmd",
+            "prev_result"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_extract_json_array",
+          "params": [
+            "text"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "_strip_command",
+          "params": [
+            "text"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "_load_index_doc",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_load_detail_doc",
+          "params": [
+            "skill_name"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_list_available_skills",
+          "params": [],
+          "returnType": "set[str]",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "_select_skills",
+          "params": [
+            "question",
+            "vendor",
+            "model"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "_generate_command",
+          "params": [
+            "skill_name",
+            "question",
+            "vendor",
+            "model",
+            "prev_attempt"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 38
+        },
+        {
+          "name": "_run_one_skill",
+          "params": [
+            "skill_name",
+            "question",
+            "runner",
+            "registry",
+            "vendor",
+            "model",
+            "max_retries"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 54
+        },
+        {
+          "name": "select_extra_skills",
+          "params": [
+            "question",
+            "exclude",
+            "vendor",
+            "model",
+            "evidence"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 68
+        },
+        {
+          "name": "evaluate_and_run",
+          "params": [
+            "question",
+            "registry",
+            "runner",
+            "vendor",
+            "model",
+            "skill_names"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 37
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "llm.client",
+          "specifiers": [
+            "chat"
+          ]
+        },
+        {
+          "source": ".registry",
+          "specifiers": [
+            "SkillResultRegistry"
+          ]
+        },
+        {
+          "source": ".runner",
+          "specifiers": [
+            "SkillExecutionResult",
+            "SkillRunner"
+          ]
+        }
+      ],
+      "exports": [
+        "_format_retry_hint",
+        "_extract_json_array",
+        "_strip_command",
+        "_load_index_doc",
+        "_load_detail_doc",
+        "_list_available_skills",
+        "_select_skills",
+        "_generate_command",
+        "_run_one_skill",
+        "select_extra_skills",
+        "evaluate_and_run"
+      ],
+      "totalLines": 402,
+      "hasStructuralAnalysis": true
+    },
+    "skills/registry.py": {
+      "filePath": "skills/registry.py",
+      "contentHash": "556c9f62aac1c9327552abe45aaa6efd0051347a3b2951caeecbf9055a6ad5a3",
+      "functions": [],
+      "classes": [
+        {
+          "name": "SkillRecord",
+          "methods": [],
+          "properties": [
+            "skill_name",
+            "command",
+            "result"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "SkillResultRegistry",
+          "methods": [
+            "__init__",
+            "add",
+            "get",
+            "get_all",
+            "has_any",
+            "has",
+            "format_context"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 52
+        }
+      ],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": ".runner",
+          "specifiers": [
+            "SkillExecutionResult"
+          ]
+        }
+      ],
+      "exports": [
+        "SkillRecord",
+        "SkillResultRegistry"
+      ],
+      "totalLines": 76,
+      "hasStructuralAnalysis": true
+    },
+    "skills/runner.py": {
+      "filePath": "skills/runner.py",
+      "contentHash": "53fd030f30cd6e793fb104c6538ceaa50253a49dfc93c5d894879b40df25843a",
+      "functions": [
+        {
+          "name": "_is_wsl_bash",
+          "params": [
+            "path"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "_resolve_shell",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 31
+        }
+      ],
+      "classes": [
+        {
+          "name": "SkillExecutionResult",
+          "methods": [
+            "output",
+            "error",
+            "as_json"
+          ],
+          "properties": [
+            "success",
+            "stdout",
+            "stderr",
+            "exit_code"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "SkillRunner",
+          "methods": [
+            "__init__",
+            "_get_semaphore",
+            "_build_env",
+            "execute",
+            "run_skill",
+            "_run_in_isolated_subprocess"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 163
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "shlex",
+          "specifiers": [
+            "shlex"
+          ]
+        },
+        {
+          "source": "shutil",
+          "specifiers": [
+            "shutil"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "tempfile",
+          "specifiers": [
+            "tempfile"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        }
+      ],
+      "exports": [
+        "_is_wsl_bash",
+        "_resolve_shell",
+        "SkillExecutionResult",
+        "SkillRunner"
+      ],
+      "totalLines": 293,
+      "hasStructuralAnalysis": true
+    },
+    "skills/skills.md": {
+      "filePath": "skills/skills.md",
+      "contentHash": "9e34f36320c6300e43281805f06c685e5c79f38255b1b302455cb965870318c8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": true
+    },
+    "skills/standard_product_name_verification/__init__.py": {
+      "filePath": "skills/standard_product_name_verification/__init__.py",
+      "contentHash": "01a0482f99d4697f13227b85599fbe2c53a2cdb48f70d83e8e0a9e12cfdd9bcc",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".service",
+          "specifiers": [
+            "CandidateMatch",
+            "VerificationResult",
+            "verify_product_name",
+            "verify_product_names",
+            "format_result"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "skills/standard_product_name_verification/__main__.py": {
+      "filePath": "skills/standard_product_name_verification/__main__.py",
+      "contentHash": "d6a106ede2a5f5c9ed6516711744c19d94220df02edc0f18bac7b8f3c70df926",
+      "functions": [
+        {
+          "name": "_build_parser",
+          "params": [],
+          "returnType": "argparse.ArgumentParser",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "_to_dict",
+          "params": [
+            "results"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "main",
+          "params": [
+            "argv"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "argparse",
+          "specifiers": [
+            "argparse"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": ".service",
+          "specifiers": [
+            "format_result",
+            "verify_product_names"
+          ]
+        }
+      ],
+      "exports": [
+        "_build_parser",
+        "_to_dict",
+        "main"
+      ],
+      "totalLines": 88,
+      "hasStructuralAnalysis": true
+    },
+    "skills/standard_product_name_verification/service.py": {
+      "filePath": "skills/standard_product_name_verification/service.py",
+      "contentHash": "88a863223fe430203d35b48c59bcb059ba237339b8451d8eeba6e0933e009627",
+      "functions": [
+        {
+          "name": "_parse_candidates",
+          "params": [
+            "pmxx_out"
+          ],
+          "returnType": "list[CandidateMatch]",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "verify_product_name",
+          "params": [
+            "product_name",
+            "timeout"
+          ],
+          "returnType": "VerificationResult",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "verify_product_names",
+          "params": [
+            "product_names",
+            "timeout"
+          ],
+          "returnType": "list[VerificationResult]",
+          "exported": true,
+          "lineCount": 45
+        },
+        {
+          "name": "format_result",
+          "params": [
+            "result",
+            "top1_threshold",
+            "leading_gap"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 47
+        }
+      ],
+      "classes": [
+        {
+          "name": "CandidateMatch",
+          "methods": [],
+          "properties": [
+            "standard_name",
+            "abbreviation",
+            "tax_rate",
+            "confidence",
+            "product_code"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "VerificationResult",
+          "methods": [
+            "best"
+          ],
+          "properties": [
+            "query",
+            "candidates",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        },
+        {
+          "source": "requests",
+          "specifiers": [
+            "requests"
+          ]
+        }
+      ],
+      "exports": [
+        "CandidateMatch",
+        "VerificationResult",
+        "_parse_candidates",
+        "verify_product_name",
+        "verify_product_names",
+        "format_result"
+      ],
+      "totalLines": 171,
+      "hasStructuralAnalysis": true
+    },
+    "skills/standard_product_name_verification/skills.md": {
+      "filePath": "skills/standard_product_name_verification/skills.md",
+      "contentHash": "02b61843bb203338ebd7a4170d62ef92c7daba44fb7424d42b6360e1ae45aac2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 52,
+      "hasStructuralAnalysis": true
+    },
+    "task_queue.py": {
+      "filePath": "task_queue.py",
+      "contentHash": "00b21ce18bbe838d9a441553de3e1413c39077a07d972cc296e4d7e8cb675926",
+      "functions": [
+        {
+          "name": "_task_key",
+          "params": [
+            "task_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_now",
+          "params": [],
+          "returnType": "float",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_retry_short_request",
+          "params": [
+            "coro_factory",
+            "attempts",
+            "backoff_seconds",
+            "op_name"
+          ],
+          "returnType": "Any",
+          "exported": true,
+          "lineCount": 43
+        },
+        {
+          "name": "_gather_bounded",
+          "params": [
+            "coro_factories",
+            "limit",
+            "return_exceptions"
+          ],
+          "returnType": "list[Any]",
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "submit_task",
+          "params": [
+            "client",
+            "request_payload",
+            "ttl_seconds",
+            "retry_attempts",
+            "retry_backoff_seconds"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 63
+        },
+        {
+          "name": "get_task",
+          "params": [
+            "client",
+            "task_id"
+          ],
+          "returnType": "Optional[dict]",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_add_running_task",
+          "params": [
+            "client",
+            "task_id"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_remove_running_task",
+          "params": [
+            "client",
+            "task_id"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "list_queued_tasks",
+          "params": [
+            "client"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "_clean_one_queued_task",
+          "params": [
+            "client",
+            "task_id"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "clean_queued_tasks",
+          "params": [
+            "client"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "list_running_tasks",
+          "params": [
+            "client"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 45
+        },
+        {
+          "name": "cleanup_stale_running_tasks",
+          "params": [
+            "client",
+            "current_instance_id",
+            "ttl_seconds",
+            "error_message"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 64
+        },
+        {
+          "name": "requeue_stale_running_tasks",
+          "params": [
+            "client",
+            "threshold_seconds",
+            "current_instance_id",
+            "dry_run",
+            "ttl_seconds"
+          ],
+          "returnType": "list[dict]",
+          "exported": true,
+          "lineCount": 196
+        }
+      ],
+      "classes": [
+        {
+          "name": "WorkerPool",
+          "methods": [
+            "__init__",
+            "start",
+            "stop",
+            "_worker_loop",
+            "_run_one"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 179
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Awaitable",
+            "Callable",
+            "Optional"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        }
+      ],
+      "exports": [
+        "_task_key",
+        "_now",
+        "_retry_short_request",
+        "_gather_bounded",
+        "submit_task",
+        "get_task",
+        "_add_running_task",
+        "_remove_running_task",
+        "list_queued_tasks",
+        "_clean_one_queued_task",
+        "clean_queued_tasks",
+        "list_running_tasks",
+        "cleanup_stale_running_tasks",
+        "requeue_stale_running_tasks",
+        "WorkerPool"
+      ],
+      "totalLines": 835,
+      "hasStructuralAnalysis": true
+    },
+    "utils/__init__.py": {
+      "filePath": "utils/__init__.py",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": true
+    },
+    "utils/helpers.py": {
+      "filePath": "utils/helpers.py",
+      "contentHash": "630efb590912aba4673376a522020027116d566cc340975afd909fd88c09427d",
+      "functions": [
+        {
+          "name": "resolve_page_knowledge_dir",
+          "params": [
+            "project_root"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "retry",
+          "params": [
+            "max_retries",
+            "sleep_seconds"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "sanitize_filename",
+          "params": [
+            "name",
+            "max_length"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "truncate_text",
+          "params": [
+            "text",
+            "max_length"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "split_think_block",
+          "params": [
+            "text"
+          ],
+          "returnType": "tuple[str, str]",
+          "exported": true,
+          "lineCount": 21
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "functools",
+          "specifiers": [
+            "functools"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        }
+      ],
+      "exports": [
+        "resolve_page_knowledge_dir",
+        "retry",
+        "sanitize_filename",
+        "truncate_text",
+        "split_think_block"
+      ],
+      "totalLines": 96,
+      "hasStructuralAnalysis": true
+    },
+    "utils/verbose_logger.py": {
+      "filePath": "utils/verbose_logger.py",
+      "contentHash": "53f0a46793c5df80a441c5c2baeca9c3f5be159ffd2b1f04f4231e3d299058b8",
+      "functions": [
+        {
+          "name": "_patch_executor_submit",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "_env_bool",
+          "params": [
+            "key",
+            "default"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_ensure_log_dirs",
+          "params": [],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "_now_iso",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "is_session_active",
+          "params": [],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "current_session_id",
+          "params": [],
+          "returnType": "str | None",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "current_agent_id",
+          "params": [],
+          "returnType": "str | None",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "current_step",
+          "params": [],
+          "returnType": "str | None",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "current_prompt_vars",
+          "params": [],
+          "returnType": "dict | list | str | None",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "open_session",
+          "params": [
+            "session_id",
+            "meta",
+            "enabled"
+          ],
+          "exported": true,
+          "lineCount": 73
+        },
+        {
+          "name": "agent_scope",
+          "params": [
+            "agent_id",
+            "step",
+            "prompt_vars"
+          ],
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "step_scope",
+          "params": [
+            "step",
+            "prompt_vars"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "log_llm_call",
+          "params": [
+            "prompt",
+            "response",
+            "system",
+            "vendor",
+            "model",
+            "elapsed_ms",
+            "extra"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "log_llm_error",
+          "params": [
+            "prompt",
+            "error",
+            "system",
+            "vendor",
+            "model",
+            "elapsed_ms",
+            "extra"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "log_event",
+          "params": [
+            "event_type",
+            "**fields"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "_collect_archivable_files",
+          "params": [],
+          "returnType": "list[Path]",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "maybe_archive_logs",
+          "params": [
+            "threshold_bytes"
+          ],
+          "returnType": "str | None",
+          "exported": true,
+          "lineCount": 51
+        },
+        {
+          "name": "get_log_dir",
+          "params": [],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "_Session",
+          "methods": [
+            "__init__",
+            "write_event",
+            "close"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 29
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        },
+        {
+          "source": "contextvars",
+          "specifiers": [
+            "contextvars"
+          ]
+        },
+        {
+          "source": "zipfile",
+          "specifiers": [
+            "zipfile"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "contextlib"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "concurrent.futures",
+          "specifiers": [
+            "ThreadPoolExecutor"
+          ]
+        }
+      ],
+      "exports": [
+        "_patch_executor_submit",
+        "_env_bool",
+        "_Session",
+        "_ensure_log_dirs",
+        "_now_iso",
+        "is_session_active",
+        "current_session_id",
+        "current_agent_id",
+        "current_step",
+        "current_prompt_vars",
+        "open_session",
+        "agent_scope",
+        "step_scope",
+        "log_llm_call",
+        "log_llm_error",
+        "log_event",
+        "_collect_archivable_files",
+        "maybe_archive_logs",
+        "get_log_dir"
+      ],
+      "totalLines": 476,
+      "hasStructuralAnalysis": true
+    }
+  }
+}

@@ -27,7 +27,7 @@ import logging
 import time
 from typing import Optional
 
-from reasoner.v3.chunk_builder import KnowledgeChunk
+from knowledge_core.chunk_builder import KnowledgeChunk
 from utils.verbose_logger import (
     is_session_active,
     log_llm_call,
