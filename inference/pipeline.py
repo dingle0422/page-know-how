@@ -47,6 +47,10 @@ class InferenceOptions:
     # :func:`inference.prompts.select_preview_prompt`）。
     case_top_k: int = 3
     case_sim_threshold: float = 0.85
+    # reSearch 开关：True 时 react_loop 走"动作驱动"状态机（中间轮 incomplete 可选
+    # paginate / research），research 分支复用 hybrid_search 重新召回并对已看过证据
+    # 做单向去重；False 时完全沿用旧翻页逻辑与旧中间轮 prompt（默认见 app 层入参）。
+    re_search_enabled: bool = True
     # 专题定位多候选时的完整 policyId 列表，供 preview 把 case 检索 fan-out 到所有
     # 专题各自 case_{khCode} collection（并发独立召回后合并去重）。None / 单元素时
     # case 检索回落到单集合（用 policy_id），与改造前等价。主推理 pipeline 仍只用
@@ -151,6 +155,12 @@ async def run(
             vendor=opts.vendor, model=opts.model,
             intermediate_think_enabled=opts.intermediate_think_enabled,
             bg_tasks=bg_tasks or None,
+            # reSearch：research 分支需要 policy_id（带 __cs 后缀的服务端表名）+ top_n/top_m
+            # 复用 hybrid_search 重新召回；False 时下面这些参数对 react_loop 无影响。
+            re_search_enabled=opts.re_search_enabled,
+            policy_id=policy_id,
+            top_n=opts.top_n,
+            top_m=opts.top_m,
         )
 
         # react_loop 内部已经在进 final 前 await 过 bg_tasks，这里再 gather 一次

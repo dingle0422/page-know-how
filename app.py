@@ -298,6 +298,15 @@ class ReasonRequest(BaseModel):
         description="V4：中间 ReAct 轮是否开 think（与 InferenceRequest.intermediateThinkEnabled 同义）。"
                     "null 表示沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK；其他 version 忽略",
     )
+    reSearch: bool = Field(
+        default=True,
+        description="V4：是否启用 ReAct 重检索模式（与 InferenceRequest.reSearch 同义，默认开启）。\n"
+                    "- True：中间轮判 incomplete 时模型可选择继续翻页（paginate）或发起一次"
+                    "  新的混合检索（research，给出空格分隔的检索串）；新召回会与已进过 ReAct 的"
+                    "  旧证据做单向去重后替换证据集。\n"
+                    "- False：完全沿用旧中间轮 prompt 与旧翻页逻辑，不启用重检索。\n"
+                    "其他 version 忽略本字段。",
+    )
     verbose: bool = Field(
         default=VERBOSE_DEFAULT_ENABLED,
         description="启用 verbose 模式：以当次请求的 taskId 为文件名，"
@@ -1118,6 +1127,7 @@ async def _reason_executor(request_payload: dict) -> dict:
             "topN": request_payload.get("topN"),
             "topM": request_payload.get("topM"),
             "intermediateThinkEnabled": request_payload.get("intermediateThinkEnabled"),
+            "reSearch": request_payload.get("reSearch"),
             "maxRounds": request_payload.get("maxRounds"),
         })
 
@@ -1672,6 +1682,14 @@ class InferenceRequest(BaseModel):
     )
     # null = 沿用全局 INFERENCE_REACT_INTERMEDIATE_THINK
     intermediateThinkEnabled: bool | None = True
+    reSearch: bool = Field(
+        default=True,
+        description="是否启用 ReAct 重检索模式（默认开启）。\n"
+                    "- True：中间轮判 incomplete 时，模型可选择继续翻页（paginate）或发起一次"
+                    "  新的混合检索（research，输出空格分隔的检索串）；新召回会与已进过 ReAct 的"
+                    "  旧证据做单向去重后替换证据集，再继续推理。\n"
+                    "- False：完全沿用旧中间轮 prompt 与旧翻页逻辑，不启用重检索。",
+    )
     answerSystemPrompt: str | None = Field(
         default=None,
         description="按值路由 inference pipeline 的 preview 阶段 prompt：\n"
@@ -1960,6 +1978,8 @@ def _build_inference_options(req: InferenceRequest) -> _InferenceOptions:
         # 过滤 cosine_similarity 后取 top-N，走带【历史经验】的新 prompt。
         case_top_k=int(req.topC),
         case_sim_threshold=float(req.caseSimThreshold),
+        # reSearch：透传到 react_loop 决定是否启用重检索动作驱动状态机。
+        re_search_enabled=bool(req.reSearch),
     )
 
 
@@ -1989,6 +2009,7 @@ def _build_inference_session_meta(
         "topN": int(req.topN),
         "topM": int(req.topM),
         "intermediateThinkEnabled": req.intermediateThinkEnabled,
+        "reSearch": bool(req.reSearch),
         "topC": int(req.topC),
         "caseSimThreshold": float(req.caseSimThreshold),
         "topicLocated": bool(topic_located),
@@ -2551,6 +2572,8 @@ async def _run_inference_v4_executor(
         topic_general_knowledge=request_payload.get("answerSystemPrompt"),
         case_top_k=case_top_k,
         case_sim_threshold=case_sim_threshold,
+        # reSearch：默认开启；透传给 react_loop 决定是否启用重检索动作驱动状态机。
+        re_search_enabled=bool(request_payload.get("reSearch", True)),
     )
 
     react_max_rounds_raw = request_payload.get("maxRounds")
@@ -2631,6 +2654,12 @@ async def _run_inference_v4_executor(
             max_rounds=react_max_rounds,
             intermediate_think_enabled=intermediate_think_enabled,
             bg_tasks=bg_tasks or None,
+            # reSearch：research 分支用 index_policy_id（带 __cs 后缀的服务端表名）复用
+            # hybrid_search 重新召回；False 时这些参数对 react_loop 无影响。
+            re_search_enabled=opts.re_search_enabled,
+            policy_id=index_policy_id,
+            top_n=opts.top_n,
+            top_m=opts.top_m,
         )
 
         if bg_tasks:

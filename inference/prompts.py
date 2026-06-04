@@ -47,6 +47,7 @@ __all__ = [
     "PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES",
     "REACT_INTERMEDIATE_SYSTEM_PROMPT",
     "REACT_INTERMEDIATE_USER_PROMPT",
+    "REACT_INTERMEDIATE_RESEARCH_SYSTEM_PROMPT",
     "REACT_FINAL_SYSTEM_PROMPT",
     "select_preview_prompt",
     "format_preview_user_prompt",
@@ -337,6 +338,43 @@ REACT_INTERMEDIATE_USER_PROMPT = """## 【用户问题】
 """
 
 
+# -------------------------------------------------- react: 中间轮（reSearch 模式）
+#
+# 仅当请求 ``reSearch=true`` 时启用：在原中间轮基础上做最小改造——<answer> 内不再直接
+# 写 ``complete|incomplete``，而是改为三个固定顺序的子标签 <completion>/<action>/
+# <search-query>，让模型在判定"信息不足"时进一步决定下一轮证据来源：
+#   - paginate：继续翻看当前召回结果的后续 chunk 组（沿用 5000 字组包逻辑）；
+#   - research：给出一条空格分隔的混合检索串，触发一次独立的 hybrid 召回。
+# user prompt 完全复用 ``REACT_INTERMEDIATE_USER_PROMPT``（不新增变量），避免上下文漂移。
+
+REACT_INTERMEDIATE_RESEARCH_SYSTEM_PROMPT = """\
+你是一个资深财税实务专家。你的目标是判断当前掌握的信息是否已经足以**完美回答**用户问题。
+
+请严格按以下结构输出：
+
+1. <think>...</think>：
+   复盘本轮观察到了什么、与问题的关联，是否已覆盖核心结论 / 关键依据 / 必要操作或风险提示；
+   若仍不充分，明确说明还缺什么、下一轮希望补充哪类知识。
+
+2. <answer>...</answer>：在 answer 内按以下子标签输出（标签顺序固定）：
+   - 必须先输出 <completion>complete|incomplete</completion>：
+     - ``complete``：已经能完美回答用户问题（覆盖核心结论、直接证据、依据、必要操作或风险提示等）；
+     - ``incomplete``：仍需更多检索证据。
+   - 当 completion=incomplete 时，必须输出 <action>paginate|research</action>：
+     - ``paginate``：继续翻看当前检索结果的后续内容；
+     - ``research``：发起一次新的检索。
+   - 当 action=research 时，必须输出 <search-query>词1 词2 词3</search-query>：
+     基于**希望补充的知识**给出检索请求。（内容必须是单行、由关键词 / 短语以空格分隔，用于下一轮混合检索）
+
+【绝对约束】
+- 禁止类比推理，必须有信息明文给出直接证据。
+- 输出顺序固定：<think>...</think><answer>...</answer>。
+- 当 completion=complete 时，禁止输出 <action> 与 <search-query>。
+- 当 completion=incomplete 且 action=paginate 时，禁止输出 <search-query>。
+- <answer> 内只允许出现上述子标签，不要任何其他标签或解释性前后缀。
+"""
+
+
 # -------------------------------------------------------------- react: 最终轮
 #
 # 最终轮直接复用 knowledge_core 的 CORPUS_SYSTEM_PROMPT / CORPUS_USER_PROMPT，
@@ -548,11 +586,18 @@ def select_react_prompt(
     prev_think: str,
     preview: dict | None,
     skills: list[dict] | None,
+    re_search_enabled: bool = False,
 ) -> tuple[str, str]:
     """按是否为最终轮，返回 ``(system_prompt, user_prompt)``。
 
-    - 中间轮：``REACT_INTERMEDIATE_SYSTEM_PROMPT`` + ``REACT_INTERMEDIATE_USER_PROMPT``。
-    - 最终轮：纯 ``CORPUS_SYSTEM_PROMPT`` + ``CORPUS_USER_PROMPT``（evidence 内塞所有上下文）。
+    - 中间轮：
+      - ``re_search_enabled=False``（默认）：``REACT_INTERMEDIATE_SYSTEM_PROMPT``，
+        <answer> 内只产 ``complete|incomplete``（旧协议，旧翻页逻辑不变）；
+      - ``re_search_enabled=True``：``REACT_INTERMEDIATE_RESEARCH_SYSTEM_PROMPT``，
+        <answer> 内产 ``<completion>/<action>/<search-query>`` 子标签（新协议）。
+      两条路径共用同一份 ``REACT_INTERMEDIATE_USER_PROMPT``，避免上下文漂移。
+    - 最终轮：纯 ``CORPUS_SYSTEM_PROMPT`` + ``CORPUS_USER_PROMPT``（evidence 内塞所有上下文），
+      与 ``re_search_enabled`` 无关。
     """
 
     if is_last_chunk:
@@ -563,7 +608,12 @@ def select_react_prompt(
             preview=preview,
             skills=skills,
         )
-    return REACT_INTERMEDIATE_SYSTEM_PROMPT, format_react_intermediate_user_prompt(
+    system_prompt = (
+        REACT_INTERMEDIATE_RESEARCH_SYSTEM_PROMPT
+        if re_search_enabled
+        else REACT_INTERMEDIATE_SYSTEM_PROMPT
+    )
+    return system_prompt, format_react_intermediate_user_prompt(
         question=question,
         evidence=evidence,
         prev_think=prev_think,

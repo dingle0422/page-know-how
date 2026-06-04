@@ -23,9 +23,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+import re
 import time
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from knowledge_core.chunk_builder import KnowledgeChunk
 from utils.verbose_logger import (
@@ -46,6 +48,118 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------- chunk 打包
 
 _CHUNK_SEPARATOR = "\n\n---\n\n"
+
+
+# ---------------------------------------------------------------- reSearch 协议解析
+#
+# 仅 ``re_search_enabled=True`` 时使用。中间轮 <answer> 内嵌
+# <completion>/<action>/<search-query> 三个子标签，本节负责从模型流式产出的
+# *原始 answer 文本*（含子标签字面量）里把决策结构解析出来。
+# 解析口径与回退策略见 react_research_mode_upgrade 计划：
+#   1. 优先解析新子标签；
+#   2. completion=complete 时直接忽略 action/search-query；
+#   3. 子标签缺失 → 退回旧协议（整段 answer 当 complete|incomplete）；
+#   4. 连 completion 都无法可靠解析 → 强制按 paginate 执行（不中断主流程）。
+
+_COMPLETION_RE = re.compile(r"<completion>(.*?)</completion>", re.IGNORECASE | re.DOTALL)
+_ACTION_RE = re.compile(r"<action>(.*?)</action>", re.IGNORECASE | re.DOTALL)
+_SEARCH_QUERY_RE = re.compile(
+    r"<search-query>(.*?)</search-query>", re.IGNORECASE | re.DOTALL
+)
+
+
+def _normalize_completion(text: str) -> Optional[str]:
+    """把任意文本归一化为 ``complete`` / ``incomplete`` / None（无法判定）。
+
+    宽松匹配，兼容大小写漂移与尾随标点：先判 incomplete（它含 complete 子串，
+    必须优先），再判 complete。
+    """
+
+    t = (text or "").strip().lower().strip(" \t\n。.,;；:!?\"'`")
+    if not t:
+        return None
+    if "incomplete" in t:
+        return "incomplete"
+    if "complete" in t:
+        return "complete"
+    return None
+
+
+def _normalize_action(text: str) -> str:
+    """把 <action> 文本归一化为 ``research`` / ``paginate``（默认 paginate）。"""
+
+    t = (text or "").strip().lower()
+    if "research" in t:
+        return "research"
+    return "paginate"
+
+
+def parse_research_answer(full_answer: str) -> dict:
+    """解析 reSearch 中间轮的原始 answer，返回决策 dict。
+
+    返回结构：``{"completion": "complete"|"incomplete", "action": "paginate"|"research",
+    "search_query": str}``。
+
+    解析规则（与计划一致）：
+
+    - 先尝试 ``<completion>`` 子标签；缺失时退回旧协议——把整段 answer（去掉可能存在的
+      其它子标签）按 ``complete|incomplete`` 解释；
+    - 二者都解析不出可靠 completion 时，强制按 ``incomplete + paginate`` 兜底（不抛错）；
+    - completion=complete 时强制忽略 action/search-query（即便模型违规输出）；
+    - completion=incomplete 时解析 action；action=research 且 search-query 非空白才真正
+      触发 research，否则降级 paginate。
+    """
+
+    raw = full_answer or ""
+
+    completion: Optional[str] = None
+    m = _COMPLETION_RE.search(raw)
+    if m:
+        completion = _normalize_completion(m.group(1))
+    if completion is None:
+        # 退回旧协议：把整段 answer 当 verdict 解释（去掉子标签噪声后再判）。
+        stripped = _ACTION_RE.sub(" ", raw)
+        stripped = _SEARCH_QUERY_RE.sub(" ", stripped)
+        completion = _normalize_completion(stripped)
+
+    if completion is None:
+        # 连最小信号都拿不到：兜底按"还没结束 + 翻页"处理。
+        return {"completion": "incomplete", "action": "paginate", "search_query": ""}
+
+    if completion == "complete":
+        # complete 时忽略 action/search-query。
+        return {"completion": "complete", "action": "paginate", "search_query": ""}
+
+    # incomplete：解析 action / search-query。
+    action = "paginate"
+    am = _ACTION_RE.search(raw)
+    if am:
+        action = _normalize_action(am.group(1))
+
+    search_query = ""
+    if action == "research":
+        sm = _SEARCH_QUERY_RE.search(raw)
+        if sm:
+            # 单行化：折叠所有空白为单个空格。
+            search_query = " ".join((sm.group(1) or "").split())
+        if not search_query:
+            # research 但没给出有效检索串 → 降级 paginate。
+            action = "paginate"
+
+    return {"completion": "incomplete", "action": action, "search_query": search_query}
+
+
+def _chunk_dedup_key(chunk: KnowledgeChunk) -> str:
+    """生成 chunk 的去重键。
+
+    KnowledgeChunk 没有跨多次检索稳定的全局 id（``index`` 仅在单次返回列表内有效），
+    因此用规范化正文（trim + 折叠空白）的 md5 作为稳定标识——同一知识块在不同检索
+    结果里的正文一致，hash 即一致。
+    """
+
+    content = (getattr(chunk, "content", "") or "")
+    norm = " ".join(content.split())
+    return hashlib.md5(norm.encode("utf-8")).hexdigest()
 
 
 class _ReactChannelBuffer:
@@ -203,9 +317,17 @@ async def _stream_react_round(
     enable_thinking: bool,
     store_think_to_chunk: bool,
     answer_as_verdict: bool,
+    research_mode: bool = False,
     flush_tps: int = config.REACT_TPS,
 ) -> tuple[str, str, str]:
     """跑一轮，返回 ``(verdict, full_think, full_answer)``。
+
+    - ``research_mode=True``（仅 reSearch 中间轮）：``<answer>`` 内嵌
+      ``<completion>/<action>/<search-query>`` 子标签。本函数**不**解析这些子标签，
+      只把原始 answer 文本（含子标签字面量）通过 ``full_answer`` 原样返回，交由
+      :func:`parse_research_answer` 在轮末解析；``verdict`` 返回空串（不使用）。
+      与普通中间轮一致：``answer_as_verdict=True`` 时 answer 不写入 chunk，
+      因此子标签不会流式展示给用户。
 
     - ``store_think_to_chunk=False`` 时，本轮模型产出的 think 仅累积在内存中（用于
       下一轮的 ``prev_think``），不写入 ``react.chunks[round_idx].think``，对应默认
@@ -395,7 +517,13 @@ async def _stream_react_round(
 
     full_think = "".join(full_think_parts).strip()
     full_answer = "".join(full_answer_parts).strip()
-    if answer_as_verdict:
+    if research_mode:
+        # reSearch 中间轮：保留原始 answer（含 <completion>/<action>/<search-query>
+        # 子标签字面量），由 react_loop.run 在轮末用 parse_research_answer 解析；
+        # verdict 在此模式下无意义，返回空串占位。answer 不写 chunk 的语义已由
+        # answer_as_verdict 路径保证。
+        verdict = ""
+    elif answer_as_verdict:
         # 中间轮：<answer> 内容就是裁决。先按 lower 归一化，再宽松匹配 complete,
         # 避免模型偶尔输出 "Complete." / "complete." 等带尾标点/大小写漂移的情况。
         candidate = full_answer.strip().lower().strip(" \t\n。.,;；:!?\"'`")
@@ -429,8 +557,26 @@ async def run(
     max_rounds: int = config.REACT_MAX_ROUNDS,
     intermediate_think_enabled: Optional[bool] = None,
     bg_tasks: Optional[list[asyncio.Task]] = None,
+    re_search_enabled: bool = False,
+    policy_id: Optional[str] = None,
+    top_n: int = config.TOP_N,
+    top_m: int = config.TOP_M,
+    search_fn: Optional[Callable[[str], Awaitable[list[KnowledgeChunk]]]] = None,
 ) -> dict:
     """运行 ReAct 主循环。返回 ``{"rounds": int, "verdict": str, "answer": str}``。
+
+    ``re_search_enabled`` 控制两条互不侵入的路径：
+
+    - ``False``（默认）：完全沿用下方的旧主循环（固定遍历 groups + 中间轮只判
+      ``complete|incomplete`` + 翻页 / forced final），旧 prompt 与旧逻辑零改动。
+    - ``True``：走 :func:`_run_research_loop` 的动作驱动状态机——中间轮用新 prompt
+      产 ``<completion>/<action>/<search-query>``，``incomplete`` 时按 ``paginate`` 翻页
+      或 ``research`` 触发一次新的 :func:`hybrid_search` 召回（新证据相对"已进过 ReAct
+      的旧证据"做单向去重后替换证据集）。需要配套传入 ``policy_id``（检索用，通常是
+      带 ``__cs`` 后缀的服务端表名）、``top_n`` / ``top_m``；``search_fn`` 可注入用于
+      单测，缺省时懒加载 :func:`inference.retrieval.hybrid_search`。
+
+    以下 docstring 描述的是 ``re_search_enabled=False`` 的旧主循环行为（保持不变）：
 
     流程：
     - 按 ``groups`` 顺序逐轮跑中间轮（``answer_as_verdict=True``）：
@@ -547,13 +693,16 @@ async def run(
 
     async def _run_one_round(
         *, round_idx: int, group_text: str, is_last_chunk: bool, prev_think_val: str,
-        step_kind: str,
+        step_kind: str, research_mode: bool = False,
     ) -> tuple[str, str, str]:
         """跑单轮：占位 chunk、读快照、组装 prompt、流式调模型、收尾标记。
 
         ``step_kind`` 用于 verbose 日志的 step label 后缀（``intermediate`` / ``final`` /
-        ``final_forced``），便于在 jsonl 中区分"模型自己跑到最后一组" 与"中间判 complete
-        后强制追加 final" 两类最终轮。
+        ``final_forced`` / ``research``），便于在 jsonl 中区分各类轮次。
+
+        ``research_mode=True``（仅 reSearch 中间轮）：选 research 版中间轮 prompt，
+        并让 ``_stream_react_round`` 原样返回 answer（含 <completion>/<action>/
+        <search-query> 子标签），由调用方用 :func:`parse_research_answer` 解析。
         """
 
         await redis_stream.ensure_react_chunk(task_id, round_idx)
@@ -569,6 +718,7 @@ async def run(
             prev_think=prev_think_val,
             preview=preview_snapshot,
             skills=skills_snapshot,
+            re_search_enabled=research_mode,
         )
 
         enable_thinking_local = is_last_chunk or flag
@@ -581,6 +731,7 @@ async def run(
                 "is_last_chunk": is_last_chunk,
                 "total_groups": total_groups,
                 "step_kind": step_kind,
+                "research_mode": research_mode,
             }):
                 local_verdict, local_think, local_answer = await _stream_react_round(
                     task_id,
@@ -593,8 +744,9 @@ async def run(
                     is_last_chunk=is_last_chunk,
                     enable_thinking=enable_thinking_local,
                     store_think_to_chunk=store_think_local,
-                    # 中间轮的 <answer> 是 verdict 字符串；最终轮的 <answer> 才是用户答案。
+                    # 中间轮的 <answer> 是 verdict / 决策字符串；最终轮的 <answer> 才是用户答案。
                     answer_as_verdict=not is_last_chunk,
+                    research_mode=research_mode,
                 )
         except Exception as exc:
             logger.exception(
@@ -611,6 +763,26 @@ async def run(
             verdict=local_verdict or ("complete" if is_last_chunk else "incomplete"),
         )
         return local_verdict, local_think, local_answer
+
+    # ============================================================
+    # reSearch=true：动作驱动状态机（paginate / research）
+    # ============================================================
+    if re_search_enabled:
+        return await _run_research_loop(
+            task_id=task_id,
+            question=question,
+            chunks=chunks,
+            redis_stream=redis_stream,
+            chunk_size=chunk_size,
+            max_rounds=max_rounds,
+            policy_id=policy_id,
+            top_n=top_n,
+            top_m=top_m,
+            search_fn=search_fn,
+            prepare_final=_prepare_final,
+            lock_final=_lock_final,
+            run_one_round=_run_one_round,
+        )
 
     # ---- 主循环：依次跑各组证据 -----------------------------------
     forced_final_after_idx: int | None = None
@@ -705,6 +877,221 @@ async def run(
             prev_think = full_think.strip()
         # forced final 收尾，翻 finalLocked 解锁【引用知识章节】段。
         await _lock_final()
+
+    return {
+        "rounds": rounds_done,
+        "verdict": last_verdict,
+        "answer": last_answer,
+    }
+
+
+# ---------------------------------------------------------------- reSearch 状态机
+
+
+async def _run_research_loop(
+    *,
+    task_id: str,
+    question: str,
+    chunks: list[KnowledgeChunk],
+    redis_stream: RedisStream,
+    chunk_size: int,
+    max_rounds: int,
+    policy_id: Optional[str],
+    top_n: int,
+    top_m: int,
+    search_fn: Optional[Callable[[str], Awaitable[list[KnowledgeChunk]]]],
+    prepare_final: Callable[[int], Awaitable[None]],
+    lock_final: Callable[[], Awaitable[None]],
+    run_one_round: Callable[..., Awaitable[tuple[str, str, str]]],
+) -> dict:
+    """reSearch=true 的动作驱动状态机（与旧主循环互斥，仅在 ``run()`` 内被调用）。
+
+    每一中间轮用 research 版 prompt 让模型产出 ``<completion>/<action>/<search-query>``：
+
+    - ``complete``：追加一轮强制 final 写出用户答案后结束；
+    - ``incomplete + paginate``：消费当前证据集的下一组（5000 字组包）；
+    - ``incomplete + research``：以 ``<search-query>`` 调 :func:`hybrid_search` 召回，
+      对新证据集做"单向去重"（删去已进过 ReAct 的旧块）后替换当前证据集并重置 group_idx；
+      去重后为空则降级 paginate。
+
+    所有路径共享同一 ``max_rounds`` 计数：到达预算上限时本轮强制 final 收尾；翻页耗尽
+    当前证据集且仍未 complete 时也追加一轮 final 收尾。解析不可用时由
+    :func:`parse_research_answer` 兜底为 ``incomplete + paginate``，不中断主流程。
+
+    usedHeadings：累计所有"已进入 prompt"的 chunk（跨多次 research）的 heading 叶子，
+    在 final 前写入快照，供 SSE 渲染【引用知识章节】段。
+    """
+
+    async def _do_search(query: str) -> list[KnowledgeChunk]:
+        if search_fn is not None:
+            return await search_fn(query)
+        if not policy_id:
+            logger.warning(
+                "[InferenceReact] task=%s research 需要 policy_id 但未提供，返回空召回",
+                task_id,
+            )
+            return []
+        from .retrieval import hybrid_search
+
+        return await hybrid_search(query, policy_id, top_n=top_n, top_m=top_m)
+
+    current_chunks: list[KnowledgeChunk] = list(chunks or [])
+    groups = pack_chunks_by_size(current_chunks, chunk_size=chunk_size)
+    groups_indices = _pack_chunks_with_indices(current_chunks, chunk_size=chunk_size)
+    if not groups:
+        groups = ["（本次未检索到任何证据，请基于通识做最终回答。）"]
+        groups_indices = []
+
+    group_idx = 0
+    round_idx = 0
+    prev_think = ""
+    last_answer = ""
+    last_verdict = ""
+    rounds_done = 0
+
+    # 已进入过 ReAct prompt 的 chunk 去重键集合（research 单向去重的参照集）。
+    seen_keys: set[str] = set()
+    # 已展示 chunk 的有序集合（跨多次 research），用于 final 时聚合 usedHeadings。
+    used_chunks_in_order: list[KnowledgeChunk] = []
+    used_keys_for_headings: set[str] = set()
+
+    def _mark_group_seen(gidx: int) -> None:
+        if not groups_indices or gidx < 0 or gidx >= len(groups_indices):
+            return
+        for ci in groups_indices[gidx]:
+            if 0 <= ci < len(current_chunks):
+                c = current_chunks[ci]
+                key = _chunk_dedup_key(c)
+                seen_keys.add(key)
+                if key not in used_keys_for_headings:
+                    used_keys_for_headings.add(key)
+                    used_chunks_in_order.append(c)
+
+    async def _write_used_headings() -> None:
+        try:
+            headings: list[str] = []
+            seen_h: set[str] = set()
+            for c in used_chunks_in_order:
+                for path in (getattr(c, "heading_paths", None) or []):
+                    if not path:
+                        continue
+                    leaf = path[-1]
+                    if isinstance(leaf, str) and leaf and leaf not in seen_h:
+                        seen_h.add(leaf)
+                        headings.append(leaf)
+            await redis_stream.set_used_headings(task_id, headings)
+        except Exception as e:
+            logger.warning(
+                "[InferenceReact] task=%s 写 used_headings(research) 失败（忽略）: %s",
+                task_id, e,
+            )
+
+    async def _finalize(
+        final_round_idx: int, group_text: str, prev_think_val: str
+    ) -> tuple[str, str, str]:
+        await prepare_final(final_round_idx)
+        await _write_used_headings()
+        verdict, _think, answer = await run_one_round(
+            round_idx=final_round_idx,
+            group_text=group_text,
+            is_last_chunk=True,
+            prev_think_val=prev_think_val,
+            step_kind="final",
+        )
+        await lock_final()
+        return verdict, _think, answer
+
+    _placeholder = "（本次未检索到任何证据，请基于通识做最终回答。）"
+
+    while True:
+        rounds_done = round_idx + 1
+        budget_last = max_rounds > 0 and round_idx >= max_rounds - 1
+        group_text = groups[group_idx] if group_idx < len(groups) else _placeholder
+        if group_idx < len(groups):
+            _mark_group_seen(group_idx)
+
+        # 预算用尽：本轮强制 final 收尾。
+        if budget_last:
+            verdict, _think, answer = await _finalize(round_idx, group_text, prev_think)
+            last_verdict = verdict or "complete"
+            last_answer = answer
+            break
+
+        # 中间轮（research 协议）。
+        verdict, full_think, full_answer = await run_one_round(
+            round_idx=round_idx,
+            group_text=group_text,
+            is_last_chunk=False,
+            prev_think_val=prev_think,
+            step_kind="intermediate",
+            research_mode=True,
+        )
+        if full_think:
+            prev_think = full_think.strip()
+
+        decision = parse_research_answer(full_answer)
+        completion = decision["completion"]
+        action = decision["action"]
+        search_query = decision["search_query"]
+        logger.info(
+            "[InferenceReact] task=%s round=%d research 决策 completion=%s action=%s query=%r",
+            task_id, round_idx, completion, action, search_query,
+        )
+
+        # complete：追加一轮强制 final 写答案。
+        if completion == "complete":
+            forced_round_idx = round_idx + 1
+            rounds_done = forced_round_idx + 1
+            verdict, _think, answer = await _finalize(
+                forced_round_idx, group_text, prev_think
+            )
+            last_verdict = verdict or "complete"
+            last_answer = answer
+            break
+
+        # incomplete：先尝试 research，失败/为空则降级 paginate。
+        advanced = False
+        if action == "research" and search_query:
+            try:
+                new_chunks = await _do_search(search_query)
+            except Exception as e:
+                logger.warning(
+                    "[InferenceReact] task=%s research 检索异常，降级 paginate: %s",
+                    task_id, e,
+                )
+                new_chunks = []
+            # 单向删减：从新证据集中删去"已进过 ReAct 的旧块"，老证据集不改。
+            filtered = [
+                c for c in (new_chunks or [])
+                if _chunk_dedup_key(c) not in seen_keys
+            ]
+            logger.info(
+                "[InferenceReact] task=%s round=%d research 召回 %d，单向去重后 %d",
+                task_id, round_idx, len(new_chunks or []), len(filtered),
+            )
+            if filtered:
+                current_chunks = filtered
+                groups = pack_chunks_by_size(current_chunks, chunk_size=chunk_size)
+                groups_indices = _pack_chunks_with_indices(
+                    current_chunks, chunk_size=chunk_size
+                )
+                group_idx = 0
+                advanced = True
+
+        if not advanced:
+            # paginate：消费下一组；若已无后续证据组，则追加一轮 final 收尾。
+            group_idx += 1
+            if group_idx >= len(groups):
+                forced_round_idx = round_idx + 1
+                rounds_done = forced_round_idx + 1
+                verdict, _think, answer = await _finalize(
+                    forced_round_idx, group_text, prev_think
+                )
+                last_verdict = verdict or "complete"
+                last_answer = answer
+                break
+
+        round_idx += 1
 
     return {
         "rounds": rounds_done,

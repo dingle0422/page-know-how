@@ -132,6 +132,10 @@ def main() -> int:
         "--intermediate-think", choices=["on", "off"], default=None,
         help="覆盖 INFERENCE_REACT_INTERMEDIATE_THINK；不传则跟随服务端默认",
     )
+    parser.add_argument(
+        "--re-search", choices=["on", "off"], default="on",
+        help="是否启用 ReAct 重检索模式 reSearch（默认 on）；off 时仅翻页不走 research 分支",
+    )
     parser.add_argument("--top-n", type=int, default=20)
     parser.add_argument("--top-m", type=int, default=20)
     parser.add_argument("--timeout", type=float, default=600.0)
@@ -150,6 +154,7 @@ def main() -> int:
     }
     if args.intermediate_think is not None:
         body["intermediateThinkEnabled"] = args.intermediate_think == "on"
+    body["reSearch"] = args.re_search == "on"
 
     tid, ok = _stream_once(
         args.url, body,
