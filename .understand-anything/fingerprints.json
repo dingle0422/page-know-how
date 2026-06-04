@@ -1,11 +1,11 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "c38f125976795156c4373ba1050461c8bf8d3d40",
-  "generatedAt": "2026-06-04T02:09:01.032Z",
+  "gitCommitHash": "eb2142ea9d34d4ed835222bb060c315ede500582",
+  "generatedAt": "2026-06-04T09:09:56.369Z",
   "files": {
     "app.py": {
       "filePath": "app.py",
-      "contentHash": "4c0dd8962d07677b250b395485895dd621ba484985e531b5c4b9044500fce04e",
+      "contentHash": "5b191a846082a4e7ad78372efaab9ca98bb4547590a73442f2f7a4fa35113695",
       "functions": [
         {
           "name": "_require_redis",
@@ -196,7 +196,7 @@
           ],
           "returnType": "dict",
           "exported": true,
-          "lineCount": 69
+          "lineCount": 70
         },
         {
           "name": "_task_to_result_data",
@@ -329,7 +329,7 @@
           ],
           "returnType": "_InferenceOptions",
           "exported": true,
-          "lineCount": 19
+          "lineCount": 21
         },
         {
           "name": "_build_inference_session_meta",
@@ -343,7 +343,7 @@
           ],
           "returnType": "dict",
           "exported": true,
-          "lineCount": 30
+          "lineCount": 31
         },
         {
           "name": "_run_inference_with_topic_locator",
@@ -423,7 +423,7 @@
           ],
           "returnType": "dict",
           "exported": true,
-          "lineCount": 271
+          "lineCount": 279
         }
       ],
       "classes": [
@@ -444,11 +444,12 @@
             "topN",
             "topM",
             "intermediateThinkEnabled",
+            "reSearch",
             "verbose",
             "sessionId"
           ],
           "exported": true,
-          "lineCount": 76
+          "lineCount": 85
         },
         {
           "name": "ReasonData",
@@ -736,13 +737,14 @@
             "topM",
             "chunkSize",
             "intermediateThinkEnabled",
+            "reSearch",
             "answerSystemPrompt",
             "topC",
             "caseSimThreshold",
             "verbose"
           ],
           "exported": true,
-          "lineCount": 87
+          "lineCount": 95
         }
       ],
       "imports": [
@@ -967,7 +969,7 @@
         "_v4_await_or_log",
         "_run_inference_v4_executor"
       ],
-      "totalLines": 2741,
+      "totalLines": 2770,
       "hasStructuralAnalysis": true
     },
     "docs/lancedb_v2_api.md": {
@@ -2006,7 +2008,7 @@
     },
     "inference/pipeline.py": {
       "filePath": "inference/pipeline.py",
-      "contentHash": "81e9556c5f1e417f261e3ab1a1ae224cf18199296a18bb3e3b4550f49ab9b2bf",
+      "contentHash": "979ffb09c57d37af7fb5b8c85cefb4a9e452f6d51dd28a7b83e2ab696ed4572d",
       "functions": [
         {
           "name": "_await_or_log",
@@ -2029,7 +2031,7 @@
           ],
           "returnType": "None",
           "exported": true,
-          "lineCount": 107
+          "lineCount": 113
         }
       ],
       "classes": [
@@ -2047,10 +2049,11 @@
             "topic_general_knowledge",
             "case_top_k",
             "case_sim_threshold",
+            "re_search_enabled",
             "case_policy_ids"
           ],
           "exported": true,
-          "lineCount": 22
+          "lineCount": 26
         }
       ],
       "imports": [
@@ -2102,7 +2105,7 @@
         "_await_or_log",
         "run"
       ],
-      "totalLines": 173,
+      "totalLines": 183,
       "hasStructuralAnalysis": true
     },
     "inference/preview.py": {
@@ -2222,7 +2225,7 @@
     },
     "inference/prompts.py": {
       "filePath": "inference/prompts.py",
-      "contentHash": "1388749ff1402380267d4e7768fb9fd95fab3912f959d922ed4df4b2c7e721e8",
+      "contentHash": "9e6960478a45e6c8a70258a2fc554f7a75fa5e05bfc253f9dea18f185744dc7f",
       "functions": [
         {
           "name": "format_related_cases_block",
@@ -2334,11 +2337,12 @@
             "evidence",
             "prev_think",
             "preview",
-            "skills"
+            "skills",
+            "re_search_enabled"
           ],
           "returnType": "tuple[str, str]",
           "exported": true,
-          "lineCount": 30
+          "lineCount": 42
         }
       ],
       "classes": [],
@@ -2370,13 +2374,49 @@
         "format_react_final_user_prompt",
         "select_react_prompt"
       ],
-      "totalLines": 573,
+      "totalLines": 623,
       "hasStructuralAnalysis": true
     },
     "inference/react_loop.py": {
       "filePath": "inference/react_loop.py",
-      "contentHash": "a59a6783179052261849c895260de16e6236fb54f3268b701f13151ea30e0d5e",
+      "contentHash": "5e3ad1cedb8de3534ba12cb693851aa9a3ab1e6fa254713042c55e0cda8a6485",
       "functions": [
+        {
+          "name": "_normalize_completion",
+          "params": [
+            "text"
+          ],
+          "returnType": "Optional[str]",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "_normalize_action",
+          "params": [
+            "text"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "parse_research_answer",
+          "params": [
+            "full_answer"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 53
+        },
+        {
+          "name": "_chunk_dedup_key",
+          "params": [
+            "chunk"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 11
+        },
         {
           "name": "pack_chunks_by_size",
           "params": [
@@ -2421,11 +2461,12 @@
             "enable_thinking",
             "store_think_to_chunk",
             "answer_as_verdict",
+            "research_mode",
             "flush_tps"
           ],
           "returnType": "tuple[str, str, str]",
           "exported": true,
-          "lineCount": 222
+          "lineCount": 236
         },
         {
           "name": "run",
@@ -2439,11 +2480,37 @@
             "chunk_size",
             "max_rounds",
             "intermediate_think_enabled",
-            "bg_tasks"
+            "bg_tasks",
+            "re_search_enabled",
+            "policy_id",
+            "top_n",
+            "top_m",
+            "search_fn"
           ],
           "returnType": "dict",
           "exported": true,
-          "lineCount": 294
+          "lineCount": 338
+        },
+        {
+          "name": "_run_research_loop",
+          "params": [
+            "task_id",
+            "question",
+            "chunks",
+            "redis_stream",
+            "chunk_size",
+            "max_rounds",
+            "policy_id",
+            "top_n",
+            "top_m",
+            "search_fn",
+            "prepare_final",
+            "lock_final",
+            "run_one_round"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 210
         }
       ],
       "classes": [
@@ -2469,9 +2536,21 @@
           ]
         },
         {
+          "source": "hashlib",
+          "specifiers": [
+            "hashlib"
+          ]
+        },
+        {
           "source": "logging",
           "specifiers": [
             "logging"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
           ]
         },
         {
@@ -2483,6 +2562,8 @@
         {
           "source": "typing",
           "specifiers": [
+            "Awaitable",
+            "Callable",
             "Optional"
           ]
         },
@@ -2528,14 +2609,19 @@
         }
       ],
       "exports": [
+        "_normalize_completion",
+        "_normalize_action",
+        "parse_research_answer",
+        "_chunk_dedup_key",
         "_ReactChannelBuffer",
         "pack_chunks_by_size",
         "_pack_chunks_with_indices",
         "_collect_used_headings",
         "_stream_react_round",
-        "run"
+        "run",
+        "_run_research_loop"
       ],
-      "totalLines": 714,
+      "totalLines": 1101,
       "hasStructuralAnalysis": true
     },
     "inference/redis_stream.py": {
