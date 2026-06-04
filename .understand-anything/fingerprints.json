@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "c44459571c28d75f864749ad6eb2c0b818552337",
-  "generatedAt": "2026-06-03T11:56:46.102Z",
+  "gitCommitHash": "c38f125976795156c4373ba1050461c8bf8d3d40",
+  "generatedAt": "2026-06-04T02:09:01.032Z",
   "files": {
     "app.py": {
       "filePath": "app.py",
@@ -3698,7 +3698,7 @@
     },
     "knowledge_core/chunk_builder.py": {
       "filePath": "knowledge_core/chunk_builder.py",
-      "contentHash": "718871bf9806b58ed2eccb82b2577f5d0b243e0c6fc19d89a30ea0a22c289a5f",
+      "contentHash": "ecca2b87b140d428a2f7cf68c3fbb6e135590d15f75e1516df0f348e180ca07d",
       "functions": [
         {
           "name": "build_target_location_label",
@@ -3821,7 +3821,7 @@
           ],
           "returnType": "str",
           "exported": true,
-          "lineCount": 38
+          "lineCount": 35
         },
         {
           "name": "_build_target_location_label",
@@ -3833,14 +3833,13 @@
           "lineCount": 21
         },
         {
-          "name": "_one_line",
+          "name": "_is_valid_relation_target_label",
           "params": [
-            "text",
-            "limit"
+            "label"
           ],
-          "returnType": "str",
+          "returnType": "bool",
           "exported": true,
-          "lineCount": 3
+          "lineCount": 8
         },
         {
           "name": "split_relations_into_chunks",
@@ -3948,10 +3947,10 @@
         "build_knowledge_chunks",
         "_format_relation_fragment_text",
         "_build_target_location_label",
-        "_one_line",
+        "_is_valid_relation_target_label",
         "split_relations_into_chunks"
       ],
-      "totalLines": 501,
+      "totalLines": 503,
       "hasStructuralAnalysis": true
     },
     "knowledge_core/clause_locator.py": {
