@@ -363,12 +363,12 @@ def _format_relation_fragment_text(
 ) -> str:
     """把单个 RelationFragment 渲染为用于派生 chunk 的字符串块。
 
-    头部三行是同构的三条业务坐标，**格式完全一致**（都是"【标签 · 内容】"）：
+    头部两行是同构的业务坐标（都是"【标签 · 内容】"）：
       - 【来自父章节 · ...】触发本次关联展开的上游章节路径；
       - 【命中关键词 · ...】父章节里那段被高亮、并把本条款牵出来的 highlightedContent；
-      - 【关联条款位置 · ...】本条款自身在知识库里的章节路径；
-    三者同构是刻意设计——LLM 能一眼看出"父章节 → 关键词 → 本条款"这条溯源链条上的三个坐标点，
-    从而明确"这块关联知识属于 A 章节、但它是因为 B 章节正文里高亮的某词才被拉进来的"。
+      - 【关联条款位置 · ...】本条款自身在知识库里的章节路径（可用时才展示）；
+    三者中的前两者用于说明"父章节 → 关键词"触发关系；条款位置用于补充目标条款坐标，
+    但当其内容明显无效时会省略，避免污染 prompt。
 
     故意**不把** hop_depth / source / policyId / clauseId 放进 prompt：这些是内部去重与 trace 用的
     技术标识（UUID、数字跳深），对 LLM 的业务推理没有任何帮助，反而挤占 token 与干扰注意力。
@@ -382,11 +382,8 @@ def _format_relation_fragment_text(
         heading_lines.append(f"【来自父章节 · {parent_label}】")
     if highlighted_label:
         heading_lines.append(f"【命中关键词 · {highlighted_label}】")
-    heading_lines.append(f"【关联条款位置 · {target_label}】")
-
-    meta_lines: list[str] = []
-    if fragment.parent_assessment:
-        meta_lines.append(f"> 上层关联性判定: {_one_line(fragment.parent_assessment, 200)}")
+    if _is_valid_relation_target_label(target_label):
+        heading_lines.append(f"【关联条款位置 · {target_label}】")
 
     if highlighted_label:
         intro = f"**{highlighted_label} 的关联知识细节如下：**"
@@ -394,7 +391,7 @@ def _format_relation_fragment_text(
         intro = "**关联知识细节如下：**"
 
     body = (fragment.content or "").strip() or "（条款内容为空）"
-    return "\n".join([*heading_lines, *meta_lines, "", intro, body])
+    return "\n".join([*heading_lines, "", intro, body])
 
 
 def _build_target_location_label(fragment: "RelationFragment") -> str:
@@ -420,9 +417,14 @@ def _build_target_location_label(fragment: "RelationFragment") -> str:
     return fragment.clause_full_name or fragment.clause_id
 
 
-def _one_line(text: str, limit: int) -> str:
-    text = re.sub(r"\s+", " ", text or "").strip()
-    return text if len(text) <= limit else text[:limit] + "…"
+def _is_valid_relation_target_label(label: str) -> bool:
+    """过滤明显无效的关联条款位置文本，避免噪声进入 prompt。"""
+    cleaned = (label or "").strip()
+    if not cleaned:
+        return False
+    if re.fullmatch(r"[\[\]【】\(\)（）<>《》\s\-—_=:;|·.,，。!?！？/\\]+", cleaned):
+        return False
+    return True
 
 
 def split_relations_into_chunks(
