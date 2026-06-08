@@ -41,7 +41,7 @@ _DEFAULT_BASE_URL = os.getenv(
     "RETRIEVAL_SERVICE_URL", "http://mlp.paas.dc.servyou-it.com/kh-lancedb"
 ).strip().rstrip("/")
 _DEFAULT_API_KEY = os.getenv("RETRIEVAL_SERVICE_API_KEY", "")
-_DEFAULT_TIMEOUT = float(os.getenv("RETRIEVAL_SERVICE_TIMEOUT", "30.0"))
+_DEFAULT_TIMEOUT = float(os.getenv("RETRIEVAL_SERVICE_TIMEOUT", "300.0"))
 _RETRY_ATTEMPTS = max(1, int(os.getenv("RETRIEVAL_SERVICE_RETRY_ATTEMPTS", "3")))
 _RETRY_BASE_DELAY = max(0.0, float(os.getenv("RETRIEVAL_SERVICE_RETRY_BASE_DELAY", "0.3")))
 _RETRY_MAX_DELAY = max(_RETRY_BASE_DELAY, float(os.getenv("RETRIEVAL_SERVICE_RETRY_MAX_DELAY", "4.0")))

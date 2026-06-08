@@ -181,6 +181,6 @@ RETRIEVAL_SERVICE_API_KEY: str = os.getenv("RETRIEVAL_SERVICE_API_KEY", "")
 """retrieval_service 鉴权 key（X-API-Key 或 Authorization: Bearer）。空表示关闭鉴权。"""
 
 RETRIEVAL_SERVICE_TIMEOUT: float = float(
-    os.getenv("RETRIEVAL_SERVICE_TIMEOUT", "30.0")
+    os.getenv("RETRIEVAL_SERVICE_TIMEOUT", "300.0")
 )
 """单次请求超时（秒）。upsert 大批量时可适当调大。"""
