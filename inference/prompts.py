@@ -97,7 +97,7 @@ PREVIEW_SYSTEM_PROMPT = """\
 - 不用考虑可能的风险点
 - 严禁输出具体政策名称、内容及其相关要求（你的信息是过时的）
 - 严禁给出问题的答案，只要输出解答思路
-- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他标签内容。
+- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>
 """
 
 PREVIEW_USER_PROMPT = """## 【用户问题】
@@ -118,7 +118,7 @@ PREVIEW_SYSTEM_PROMPT_WITH_TGK = """\
 - 严禁输出具体政策名称、内容及其相关要求（你的自身常识是过时的）
 - 严禁给出问题的答案，只要输出解答思路
 - 专题通用知识是绝对真理，可以放心输出
-- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他标签内容。
+- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>
 """
 
 PREVIEW_USER_PROMPT_WITH_TGK = """## 【专题通用知识】
@@ -142,9 +142,9 @@ PREVIEW_SYSTEM_PROMPT_WITH_CASES = """\
 - 严禁输出具体政策名称、内容及其相关要求（你的信息是过时的）
 - 严禁给出问题的答案，只要输出解答思路
 - 如何使用历史经验：
-    - 先严谨对比用户问题和案例问题的业务实质差异，若不相关则直接忽略；
-    - 若相关，则识别出与**用户问题密切相关**的'关键判定逻辑'或'易错点'。
-- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他标签内容。
+    - 先严谨对比用户问题和案例问题的业务实质差异，若不相关则直接忽略
+    - 若相关，则识别出与**用户问题密切相关**的'关键判定逻辑'或'易错点'
+- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>
 """
 
 PREVIEW_USER_PROMPT_WITH_CASES = """## 【用户问题】
@@ -169,9 +169,9 @@ PREVIEW_SYSTEM_PROMPT_WITH_TGK_AND_CASES = """\
 - 严禁给出问题的答案，只要输出解答思路
 - 专题通用知识是绝对真理，可以放心输出
 - 如何使用历史经验：
-    - 先严谨对比用户问题和案例问题的业务实质差异，若不相关则直接忽略；
-    - 若相关，则识别出与**用户问题密切相关**的'关键判定逻辑'或'易错点'。
-- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>，不要任何其他标签内容。
+    - 先严谨对比用户问题和案例问题的业务实质差异，若不相关则直接忽略
+    - 若相关，则识别出与**用户问题密切相关**的'关键判定逻辑'或'易错点'
+- 必须输出一段 <think>...</think> 和一段 <answer>...</answer>
 """
 
 PREVIEW_USER_PROMPT_WITH_TGK_AND_CASES = """## 【专题通用知识】
@@ -311,12 +311,13 @@ REACT_INTERMEDIATE_SYSTEM_PROMPT = """\
    核心结论 / 关键依据 / 必要的操作或风险提示；若仍不充分，明确说明
    "还缺什么、希望下一轮看到什么类型的知识"。
 2. <answer>...</answer>：仅允许 ``complete`` 或 ``incomplete``：
-   - ``complete``：已经能完美回答用户问题（覆盖核心结论、直接证据、依据、必要的操作或风险提示等）。
+   - ``complete``：信息充分，足以直接、全面地用户问题（覆盖核心结论、直接证据、依据、必要的操作或风险提示等）。
    - ``incomplete``：仍需更多检索证据，请继续。
 
 【绝对约束】
 - 禁止类比推理，必须有信息明文给出直接证据
 - 输出顺序固定：<think>...</think><answer>...</answer>。
+- <think> 标签内不允许直接出现``完美回答``等字眼。
 - <answer> 标签内只能是 ``complete`` 或 ``incomplete``，不得有空白或其他字符。
 """
 
@@ -358,7 +359,7 @@ REACT_INTERMEDIATE_RESEARCH_SYSTEM_PROMPT = """\
 
 2. <answer>...</answer>：在 answer 内按以下子标签输出（标签顺序固定）：
    - 必须先输出 <completion>complete|incomplete</completion>：
-     - ``complete``：已经能完美回答用户问题（覆盖核心结论、直接证据、依据、必要操作或风险提示等）；
+     - ``complete``：信息充分，足以直接、全面地用户问题（覆盖核心结论、直接证据、依据、必要操作或风险提示等）；
      - ``incomplete``：仍需更多检索证据。
    - 当 completion=incomplete 时，必须输出 <action>paginate|research</action>：
      - ``paginate``：继续翻看当前检索结果的后续内容；
@@ -369,6 +370,7 @@ REACT_INTERMEDIATE_RESEARCH_SYSTEM_PROMPT = """\
 【绝对约束】
 - 禁止类比推理，必须有信息明文给出直接证据。
 - 输出顺序固定：<think>...</think><answer>...</answer>。
+- <think> 标签内不允许直接出现``完美回答``等字眼。
 - 当 completion=complete 时，禁止输出 <action> 与 <search-query>。
 - 当 completion=incomplete 且 action=paginate 时，禁止输出 <search-query>。
 - <answer> 内只允许出现上述子标签，不要任何其他标签或解释性前后缀。
