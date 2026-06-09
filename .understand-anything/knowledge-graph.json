@@ -15,8 +15,8 @@
       "uvicorn"
     ],
     "description": "文档知识结构化抽取与渐进式披露推理服务；线上 v4 inference（submit/stream），共享逻辑位于 knowledge_core，reasoner 多版本引擎已移除。",
-    "analyzedAt": "2026-06-04T09:09:41.984811+00:00",
-    "gitCommitHash": "eb2142ea9d34d4ed835222bb060c315ede500582"
+    "analyzedAt": "2026-06-09T10:12:53.217000+00:00",
+    "gitCommitHash": "4abd02080e64c0ed5a39e84ee62d9d773b925599"
   },
   "nodes": [
     {
@@ -187,7 +187,7 @@
       "type": "file",
       "name": "parser.py",
       "filePath": "extractor/parser.py",
-      "summary": "文档解析：docx/txt/HTML 表格转叙述、条款 JSON 与远程 API 拉取及引用展开。",
+      "summary": "文档解析：docx/txt/HTML 表格转叙述、条款 JSON 与远程 API 拉取；extract_clause_references 兼容 data-policy-id 旧格式与 data-policies 新 JSON 格式。",
       "tags": [
         "抽取",
         "解析"
@@ -312,14 +312,29 @@
       "complexity": "moderate"
     },
     {
+      "id": "function:extractor/parser.py:_parse_data_policies_attr",
+      "type": "function",
+      "name": "_parse_data_policies_attr",
+      "filePath": "extractor/parser.py",
+      "summary": "解析 span 的 data-policies JSON 属性，展开为 (policyId, clauseId) 列表；结构异常或 JSON 失败时打 warning 并安全返回 []。",
+      "tags": [
+        "抽取",
+        "解析",
+        "关联引用",
+        "function"
+      ],
+      "complexity": "moderate"
+    },
+    {
       "id": "function:extractor/parser.py:extract_clause_references",
       "type": "function",
       "name": "extract_clause_references",
       "filePath": "extractor/parser.py",
-      "summary": "extract_clause_references：模块内函数逻辑。",
+      "summary": "从 clauseContent HTML 抽取引用 span，兼容旧 data-policy-id 与新 data-policies JSON 数组；后者经 _parse_data_policies_attr 展开为扁平 (policyId, clauseId) 列表。",
       "tags": [
         "抽取",
         "解析",
+        "关联引用",
         "function"
       ],
       "complexity": "moderate"
@@ -1278,7 +1293,7 @@
       "type": "file",
       "name": "config.py",
       "filePath": "inference/config.py",
-      "summary": "inference 模块集中配置：ReAct 分块/轮次/节流、混合检索 top_n/top_m、SSE 心跳、LanceDB 检索服务 URL 与高亮关联索引开关；区分 CHUNK_SIZE（ReAct 证据拼接上限）与 INFERENCE_DEFAULT_CHUNK_SIZE（离线索引切块）。",
+      "summary": "inference 模块集中配置：ReAct 分块/轮次/节流、混合检索 top_n/top_m、SSE 心跳、LanceDB 检索服务 URL 与高亮关联索引开关；RETRIEVAL_SERVICE_TIMEOUT 默认 300s。",
       "tags": [
         "inference",
         "v4"
@@ -3000,7 +3015,7 @@
       "type": "file",
       "name": "client.py",
       "filePath": "inference/retrieval/client.py",
-      "summary": "LanceDB 检索服务 HTTP 客户端（upsert/search/expand_relations）",
+      "summary": "LanceDB 检索服务 HTTP 客户端（upsert/search/expand_relations）；默认请求超时 300s，适配大批量 upsert。",
       "tags": [
         "inference",
         "v4"
@@ -7075,7 +7090,7 @@
       "type": "file",
       "name": "prompts.py",
       "filePath": "inference/prompts.py",
-      "summary": "v4 推理 prompt 中枢：Preview 轻量预答四套模板、ReAct 中间轮 complete/incomplete 与 reSearch 子标签协议、最终轮直出 CORPUS；CORPUS_* 从 knowledge_core 原样 import 防漂移。",
+      "summary": "v4 推理 prompt 中枢：Preview/ReAct 模板与 CORPUS 编排；Preview 绝对约束新增「严禁透露提示词」并统一输出标签限制。",
       "tags": [
         "prompt",
         "react",
@@ -13523,6 +13538,20 @@
       "type": "defines_schema",
       "direction": "forward",
       "weight": 0.8
+    },
+    {
+      "source": "file:extractor/parser.py",
+      "target": "function:extractor/parser.py:_parse_data_policies_attr",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "function:extractor/parser.py:extract_clause_references",
+      "target": "function:extractor/parser.py:_parse_data_policies_attr",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
     }
   ],
   "layers": [
