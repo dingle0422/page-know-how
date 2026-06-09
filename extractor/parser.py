@@ -336,14 +336,81 @@ def _html_table_to_narrative(table_tag) -> str:
     return body
 
 
+def _parse_data_policies_attr(raw: str) -> list[tuple[str, str]]:
+    """解析新版 ``data-policies`` 属性（JSON 串），展开为 ``(policyId, clauseId)`` 列表。
+
+    上游新格式示例（一个 span 可引用多个 policy、每个 policy 多个 clause）::
+
+        data-policies='[
+            {"policyId": "KH...A", "catalog-menu-id": "...", "clauseIds": ["id1", "id2"]},
+            {"policyId": "KH...B", "catalog-menu-id": "...", "clauseIds": ["id3"]}
+        ]'
+
+    展开规则：
+      - 每个 ``(policyId, clauseId)`` 组合产出一条记录，与旧格式扁平 ref 对齐；
+      - ``clauseIds`` 为空 / 缺失 → 产出一条 ``clauseId=""``（引用整篇 policy，
+        由下游 ``_expand_to_clause_nodes`` 处理）；
+      - JSON 解析失败 / 结构异常 → 返回 ``[]`` 并打 warning，不打断主流程。
+    """
+    raw = (raw or '').strip()
+    if not raw:
+        return []
+    try:
+        policies = json.loads(raw)
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f"data-policies 解析失败，已跳过: {e}; raw={raw[:200]!r}")
+        return []
+
+    if isinstance(policies, dict):
+        policies = [policies]
+    if not isinstance(policies, list):
+        logger.warning(
+            "data-policies 结构异常（非 list/dict），已跳过: type=%s raw=%r",
+            type(policies).__name__,
+            raw[:200],
+        )
+        return []
+
+    pairs: list[tuple[str, str]] = []
+    for idx, item in enumerate(policies):
+        if not isinstance(item, dict):
+            logger.warning(
+                "data-policies[%d] 结构异常（非 dict），已跳过: type=%s raw=%r",
+                idx,
+                type(item).__name__,
+                str(item)[:200],
+            )
+            continue
+        policy_id = str(item.get('policyId', '') or '').strip()
+        if not policy_id:
+            logger.warning(
+                "data-policies[%d] 缺少 policyId，已跳过: item=%r",
+                idx,
+                str(item)[:200],
+            )
+            continue
+        clause_ids = item.get('clauseIds')
+        if isinstance(clause_ids, str):
+            clause_ids = [clause_ids]
+        if not clause_ids:
+            pairs.append((policy_id, ''))
+            continue
+        for cid in clause_ids:
+            pairs.append((policy_id, str(cid or '').strip()))
+    return pairs
+
+
 def extract_clause_references(html: str) -> list[dict]:
-    """从 clauseContent HTML 中抽取带有 data-policy-id 的 <span> 作为引用。
+    """从 clauseContent HTML 中抽取引用 <span>，兼容新旧两种属性格式。
 
     识别规则（与 class 无关，仅看 data-* 属性）：
       - 标签必须是 <span>
-      - 必须有 data-policy-id 且 strip 后非空
-      - data-clause-id 可缺失或为空串；空串语义保留为"引用整篇 policy"
-        （由 resolve_references → _expand_to_clause_nodes 处理）
+      - **旧格式**：扁平的 ``data-policy-id`` + 可选 ``data-clause-id``。
+        ``data-policy-id`` 必须 strip 后非空；``data-clause-id`` 缺失或空串语义保留为
+        "引用整篇 policy"（由 resolve_references → _expand_to_clause_nodes 处理）。
+      - **新格式**：``data-policies`` 为 JSON 数组，每项含 ``policyId`` 与 ``clauseIds``。
+        一个 span 可引用多个 policy、每个 policy 多个 clause，全部展开为扁平 ref。
+      - 同一 span 同时带两种属性时，优先按新格式 ``data-policies`` 解析。
 
     返回结构示例（每条 ref 含 5 个字段，resolvedClauses/cycle 由后续 resolve_references 填充）::
 
@@ -358,7 +425,7 @@ def extract_clause_references(html: str) -> list[dict]:
             ...
         ]
 
-    - 没有 data-policy-id（或为空）的 span 直接跳过，不打 warning（普通 span 太常见，避免噪音）。
+    - 没有任何引用属性（或为空）的 span 直接跳过，不打 warning（普通 span 太常见，避免噪音）。
     - 同一 span 多次出现保留多次，按文档出现顺序。
     """
     if not html or '<span' not in html:
@@ -367,14 +434,30 @@ def extract_clause_references(html: str) -> list[dict]:
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, 'html.parser')
-    spans = soup.find_all('span', attrs={'data-policy-id': True})
     refs: list[dict] = []
-    for span in spans:
+    for span in soup.find_all('span'):
+        has_policies = span.has_attr('data-policies')
+        has_policy_id = span.has_attr('data-policy-id')
+        if not has_policies and not has_policy_id:
+            continue
+
+        highlighted = span.get_text()
+
+        if has_policies:
+            for policy_id, clause_id in _parse_data_policies_attr(span.get('data-policies')):
+                refs.append({
+                    'policyId': policy_id,
+                    'clauseId': clause_id,
+                    'highlightedContent': highlighted,
+                    'resolvedClauses': [],
+                    'cycle': False,
+                })
+            continue
+
         policy_id = (span.get('data-policy-id') or '').strip()
         if not policy_id:
             continue
         clause_id = (span.get('data-clause-id') or '').strip()
-        highlighted = span.get_text()
         refs.append({
             'policyId': policy_id,
             'clauseId': clause_id,
