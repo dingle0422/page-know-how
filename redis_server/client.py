@@ -164,13 +164,20 @@ class RedisServerClient:
         # 哨兵节点（sentinel_kwargs）和数据节点（顶层 connection_kwargs）。
         common_kwargs: dict[str, Any] = {
             "password": self._password,
+            # 部分线上 Redis/Sentinel 版本不支持 RESP3（HELLO 3）。
+            # 显式固定 RESP2，避免握手阶段触发 "unknown command HELLO"。
+            "protocol": 2,
             "socket_connect_timeout": connect_timeout_seconds,
             "socket_keepalive": True,
         }
         self._sentinel = Sentinel(
             sentinel_hosts,
             socket_timeout=sentinel_socket_timeout,
-            sentinel_kwargs={"password": self._password},
+            sentinel_kwargs={
+                "password": self._password,
+                # Sentinel 节点连接同样固定 RESP2，避免 HELLO 3。
+                "protocol": 2,
+            },
             **common_kwargs,
         )
 
