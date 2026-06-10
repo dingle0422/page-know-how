@@ -21,7 +21,10 @@
 ------------------------------------------------
     REDIS_SENTINELS    : "host:port,host:port,..."（哨兵节点列表）
     REDIS_MASTER_NAME  : Sentinel 监控的 master 名
-    REDIS_PASSWORD     : 连接 Redis 与哨兵的密码
+    REDIS_PASSWORD     : 连接 Redis 数据节点的密码
+    REDIS_SENTINEL_PASSWORD : 连接 Sentinel 节点的密码（可选，默认不配=不对哨兵鉴权）
+    REDIS_USERNAME     : 连接 Redis 数据节点的 ACL 用户名（可选）
+    REDIS_SENTINEL_USERNAME : 连接 Sentinel 节点的 ACL 用户名（可选）
     REDIS_KEY_PREFIX   : 可选的全局 key 前缀（默认空，完全沿用旧 key 命名）
     REDIS_ALLOW_FLUSH  : 置 "1" 才允许 flushall 真正清库（防止误清共享集群）
 
@@ -126,6 +129,9 @@ class RedisServerClient:
         sentinels: Optional[str] = None,
         master_name: Optional[str] = None,
         password: Optional[str] = None,
+        sentinel_password: Optional[str] = None,
+        username: Optional[str] = None,
+        sentinel_username: Optional[str] = None,
         key_prefix: Optional[str] = None,
         sentinel_socket_timeout: float = 0.5,
     ) -> None:
@@ -152,6 +158,26 @@ class RedisServerClient:
         )
         if not self._password:
             raise ValueError("REDIS_PASSWORD 未配置，拒绝使用空密码连接 Redis Sentinel")
+        self._username = (
+            username
+            if username is not None
+            else os.environ.get("REDIS_USERNAME", "")
+        ).strip() or None
+        # Sentinel 鉴权策略（默认不鉴权）：
+        # - 多数 Sentinel 部署本身不开密码，因此默认**不向哨兵发送 AUTH**，
+        #   避免哨兵无密码时报 "Client sent AUTH but no password is set" / AuthenticationError；
+        # - 仅当显式传入 sentinel_password 或设置环境变量 REDIS_SENTINEL_PASSWORD 时，
+        #   才对哨兵做鉴权（值为空串同样视为不鉴权）。
+        if sentinel_password is not None:
+            sentinel_pwd_raw = sentinel_password
+        else:
+            sentinel_pwd_raw = os.environ.get("REDIS_SENTINEL_PASSWORD", "")
+        self._sentinel_password = (sentinel_pwd_raw or "").strip() or None
+        self._sentinel_username = (
+            sentinel_username
+            if sentinel_username is not None
+            else os.environ.get("REDIS_SENTINEL_USERNAME", "")
+        ).strip() or None
         self._prefix = (
             key_prefix
             if key_prefix is not None
@@ -170,14 +196,20 @@ class RedisServerClient:
             "socket_connect_timeout": connect_timeout_seconds,
             "socket_keepalive": True,
         }
+        if self._username:
+            common_kwargs["username"] = self._username
+        sentinel_kwargs: dict[str, Any] = {
+            # Sentinel 节点连接同样固定 RESP2，避免 HELLO 3。
+            "protocol": 2,
+        }
+        if self._sentinel_username:
+            sentinel_kwargs["username"] = self._sentinel_username
+        if self._sentinel_password:
+            sentinel_kwargs["password"] = self._sentinel_password
         self._sentinel = Sentinel(
             sentinel_hosts,
             socket_timeout=sentinel_socket_timeout,
-            sentinel_kwargs={
-                "password": self._password,
-                # Sentinel 节点连接同样固定 RESP2，避免 HELLO 3。
-                "protocol": 2,
-            },
+            sentinel_kwargs=sentinel_kwargs,
             **common_kwargs,
         )
 
@@ -276,6 +308,13 @@ class RedisServerClient:
                 await asyncio.sleep(0.05 * (attempt + 1))
             except redis_exceptions.RedisError as e:
                 # 非瞬时的 Redis 错误（命令语义错误等）：直接包装上抛，不重试。
+                if "No master found for" in str(e):
+                    logger.error(
+                        "[RedisServerClient] %s 失败：无法从 Sentinel 发现 master=%s。"
+                        "请检查 REDIS_MASTER_NAME 是否正确，及 Sentinel 鉴权（REDIS_SENTINEL_PASSWORD/USERNAME）是否匹配。",
+                        op_name,
+                        self._master_name,
+                    )
                 raise RedisServerError(f"{op_name} 失败: {e}") from e
         raise RedisServerError(f"{op_name} 失败（已重试 {attempts - 1} 次）: {last_err}")
 
@@ -367,7 +406,11 @@ class RedisServerClient:
         否则 worker 把池子占满后 set/get/rpush 等接口会全部超时。
         """
         # Redis BLPOP: timeout=0 表示无限阻塞，正好对应旧语义 timeout<=0。
-        block = float(timeout_seconds) if timeout_seconds and timeout_seconds > 0 else 0
+        # 部分 Redis 版本只接受**整数**秒超时（传 float 会报
+        # "timeout is not an integer or out of range"），这里统一取整为 int。
+        # 正超时至少取 1s，避免 0<raw<1 被取整成 0 而变成永久阻塞。
+        raw_timeout = float(timeout_seconds) if timeout_seconds and timeout_seconds > 0 else 0.0
+        block = max(1, int(round(raw_timeout))) if raw_timeout > 0 else 0
 
         result = await self._run(
             f"blpop {queue}",
