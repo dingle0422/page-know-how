@@ -6,5 +6,6 @@ markdownify
 fastapi
 uvicorn
 httpx
+redis>=5.0
 jieba
 json5

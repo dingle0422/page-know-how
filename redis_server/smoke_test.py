@@ -1,6 +1,7 @@
-"""redis_server 冒烟测试。
+"""redis_server 冒烟测试（直连 Redis Sentinel 集群版）。
 
-依赖服务已在 127.0.0.1:6390 启动。运行：
+连接信息走 ``RedisServerClient`` 的默认集群配置 / 环境变量（REDIS_SENTINELS、
+REDIS_MASTER_NAME、REDIS_PASSWORD）。需在能访问该集群的网络环境内运行：
     python -m redis_server.smoke_test
 """
 
@@ -13,7 +14,7 @@ from redis_server.client import RedisServerClient
 
 
 async def main() -> None:
-    async with RedisServerClient("http://127.0.0.1:6390") as cli:
+    async with RedisServerClient() as cli:
         print("--- health ---")
         print(await cli.health())
 

@@ -69,15 +69,13 @@ REASON_SYNC_POLL_INTERVAL = float(os.environ.get("REASON_SYNC_POLL_INTERVAL", "0
 # !!! 必须小于调用 redis_server 链路上最短的网关 proxy_read_timeout，
 # 否则网关会先一步返回 504 Gateway Timeout。常见 Nginx/Ingress 默认 30~60s，
 # 这里默认取 10s 留足余量；如果你的网关更激进，自行调小（但不要低于 2s）。
-REASON_BLPOP_TIMEOUT_SECONDS = float(os.environ.get("REASON_BLPOP_TIMEOUT_SECONDS", "10"))
+REASON_BLPOP_TIMEOUT_SECONDS = float(os.environ.get("REASON_BLPOP_TIMEOUT_SECONDS", "5"))
 # 单条 executor 的硬超时（秒）。到点 asyncio.wait_for 会把 worker 协程打断、槽位释放,
 # 对应 task 被标为 failed(error="executor timeout after Xs")。
 # 默认 2h；如业务 P99 接近该值，改大即可；设为 0 / 负数 = 不套超时（回退老行为）。
 # 注意：executor 里 asyncio.to_thread 跑的同步代码不可取消，底层线程要靠下游
 # httpx/LLM client 自身的 read timeout 防泄漏。
 REASON_EXECUTOR_TIMEOUT_SECONDS = float(os.environ.get("REASON_EXECUTOR_TIMEOUT_SECONDS", str(2 * 3600)))
-REDIS_SERVER_URL = os.environ.get("REDIS_SERVER_URL", "http://mlp.paas.dc.servyou-it.com/redis-server")
-REDIS_SERVER_AUTH_TOKEN = os.environ.get("REDIS_SERVER_AUTH_TOKEN", "")
 
 # 本服务进程的实例 ID。每次启动生成一次（uuid），写入每条 running 任务的 instance_id,
 # 仅用于运行时手动清理接口（/api/reason/cleanupStaleRunning 等）区分来源；
@@ -120,7 +118,7 @@ def _require_redis() -> RedisServerClient:
 async def lifespan(_app: FastAPI):
     global _redis_client, _worker_pool, INSTANCE_ID
     INSTANCE_ID = str(uuid.uuid4())
-    logger.info(f"[lifespan] 启动，REDIS_SERVER_URL={REDIS_SERVER_URL} INSTANCE_ID={INSTANCE_ID}")
+    logger.info(f"[lifespan] 启动，INSTANCE_ID={INSTANCE_ID}")
     # 连接池容量直接决定单实例能扛多少路并发推理。/api/inference/stream 每路至少有：
     #   - SSE relay：每 SSE_TICK_MS 一次 GET
     #   - ReAct 流式 writer_loop：每个 delta = 一次 get + 一次 set
@@ -128,8 +126,6 @@ async def lifespan(_app: FastAPI):
     # 这里把短池放大到 256、pool_timeout 放宽到 10s，给排队留出余地；
     # max_keepalive_connections 同步放大，避免高并发下反复重建连接。
     _redis_client = RedisServerClient(
-        REDIS_SERVER_URL,
-        auth_token=REDIS_SERVER_AUTH_TOKEN,
         timeout_seconds=15.0,
         pool_timeout_seconds=10.0,
         max_connections=256,
