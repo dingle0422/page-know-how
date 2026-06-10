@@ -60,7 +60,7 @@ _DEFAULT_SENTINELS = (
     "10.64.2.99:7567"
 )
 _DEFAULT_MASTER_NAME = "g-alg-solution-sen-6464"
-_DEFAULT_PASSWORD = ""
+_DEFAULT_PASSWORD = "0d18966e5876fb3155ddfa5c0a7a25be"
 
 
 def _parse_sentinels(raw: str) -> list[tuple[str, int]]:
