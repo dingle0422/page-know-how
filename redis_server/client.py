@@ -64,6 +64,7 @@ _DEFAULT_SENTINELS = (
 )
 _DEFAULT_MASTER_NAME = "g-alg-solution-sen-6464"
 _DEFAULT_PASSWORD = "0d18966e5876fb3155ddfa5c0a7a25be"
+TARGET_DB = 0
 
 
 def _parse_sentinels(raw: str) -> list[tuple[str, int]]:
@@ -218,6 +219,7 @@ class RedisServerClient:
         self._client = self._sentinel.master_for(
             self._master_name,
             redis_class=aioredis.Redis,
+            db=TARGET_DB,
             decode_responses=True,
             socket_timeout=timeout_seconds,
             max_connections=max_connections,
